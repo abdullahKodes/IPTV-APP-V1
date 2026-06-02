@@ -70,10 +70,6 @@ function uiLabel(parent as Object, text as String, x as Integer, y as Integer, w
     end if
     node.text = text
     node.color = color
-    font = CreateObject("roSGNode", "Font")
-    font.uri = "font:MediumSystemFont"
-    font.size = size
-    node.font = font
     node.horizAlign = align
     node.vertAlign = "center"
     parent.appendChild(node)
@@ -105,7 +101,6 @@ function uiButton(parent as Object, item as Object, focused as Boolean) as Objec
     g.translation = [item.x, item.y]
     if focused then
         g.translation = [item.x - 3, item.y - 3]
-        g.scale = [1.025, 1.025]
     end if
     parent.appendChild(g)
 
