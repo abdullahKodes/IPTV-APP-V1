@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <component name="HomePage" extends="Group">
+  <children>
+    <!-- Home renders top bar, side navigation, quick-access tiles, and connection status. -->
+    <Group id="homeCanvas" />
+  </children>
   <interface>
     <field id="navigateTo" type="string" alwaysNotify="true" />
     <function name="handleKey" />

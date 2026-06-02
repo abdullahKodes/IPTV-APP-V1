@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <component name="MyPlaylistsPage" extends="Group">
+  <children>
+    <!-- My Playlists renders playlist summary, search/add actions, and six playlist cards. -->
+    <Group id="myPlaylistsCanvas" />
+  </children>
   <interface>
     <field id="navigateTo" type="string" alwaysNotify="true" />
     <function name="handleKey" />

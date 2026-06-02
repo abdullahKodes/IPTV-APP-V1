@@ -1,5 +1,6 @@
 sub init()
     m.colors = appColors()
+    m.canvas = m.top.findNode("settingsCanvas")
     m.focusItems = []
     m.focusIndex = 1
     m.autoplay = true
@@ -41,23 +42,23 @@ sub activate()
 end sub
 
 sub render()
-    uiClear(m.top)
+    uiClear(m.canvas)
     m.focusItems = []
-    uiRect(m.top, 0, 0, 1280, 720, m.colors.bg)
-    uiRect(m.top, 0, 0, 1280, 72, m.colors.bg)
-    uiRect(m.top, 0, 71, 1280, 1, "0xFFFFFF14")
-    uiRect(m.top, 28, 18, 38, 38, m.colors.purple)
-    uiLabel(m.top, "PLAY", 30, 18, 34, 38, 11, m.colors.text, "center")
-    uiLabel(m.top, "IPTV", 78, 15, 78, 38, 24, m.colors.textPurple)
-    uiLabel(m.top, "Max", 142, 15, 70, 38, 24, m.colors.textGreen)
+    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg)
+    uiRect(m.canvas, 0, 0, 1280, 72, m.colors.bg)
+    uiRect(m.canvas, 0, 71, 1280, 1, "0xFFFFFF14")
+    uiRect(m.canvas, 28, 18, 38, 38, m.colors.purple)
+    uiLabel(m.canvas, "PLAY", 30, 18, 34, 38, 11, m.colors.text, "center")
+    uiLabel(m.canvas, "IPTV", 78, 15, 78, 38, 24, m.colors.textPurple)
+    uiLabel(m.canvas, "Max", 142, 15, 70, 38, 24, m.colors.textGreen)
     addBackButton()
 
-    uiRect(m.top, 390, 112, 500, 74, m.colors.purpleSoft)
-    uiRect(m.top, 418, 128, 46, 46, m.colors.purple)
-    uiLabel(m.top, "JD", 418, 128, 46, 46, 17, m.colors.text, "center")
-    uiLabel(m.top, "John Doe", 486, 120, 180, 30, 17, m.colors.textPurple)
-    uiLabel(m.top, "john.doe@email.com", 486, 148, 220, 26, 13, m.colors.purpleLine)
-    uiLabel(m.top, "Premium", 772, 136, 86, 24, 12, m.colors.textGreen, "center")
+    uiRect(m.canvas, 390, 112, 500, 74, m.colors.purpleSoft)
+    uiRect(m.canvas, 418, 128, 46, 46, m.colors.purple)
+    uiLabel(m.canvas, "JD", 418, 128, 46, 46, 17, m.colors.text, "center")
+    uiLabel(m.canvas, "John Doe", 486, 120, 180, 30, 17, m.colors.textPurple)
+    uiLabel(m.canvas, "john.doe@email.com", 486, 148, 220, 26, 13, m.colors.purpleLine)
+    uiLabel(m.canvas, "Premium", 772, 136, 86, 24, 12, m.colors.textGreen, "center")
 
     drawSection(390, 208, "Playback", [
         { title: "Default quality", sub: "Stream resolution", value: "Auto", action: "" },
@@ -72,7 +73,7 @@ sub render()
     ], 5)
 
     drawAccount()
-    uiApplyFocus(m.top, m.focusItems, m.focusIndex)
+    uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
 end sub
 
 sub addBackButton()
@@ -81,13 +82,13 @@ sub addBackButton()
 end sub
 
 sub drawSection(x as Integer, y as Integer, title as String, rows as Object, startRow as Integer)
-    uiRect(m.top, x, y, 500, 158, "0xFFFFFF10")
-    uiLabel(m.top, title, x + 20, y + 10, 200, 24, 13, m.colors.textDim)
+    uiRect(m.canvas, x, y, 500, 158, "0xFFFFFF10")
+    uiLabel(m.canvas, title, x + 20, y + 10, 200, 24, 13, m.colors.textDim)
     for i = 0 to rows.count() - 1
         r = rows[i]
         yy = y + 42 + i * 42
-        uiLabel(m.top, r.title, x + 20, yy, 230, 24, 15, m.colors.textPurple)
-        if r.sub <> "" then uiLabel(m.top, r.sub, x + 20, yy + 20, 250, 20, 11, m.colors.textDim)
+        uiLabel(m.canvas, r.title, x + 20, yy, 230, 24, 15, m.colors.textPurple)
+        if r.sub <> "" then uiLabel(m.canvas, r.sub, x + 20, yy + 20, 250, 20, 11, m.colors.textDim)
         addSettingAction(x + 350, yy, r.value, startRow + i, r.action)
     end for
 end sub
@@ -98,8 +99,8 @@ sub addSettingAction(x as Integer, y as Integer, label as String, row as Integer
 end sub
 
 sub drawAccount()
-    uiRect(m.top, 920, 208, 250, 238, "0xFFFFFF10")
-    uiLabel(m.top, "Account", 940, 220, 180, 24, 13, m.colors.textDim)
+    uiRect(m.canvas, 920, 208, 250, 238, "0xFFFFFF10")
+    uiLabel(m.canvas, "Account", 940, 220, 180, 24, 13, m.colors.textDim)
     drawAccountRow(940, 260, "SYNC", "Sync all playlists", "", 8, "")
     drawAccountRow(940, 322, "INFO", "App version", m.versionStatus, 9, "version")
     drawAccountRow(940, 384, "OUT", "Sign out", "", 10, "")

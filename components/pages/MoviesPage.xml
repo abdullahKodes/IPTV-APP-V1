@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <component name="MoviesPage" extends="Group">
+  <children>
+    <!-- Movies renders genre filters, featured movie panel, ratings, and movie grid. -->
+    <Group id="moviesCanvas" />
+  </children>
   <interface>
     <field id="navigateTo" type="string" alwaysNotify="true" />
     <function name="handleKey" />

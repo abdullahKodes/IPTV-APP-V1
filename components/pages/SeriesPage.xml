@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <component name="SeriesPage" extends="Group">
+  <children>
+    <!-- Series renders genre filters, continue-watching cards, and popular series grid. -->
+    <Group id="seriesCanvas" />
+  </children>
   <interface>
     <field id="navigateTo" type="string" alwaysNotify="true" />
     <function name="handleKey" />

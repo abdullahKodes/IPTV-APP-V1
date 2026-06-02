@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <component name="SettingsPage" extends="Group">
+  <children>
+    <!-- Settings renders profile, playback preferences, app preferences, and account actions. -->
+    <Group id="settingsCanvas" />
+  </children>
   <interface>
     <field id="navigateTo" type="string" alwaysNotify="true" />
     <function name="handleKey" />

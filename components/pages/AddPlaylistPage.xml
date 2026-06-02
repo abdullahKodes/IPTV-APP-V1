@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <component name="AddPlaylistPage" extends="Group">
+  <children>
+    <!-- Add Playlist renders M3U/Xtreme fields, submit action, QR panel, and import tip. -->
+    <Group id="addPlaylistCanvas" />
+  </children>
   <interface>
     <field id="navigateTo" type="string" alwaysNotify="true" />
     <function name="handleKey" />

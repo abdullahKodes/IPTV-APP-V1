@@ -1,5 +1,6 @@
 sub init()
     m.colors = appColors()
+    m.canvas = m.top.findNode("addPlaylistCanvas")
     m.mode = "m3u"
     m.added = false
     m.focusItems = []
@@ -37,16 +38,16 @@ sub activate()
 end sub
 
 sub render()
-    uiClear(m.top)
+    uiClear(m.canvas)
     m.focusItems = []
-    uiRect(m.top, 0, 0, 1280, 720, m.colors.bg)
-    clockParts = uiTopBar(m.top, m.colors)
+    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg)
+    clockParts = uiTopBar(m.canvas, m.colors)
     m.clock = clockParts.clock
     m.date = clockParts.date
     refreshClock()
-    row = uiSideNav(m.top, m.colors, "playlists", m.focusItems, 0)
+    row = uiSideNav(m.canvas, m.colors, "playlists", m.focusItems, 0)
 
-    uiLabel(m.top, "Add New Playlist", 250, 104, 300, 30, 16, m.colors.textDim)
+    uiLabel(m.canvas, "Add New Playlist", 250, 104, 300, 30, 16, m.colors.textDim)
     addSmallButton(418, 150, 205, 48, "M3U", "M3U Playlist", row, 1, "m3u")
     addSmallButton(650, 150, 230, 48, "X", "Xtreme Account", row, 2, "xtreme")
 
@@ -65,30 +66,30 @@ sub render()
     end if
 
     drawQrPanel()
-    uiApplyFocus(m.top, m.focusItems, m.focusIndex)
+    uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
 end sub
 
 sub drawField(x as Integer, y as Integer, label as String, value as String, accent as String)
-    uiLabel(m.top, label, x, y, 360, 24, 14, accent)
-    uiRect(m.top, x, y + 32, 520, 52, "0xFFFFFF10")
-    uiRect(m.top, x + 2, y + 34, 516, 48, m.colors.panel)
-    uiLabel(m.top, value, x + 18, y + 42, 480, 34, 16, m.colors.textMuted)
+    uiLabel(m.canvas, label, x, y, 360, 24, 14, accent)
+    uiRect(m.canvas, x, y + 32, 520, 52, "0xFFFFFF10")
+    uiRect(m.canvas, x + 2, y + 34, 516, 48, m.colors.panel)
+    uiLabel(m.canvas, value, x + 18, y + 42, 480, 34, 16, m.colors.textMuted)
 end sub
 
 sub drawQrPanel()
-    uiRect(m.top, 910, 190, 210, 320, "0xFFFFFF10")
-    uiLabel(m.top, "Scan to add", 930, 212, 170, 26, 14, m.colors.purpleLine, "center")
-    uiRect(m.top, 962, 258, 104, 104, m.colors.text)
-    uiRect(m.top, 976, 272, 24, 24, m.colors.bg)
-    uiRect(m.top, 1028, 272, 24, 24, m.colors.bg)
-    uiRect(m.top, 976, 324, 24, 24, m.colors.bg)
+    uiRect(m.canvas, 910, 190, 210, 320, "0xFFFFFF10")
+    uiLabel(m.canvas, "Scan to add", 930, 212, 170, 26, 14, m.colors.purpleLine, "center")
+    uiRect(m.canvas, 962, 258, 104, 104, m.colors.text)
+    uiRect(m.canvas, 976, 272, 24, 24, m.colors.bg)
+    uiRect(m.canvas, 1028, 272, 24, 24, m.colors.bg)
+    uiRect(m.canvas, 976, 324, 24, 24, m.colors.bg)
     for i = 0 to 9
-        uiRect(m.top, 982 + ((i * 19) mod 74), 304 + ((i * 13) mod 52), 8, 8, m.colors.purple)
+        uiRect(m.canvas, 982 + ((i * 19) mod 74), 304 + ((i * 13) mod 52), 8, 8, m.colors.purple)
     end for
-    uiLabel(m.top, "Point your phone camera to scan and import playlist", 928, 384, 174, 58, 13, m.colors.textMuted, "center")
-    uiRect(m.top, 910, 530, 210, 86, m.colors.greenSoft)
-    uiLabel(m.top, "Tip", 928, 540, 170, 22, 14, m.colors.textGreen)
-    uiLabel(m.top, "Use the IPTV Max mobile app to push playlists directly to your TV.", 928, 564, 174, 44, 12, m.colors.textMuted)
+    uiLabel(m.canvas, "Point your phone camera to scan and import playlist", 928, 384, 174, 58, 13, m.colors.textMuted, "center")
+    uiRect(m.canvas, 910, 530, 210, 86, m.colors.greenSoft)
+    uiLabel(m.canvas, "Tip", 928, 540, 170, 22, 14, m.colors.textGreen)
+    uiLabel(m.canvas, "Use the IPTV Max mobile app to push playlists directly to your TV.", 928, 564, 174, 44, 12, m.colors.textMuted)
 end sub
 
 sub addSmallButton(x as Integer, y as Integer, w as Integer, h as Integer, icon as String, label as String, row as Integer, col as Integer, action as String)

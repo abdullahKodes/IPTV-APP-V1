@@ -1,5 +1,6 @@
 sub init()
     m.colors = appColors()
+    m.canvas = m.top.findNode("homeCanvas")
     m.focusItems = []
     m.focusIndex = 5
     render()
@@ -35,25 +36,25 @@ sub activate()
 end sub
 
 sub render()
-    uiClear(m.top)
+    uiClear(m.canvas)
     m.focusItems = []
-    uiRect(m.top, 0, 0, 1280, 720, m.colors.bg)
-    uiRect(m.top, 0, 72, 1280, 648, m.colors.bg2)
-    clockParts = uiTopBar(m.top, m.colors)
+    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg)
+    uiRect(m.canvas, 0, 72, 1280, 648, m.colors.bg2)
+    clockParts = uiTopBar(m.canvas, m.colors)
     m.clock = clockParts.clock
     m.date = clockParts.date
     refreshClock()
 
-    nextRow = uiSideNav(m.top, m.colors, "playlists", m.focusItems, 0)
+    nextRow = uiSideNav(m.canvas, m.colors, "playlists", m.focusItems, 0)
 
-    uiLabel(m.top, "Quick Access", 520, 125, 260, 32, 18, m.colors.textDim, "center")
+    uiLabel(m.canvas, "Quick Access", 520, 125, 260, 32, 18, m.colors.textDim, "center")
     addTile(408, 182, 260, 142, "ADD", "Add Playlist", "Import M3U / URL", m.colors.purpleSoft, m.colors.purpleLine, m.colors.textPurple, nextRow, 1, "AddPlaylistPage")
     addTile(700, 182, 260, 142, "TV", "Live TV", "Watch channels live", m.colors.greenSoft, m.colors.green, m.colors.textGreen, nextRow, 2, "LiveTvPage")
     addTile(408, 350, 260, 142, "S", "Series", "TV shows and episodes", m.colors.purpleSoft, m.colors.purpleLine, m.colors.textPurple, nextRow + 1, 1, "SeriesPage")
     addTile(700, 350, 260, 142, "M", "Movies", "Browse and stream films", m.colors.greenSoft, m.colors.green, m.colors.textGreen, nextRow + 1, 2, "MoviesPage")
 
-    uiRect(m.top, 500, 548, 8, 8, m.colors.green)
-    uiLabel(m.top, "Connected - 3 playlists loaded - 4,280 channels", 518, 532, 460, 40, 14, "0x444441FF")
+    uiRect(m.canvas, 500, 548, 8, 8, m.colors.green)
+    uiLabel(m.canvas, "Connected - 3 playlists loaded - 4,280 channels", 518, 532, 460, 40, 14, "0x444441FF")
     drawFocus()
 end sub
 
@@ -70,5 +71,5 @@ sub addTile(x as Integer, y as Integer, w as Integer, h as Integer, icon as Stri
 end sub
 
 sub drawFocus()
-    uiApplyFocus(m.top, m.focusItems, m.focusIndex)
+    uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
 end sub

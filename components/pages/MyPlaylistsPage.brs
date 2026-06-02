@@ -1,5 +1,6 @@
 sub init()
     m.colors = appColors()
+    m.canvas = m.top.findNode("myPlaylistsCanvas")
     m.focusItems = []
     m.focusIndex = 5
     m.playlists = [
@@ -41,17 +42,17 @@ sub activate()
 end sub
 
 sub render()
-    uiClear(m.top)
+    uiClear(m.canvas)
     m.focusItems = []
-    uiRect(m.top, 0, 0, 1280, 720, m.colors.bg)
-    clockParts = uiTopBar(m.top, m.colors)
+    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg)
+    clockParts = uiTopBar(m.canvas, m.colors)
     m.clock = clockParts.clock
     m.date = clockParts.date
     refreshClock()
-    row = uiSideNav(m.top, m.colors, "playlists", m.focusItems, 0)
+    row = uiSideNav(m.canvas, m.colors, "playlists", m.focusItems, 0)
 
-    uiLabel(m.top, "My Playlists", 230, 104, 300, 30, 16, m.colors.textDim)
-    uiLabel(m.top, "6 playlists - 12,450 channels total", 230, 132, 360, 26, 15, m.colors.purpleLine)
+    uiLabel(m.canvas, "My Playlists", 230, 104, 300, 30, 16, m.colors.textDim)
+    uiLabel(m.canvas, "6 playlists - 12,450 channels total", 230, 132, 360, 26, 15, m.colors.purpleLine)
     addTopAction(980, 104, "PLUS", "Add Playlist", row, 3, "AddPlaylistPage")
     addTopAction(980, 158, "SEARCH", "Search", row + 1, 3, "")
 
@@ -66,9 +67,17 @@ sub render()
         drawPlaylistCard(p, x0 + col * 330, y0 + r * 162, cardW, cardH, row + 2 + r, col + 1)
     end for
 
-    uiRect(m.top, 230, 650, 7, 7, m.colors.green)
-    uiLabel(m.top, "5 active - 1 offline - last sync 2 hours ago", 248, 636, 420, 38, 13, "0x444441FF")
-    uiApplyFocus(m.top, m.focusItems, m.focusIndex)
+    uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
+
+    for i = 0 to m.playlists.count() - 1
+        p = m.playlists[i]
+        col = i mod 3
+        r = Int(i / 3)
+        drawPlaylistDetails(p, x0 + col * 330, y0 + r * 162, cardW)
+    end for
+
+    uiRect(m.canvas, 230, 650, 7, 7, m.colors.green)
+    uiLabel(m.canvas, "5 active - 1 offline - last sync 2 hours ago", 248, 636, 420, 38, 13, "0x444441FF")
 end sub
 
 sub addTopAction(x as Integer, y as Integer, icon as String, label as String, row as Integer, col as Integer, page as String)
@@ -77,17 +86,16 @@ sub addTopAction(x as Integer, y as Integer, icon as String, label as String, ro
 end sub
 
 sub drawPlaylistCard(p as Object, x as Integer, y as Integer, w as Integer, h as Integer, row as Integer, col as Integer)
-    iconBg = m.colors.purpleSoft
-    iconColor = m.colors.textPurple
-    if p.accent = "green" then iconBg = m.colors.greenSoft : iconColor = m.colors.textGreen
-
     item = { x: x, y: y, w: w, h: h, icon: p.icon, label: p.title, subtitle: p.meta, iconSize: 13, titleSize: 16, subSize: 12, bg: m.colors.purpleSoft, border: m.colors.purpleLine, textColor: m.colors.textPurple, subColor: m.colors.purpleLine, focusBg: m.colors.purpleFocus, focusBorder: m.colors.text, focusTextColor: m.colors.text, row: row, col: col, page: "LiveTvPage", action: "" }
     m.focusItems.push(item)
-    uiRect(m.top, x + 18, y + 78, w - 36, 1, "0x7F77DD44")
-    uiLabel(m.top, p.status, x + 190, y + 17, 86, 24, 12, statusColor(p.status), "center")
-    uiLabel(m.top, p.time, x + 18, y + 94, 150, 28, 12, m.colors.textDim)
-    uiLabel(m.top, "REF", x + 210, y + 94, 45, 28, 12, m.colors.purpleLine)
-    uiLabel(m.top, "DEL", x + 254, y + 94, 45, 28, 12, "0x993C1DFF")
+end sub
+
+sub drawPlaylistDetails(p as Object, x as Integer, y as Integer, w as Integer)
+    uiRect(m.canvas, x + 18, y + 78, w - 36, 1, "0x7F77DD44")
+    uiLabel(m.canvas, p.status, x + 190, y + 17, 86, 24, 12, statusColor(p.status), "center")
+    uiLabel(m.canvas, p.time, x + 18, y + 94, 150, 28, 12, m.colors.textDim)
+    uiLabel(m.canvas, "REF", x + 210, y + 94, 45, 28, 12, m.colors.purpleLine)
+    uiLabel(m.canvas, "DEL", x + 254, y + 94, 45, 28, 12, "0x993C1DFF")
 end sub
 
 function statusColor(status as String) as String
