@@ -122,13 +122,44 @@ function uiLabel(parent as Object, text as String, x as Integer, y as Integer, w
     end if
     node.text = text
     node.color = color
-    font = CreateObject("roSGNode", "Font")
-    font.size = size
-    node.font = font
     node.horizAlign = align
     node.vertAlign = "center"
     parent.appendChild(node)
     return node
+end function
+
+function uiIconUri(icon as String, focused as Boolean) as String
+    key = LCase(icon)
+    if focused then
+        return "pkg:/images/icons/" + key + "_focus.png"
+    end if
+    return "pkg:/images/icons/" + key + ".png"
+end function
+
+function uiKnownIcon(icon as String) as Boolean
+    known = {
+        list: true, tv: true, series: true, movies: true, settings: true,
+        add: true, play: true, search: true, back: true, sync: true, info: true,
+        out: true, plus: true, link: true, m3u: true, x: true, profile: true,
+        world: true, note: true, kids: true, sport: true, news: true
+    }
+    return known.doesExist(LCase(icon))
+end function
+
+function uiDrawIcon(parent as Object, icon as String, x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean, fallbackColor as String, fallbackSize as Integer) as Boolean
+    if icon = invalid or icon = "" then return false
+    normalized = icon
+    if icon = "S" then normalized = "series"
+    if icon = "M" then normalized = "movies"
+    if icon = "GEAR" then normalized = "settings"
+    if icon = "BALL" or icon = "SP" or icon = "BN" or icon = "FOOT" then normalized = "sport"
+    if icon = "NEWS" or icon = "NW" or icon = "CNN" then normalized = "news"
+    if uiKnownIcon(normalized) then
+        uiPoster(parent, uiIconUri(normalized, focused), x, y, w, h)
+        return true
+    end if
+    uiLabel(parent, icon, x, y, w, h, fallbackSize, fallbackColor, "center")
+    return true
 end function
 
 sub uiBadge(parent as Object, x as Integer, y as Integer, w as Integer, label as String, bg as String, fg as String)
@@ -186,7 +217,7 @@ function uiButton(parent as Object, item as Object, focused as Boolean) as Objec
 
     if mode = "tile" then
         uiRoundRect(g, Int((item.w - 54) / 2), 20, 54, 54, border, border, 0.85)
-        uiLabel(g, item.icon, Int((item.w - 54) / 2), 20, 54, 54, item.iconSize, textColor, "center")
+        uiDrawIcon(g, item.icon, Int((item.w - 32) / 2), 31, 32, 32, focused, textColor, item.iconSize)
         uiLabel(g, item.label, 20, 82, item.w - 40, 30, item.titleSize, textColor, "center")
         if item.subtitle <> invalid and item.subtitle <> "" then
             uiLabel(g, item.subtitle, 20, 112, item.w - 40, 24, item.subSize, item.subColor, "center")
@@ -200,7 +231,7 @@ function uiButton(parent as Object, item as Object, focused as Boolean) as Objec
             labelW = item.w
             labelAlign = "center"
         else
-            uiLabel(g, item.icon, 12, 0, 44, item.h, item.iconSize, textColor, "center")
+            uiDrawIcon(g, item.icon, 22, Int((item.h - 24) / 2), 24, 24, focused, textColor, item.iconSize)
         end if
 
         titleY = 4
@@ -217,7 +248,7 @@ function uiTopBar(parent as Object, colors as Object) as Object
     uiRect(parent, 0, 0, 1280, 72, colors.bg)
     uiRect(parent, 0, 71, 1280, 1, "0xFFFFFF14")
     uiRoundRect(parent, 28, 16, 42, 42, colors.purple, colors.green)
-    uiLabel(parent, "IP", 29, 17, 42, 42, 17, colors.text, "center")
+    uiDrawIcon(parent, "tv", 39, 26, 22, 22, true, colors.text, 17)
     uiLabel(parent, "IPTV", 82, 13, 78, 40, 25, colors.textPurple)
     uiLabel(parent, "Max", 146, 13, 70, 40, 25, colors.textGreen)
     uiRect(parent, 1128, 23, 9, 9, colors.red)
@@ -255,7 +286,7 @@ function uiSideNav(parent as Object, colors as Object, activeKey as String, focu
 
     uiRoundRect(parent, 16, 630, 204, 60, "0xFFFFFF10", "0xFFFFFF10")
     uiRoundRect(parent, 26, 643, 34, 34, colors.purple, colors.purple)
-    uiLabel(parent, "JD", 26, 643, 34, 34, 13, colors.text, "center")
+    uiDrawIcon(parent, "profile", 33, 650, 20, 20, true, colors.text, 13)
     uiLabel(parent, "My Profile", 70, 636, 126, 24, 14, colors.textPurple)
     uiLabel(parent, "Premium", 70, 660, 106, 20, 12, colors.textDim)
     return row
