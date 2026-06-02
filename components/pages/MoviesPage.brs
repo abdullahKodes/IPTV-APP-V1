@@ -65,7 +65,7 @@ sub drawPills(items as Object, row as Integer)
 end sub
 
 sub drawFeatured(row as Integer)
-    item = { x: 230, y: 178, w: 770, h: 168, icon: "PLAY", label: "Interstellar", subtitle: "2014 - 2h 49m - Sci-Fi - Adventure - IMDb 8.7", iconSize: 18, titleSize: 20, subSize: 13, bg: m.colors.purpleSoft, border: m.colors.purpleLine, textColor: m.colors.text, subColor: m.colors.textMuted, focusBg: m.colors.purpleFocus, focusBorder: m.colors.text, focusTextColor: m.colors.text, row: row, col: 1, page: "", action: "watch" }
+    item = { x: 230, y: 178, w: 770, h: 168, icon: "PLAY", label: "Interstellar", subtitle: "2014 - 2h 49m - Sci-Fi - Adventure - IMDb 8.7", iconSize: 18, titleSize: 20, subSize: 13, bg: m.colors.purpleSoft, border: m.colors.purpleLine, textColor: m.colors.text, subColor: m.colors.textMuted, focusBg: m.colors.purpleFocus, focusBorder: m.colors.text, focusTextColor: m.colors.text, row: row, col: 1, page: "", action: "watch", mode: "row" }
     m.focusItems.push(item)
 end sub
 

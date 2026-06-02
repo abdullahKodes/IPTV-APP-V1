@@ -86,7 +86,11 @@ sub addTopAction(x as Integer, y as Integer, icon as String, label as String, ro
 end sub
 
 sub drawPlaylistCard(p as Object, x as Integer, y as Integer, w as Integer, h as Integer, row as Integer, col as Integer)
-    item = { x: x, y: y, w: w, h: h, icon: p.icon, label: p.title, subtitle: p.meta, iconSize: 13, titleSize: 16, subSize: 12, bg: m.colors.purpleSoft, border: m.colors.purpleLine, textColor: m.colors.textPurple, subColor: m.colors.purpleLine, focusBg: m.colors.purpleFocus, focusBorder: m.colors.text, focusTextColor: m.colors.text, row: row, col: col, page: "LiveTvPage", action: "" }
+    cardBg = m.colors.purpleSoft
+    cardBorder = m.colors.purpleLine
+    cardText = m.colors.textPurple
+    if p.accent = "green" then cardBg = m.colors.greenSoft : cardBorder = m.colors.green : cardText = m.colors.textGreen
+    item = { x: x, y: y, w: w, h: h, icon: p.icon, label: p.title, subtitle: p.meta, iconSize: 13, titleSize: 16, subSize: 12, bg: cardBg, border: cardBorder, textColor: cardText, subColor: m.colors.textMuted, focusBg: m.colors.purpleFocus, focusBorder: m.colors.text, focusTextColor: m.colors.text, row: row, col: col, page: "LiveTvPage", action: "", mode: "row" }
     m.focusItems.push(item)
 end sub
 

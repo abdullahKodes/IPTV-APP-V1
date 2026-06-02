@@ -69,7 +69,7 @@ sub drawPills(items as Object, row as Integer)
 end sub
 
 sub drawContinueCard(x as Integer, y as Integer, w as Integer, title as String, meta as String, progress as Integer, row as Integer, col as Integer)
-    item = { x: x, y: y, w: w, h: 112, icon: "PLAY", label: title, subtitle: meta, iconSize: 14, titleSize: 17, subSize: 13, bg: m.colors.purpleSoft, border: m.colors.purpleLine, textColor: m.colors.textPurple, subColor: m.colors.textMuted, focusBg: m.colors.purpleFocus, focusBorder: m.colors.text, focusTextColor: m.colors.text, row: row, col: col, page: "", action: "play" }
+    item = { x: x, y: y, w: w, h: 112, icon: "PLAY", label: title, subtitle: meta, iconSize: 14, titleSize: 17, subSize: 13, bg: m.colors.purpleSoft, border: m.colors.purpleLine, textColor: m.colors.textPurple, subColor: m.colors.textMuted, focusBg: m.colors.purpleFocus, focusBorder: m.colors.text, focusTextColor: m.colors.text, row: row, col: col, page: "", action: "play", mode: "row" }
     m.focusItems.push(item)
 end sub
 

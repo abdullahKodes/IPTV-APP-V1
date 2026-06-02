@@ -47,14 +47,18 @@ sub render()
 
     nextRow = uiSideNav(m.canvas, m.colors, "playlists", m.focusItems, 0)
 
-    uiLabel(m.canvas, "Quick Access", 520, 125, 260, 32, 18, m.colors.textDim, "center")
-    addTile(408, 182, 260, 142, "ADD", "Add Playlist", "Import M3U / URL", m.colors.purpleSoft, m.colors.purpleLine, m.colors.textPurple, nextRow, 1, "AddPlaylistPage")
-    addTile(700, 182, 260, 142, "TV", "Live TV", "Watch channels live", m.colors.greenSoft, m.colors.green, m.colors.textGreen, nextRow, 2, "LiveTvPage")
-    addTile(408, 350, 260, 142, "S", "Series", "TV shows and episodes", m.colors.purpleSoft, m.colors.purpleLine, m.colors.textPurple, nextRow + 1, 1, "SeriesPage")
-    addTile(700, 350, 260, 142, "M", "Movies", "Browse and stream films", m.colors.greenSoft, m.colors.green, m.colors.textGreen, nextRow + 1, 2, "MoviesPage")
+    uiLabel(m.canvas, "Quick Access", 445, 112, 380, 36, 22, m.colors.text, "center")
+    uiLabel(m.canvas, "Jump into live channels, playlists, series, and movies", 390, 144, 490, 28, 14, m.colors.textMuted, "center")
+    addTile(390, 194, 280, 152, "ADD", "Add Playlist", "Import M3U or Xtreme", m.colors.purpleSoft, m.colors.purpleLine, m.colors.textPurple, nextRow, 1, "AddPlaylistPage")
+    addTile(710, 194, 280, 152, "TV", "Live TV", "Watch channels live", m.colors.greenSoft, m.colors.green, m.colors.textGreen, nextRow, 2, "LiveTvPage")
+    addTile(390, 374, 280, 152, "S", "Series", "Continue episodes", m.colors.purpleSoft, m.colors.purpleLine, m.colors.textPurple, nextRow + 1, 1, "SeriesPage")
+    addTile(710, 374, 280, 152, "M", "Movies", "Browse featured films", m.colors.greenSoft, m.colors.green, m.colors.textGreen, nextRow + 1, 2, "MoviesPage")
 
-    uiRect(m.canvas, 500, 548, 8, 8, m.colors.green)
-    uiLabel(m.canvas, "Connected - 3 playlists loaded - 4,280 channels", 518, 532, 460, 40, 14, "0x444441FF")
+    uiRect(m.canvas, 408, 574, 460, 42, "0xFFFFFF10")
+    uiRect(m.canvas, 426, 588, 8, 8, m.colors.green)
+    uiLabel(m.canvas, "Connected", 446, 576, 100, 30, 14, m.colors.textGreen)
+    uiLabel(m.canvas, "3 playlists loaded", 560, 576, 150, 30, 14, m.colors.textMuted)
+    uiLabel(m.canvas, "4,280 channels", 720, 576, 150, 30, 14, m.colors.textMuted)
     drawFocus()
 end sub
 
@@ -65,7 +69,7 @@ sub addTile(x as Integer, y as Integer, w as Integer, h as Integer, icon as Stri
         iconSize: 19, titleSize: 18, subSize: 13,
         bg: bg, border: border, textColor: textColor, subColor: m.colors.textMuted,
         focusBg: m.colors.purpleFocus, focusBorder: m.colors.text, focusTextColor: m.colors.text,
-        row: row, col: col, page: page
+        row: row, col: col, page: page, mode: "tile"
     }
     m.focusItems.push(item)
 end sub

@@ -70,7 +70,7 @@ sub drawCategoryPills(row as Integer)
 end sub
 
 sub drawChannel(ch as Object, x as Integer, y as Integer, row as Integer, col as Integer)
-    item = { x: x, y: y, w: 300, h: 58, icon: ch.icon, label: ch.name, subtitle: ch.now, iconSize: 12, titleSize: 15, subSize: 12, bg: m.colors.purpleSoft, border: m.colors.purpleLine, textColor: m.colors.textPurple, subColor: m.colors.textMuted, focusBg: m.colors.greenSoft, focusBorder: m.colors.green, focusTextColor: m.colors.text, row: row, col: col, page: "", action: "channel" }
+    item = { x: x, y: y, w: 300, h: 58, icon: ch.icon, label: ch.name, subtitle: ch.now, iconSize: 12, titleSize: 15, subSize: 12, bg: m.colors.purpleSoft, border: m.colors.purpleLine, textColor: m.colors.textPurple, subColor: m.colors.textMuted, focusBg: m.colors.greenSoft, focusBorder: m.colors.green, focusTextColor: m.colors.text, row: row, col: col, page: "", action: "channel", mode: "row" }
     m.focusItems.push(item)
 end sub
 
