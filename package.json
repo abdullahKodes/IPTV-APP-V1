@@ -1,0 +1,16 @@
+{
+  "name": "roku-iptv-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Roku TV IPTV app starter workspace.",
+  "scripts": {
+    "build": "bsc",
+    "check": "bsc --copy-to-staging=false",
+    "package": "roku-deploy --package",
+    "deploy": "roku-deploy --deploy"
+  },
+  "devDependencies": {
+    "brighterscript": "^0.72.4",
+    "roku-deploy": "^3.17.5"
+  }
+}

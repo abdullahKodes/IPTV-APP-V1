@@ -1,0 +1,13 @@
+{
+  "rootDir": ".",
+  "files": [
+    "manifest",
+    "source/**/*",
+    "components/**/*",
+    "images/**/*"
+  ],
+  "stagingDir": "build/staging",
+  "outFile": "build/roku-iptv-app.zip",
+  "retainStagingFolder": true,
+  "sourceMap": false
+}

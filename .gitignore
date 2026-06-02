@@ -1,0 +1,10 @@
+node_modules/
+build/
+out/
+dist/
+.npm-cache/
+*.pkg
+*.zip
+.env
+.DS_Store
+Thumbs.db

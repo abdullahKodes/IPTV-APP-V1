@@ -1,0 +1,20 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "brightscript",
+      "request": "launch",
+      "name": "Deploy and Debug Roku",
+      "host": "${env:ROKU_DEV_TARGET}",
+      "password": "${env:ROKU_DEV_PASSWORD}",
+      "rootDir": "${workspaceFolder}",
+      "files": [
+        "manifest",
+        "source/**/*",
+        "components/**/*",
+        "images/**/*"
+      ],
+      "stagingDir": "${workspaceFolder}/build/staging"
+    }
+  ]
+}
