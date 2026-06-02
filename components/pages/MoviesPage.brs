@@ -44,7 +44,7 @@ sub render()
     m.date = clockParts.date
     refreshClock()
     row = uiSideNav(m.canvas, m.colors, "movies", m.focusItems, 0)
-    uiLabel(m.canvas, "Search movies...", 950, 22, 190, 28, 15, m.colors.textMuted)
+    uiLabel(m.canvas, "Search movies", 930, 22, 190, 28, 14, m.colors.textMuted)
     drawPills(["All", "Action", "Horror", "Comedy", "Animation", "Sci-Fi"], row)
     drawFeatured(row + 1)
     uiLabel(m.canvas, "All movies", 230, 390, 250, 26, 14, m.colors.textDim)
@@ -58,19 +58,19 @@ end sub
 
 sub drawPills(items as Object, row as Integer)
     for i = 0 to items.count() - 1
-        item = { x: 230 + i * 105, y: 104, w: 92, h: 38, icon: "", label: items[i], subtitle: "", iconSize: 1, titleSize: 14, subSize: 10, bg: m.colors.bg, border: m.colors.purpleLine, textColor: m.colors.textPurple, subColor: m.colors.textDim, focusBg: m.colors.purple, focusBorder: m.colors.text, focusTextColor: m.colors.text, row: row, col: i + 1, page: "", action: "genre" }
+        item = { x: 246 + i * 100, y: 104, w: 88, h: 36, icon: "", label: items[i], subtitle: "", iconSize: 1, titleSize: 13, subSize: 10, bg: m.colors.bg, border: m.colors.purpleLine, textColor: m.colors.textPurple, subColor: m.colors.textDim, focusBg: m.colors.purple, focusBorder: m.colors.text, focusTextColor: m.colors.text, row: row, col: i + 1, page: "", action: "genre" }
         if i = 0 then item.bg = m.colors.purple
         m.focusItems.push(item)
     end for
 end sub
 
 sub drawFeatured(row as Integer)
-    item = { x: 230, y: 178, w: 770, h: 168, icon: "PLAY", label: "Interstellar", subtitle: "2014 - 2h 49m - Sci-Fi - Adventure - IMDb 8.7", iconSize: 18, titleSize: 20, subSize: 13, bg: m.colors.purpleSoft, border: m.colors.purpleLine, textColor: m.colors.text, subColor: m.colors.textMuted, focusBg: m.colors.purpleFocus, focusBorder: m.colors.text, focusTextColor: m.colors.text, row: row, col: 1, page: "", action: "watch", mode: "row" }
+    item = { x: 230, y: 178, w: 770, h: 168, icon: "", label: "", subtitle: "", iconSize: 1, titleSize: 1, subSize: 1, bg: m.colors.purpleSoft, border: m.colors.purpleLine, textColor: m.colors.text, subColor: m.colors.textMuted, focusBg: m.colors.purpleFocus, focusBorder: m.colors.text, focusTextColor: m.colors.text, row: row, col: 1, page: "", action: "watch", mode: "blank" }
     m.focusItems.push(item)
 end sub
 
 sub drawFeaturedDetails()
-    uiPoster(m.canvas, 255, 198, 96, 126, m.colors.purple, "STAR", m.colors.text)
+    uiPosterCard(m.canvas, 255, 198, 96, 126, m.colors.purple, "STAR", m.colors.text)
     uiLabel(m.canvas, "Featured", 376, 198, 88, 22, 12, m.colors.textPurple)
     uiLabel(m.canvas, "Interstellar", 376, 222, 220, 28, 20, m.colors.text)
     uiLabel(m.canvas, "2014 - 2h 49m - Sci-Fi - Adventure", 376, 252, 330, 24, 13, m.colors.textMuted)
@@ -79,7 +79,7 @@ sub drawFeaturedDetails()
 end sub
 
 sub drawMovieCard(movie as Object, x as Integer, y as Integer, w as Integer, h as Integer, row as Integer, col as Integer)
-    item = { x: x, y: y, w: w, h: h, icon: movie.icon, label: movie.title, subtitle: movie.meta, iconSize: 18, titleSize: 15, subSize: 11, bg: m.colors.greenSoft, border: m.colors.green, textColor: m.colors.textGreen, subColor: m.colors.textMuted, focusBg: m.colors.purpleFocus, focusBorder: m.colors.text, focusTextColor: m.colors.text, row: row, col: col, page: "", action: "movie" }
+    item = { x: x, y: y, w: w, h: h, icon: movie.icon, label: movie.title, subtitle: movie.meta, iconSize: 17, titleSize: 14, subSize: 10, bg: m.colors.greenSoft, border: m.colors.green, textColor: m.colors.textGreen, subColor: m.colors.textMuted, focusBg: m.colors.purpleFocus, focusBorder: m.colors.text, focusTextColor: m.colors.text, row: row, col: col, page: "", action: "movie" }
     if col mod 2 = 0 then item.bg = m.colors.purpleSoft : item.border = m.colors.purpleLine : item.textColor = m.colors.textPurple
     m.focusItems.push(item)
 end sub

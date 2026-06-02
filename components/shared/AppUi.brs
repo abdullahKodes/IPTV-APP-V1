@@ -1,23 +1,23 @@
 function appColors() as Object
     return {
-        bg: "0x0E1117FF",
-        bg2: "0x10161FFF",
-        panel: "0x171B25FF",
-        panelSoft: "0x211D3DFF",
-        purple: "0x534AB7FF",
-        purpleSoft: "0x2B2755FF",
-        purpleFocus: "0x6D62D9FF",
-        purpleLine: "0x7F77DDFF",
-        green: "0x1D9E75FF",
-        greenSoft: "0x12372FFF",
-        greenFocus: "0x21B989FF",
+        bg: "0x090D16FF",
+        bg2: "0x0D1422FF",
+        panel: "0x151C2BFF",
+        panelSoft: "0x1C2340FF",
+        purple: "0x6258D6FF",
+        purpleSoft: "0x242B57FF",
+        purpleFocus: "0x7468F0FF",
+        purpleLine: "0x8E86FFFF",
+        green: "0x19C6B3FF",
+        greenSoft: "0x0D454BFF",
+        greenFocus: "0x1EE0CAFF",
         text: "0xE8E6FFFF",
-        textMuted: "0x888780FF",
-        textDim: "0x5F5E5AFF",
+        textMuted: "0xA7B1C8FF",
+        textDim: "0x758099FF",
         textPurple: "0xCECBF6FF",
-        textGreen: "0x9FE1CBFF",
-        red: "0xD85A30FF",
-        amber: "0xEF9F27FF",
+        textGreen: "0xA9FFF2FF",
+        red: "0xFF6B4AFF",
+        amber: "0xFFBD4AFF",
         black: "0x090B0FFF",
         whiteSoft: "0xFFFFFF12",
         whiteLine: "0xFFFFFF18",
@@ -58,6 +58,58 @@ function uiRect(parent as Object, x as Integer, y as Integer, w as Integer, h as
     return node
 end function
 
+function uiPoster(parent as Object, uri as String, x as Integer, y as Integer, w as Integer, h as Integer, opacity = 1.0 as Float) as Object
+    node = CreateObject("roSGNode", "Poster")
+    node.uri = uri
+    node.translation = [x, y]
+    node.width = w
+    node.height = h
+    node.opacity = opacity
+    parent.appendChild(node)
+    return node
+end function
+
+function uiColorKey(color as String) as String
+    if color = "0x090D16FF" then return "bg"
+    if color = "0x0D1422FF" then return "bg2"
+    if color = "0x151C2BFF" then return "panel"
+    if color = "0x1C2340FF" then return "panelSoft"
+    if color = "0x6258D6FF" then return "purple"
+    if color = "0x242B57FF" then return "purpleSoft"
+    if color = "0x7468F0FF" then return "purpleFocus"
+    if color = "0x8E86FFFF" then return "purpleLine"
+    if color = "0x19C6B3FF" then return "green"
+    if color = "0x0D454BFF" then return "greenSoft"
+    if color = "0x1EE0CAFF" then return "greenFocus"
+    if color = "0xE8E6FFFF" then return "text"
+    if color = "0xA7B1C8FF" then return "textMuted"
+    if color = "0x758099FF" then return "textDim"
+    if color = "0xCECBF6FF" then return "textPurple"
+    if color = "0xA9FFF2FF" then return "textGreen"
+    if color = "0xFF6B4AFF" then return "red"
+    if color = "0xFFBD4AFF" then return "amber"
+    if color = "0x090B0FFF" then return "black"
+    if color = "0xFFFFFF12" then return "whiteSoft"
+    if color = "0xFFFFFF18" then return "whiteLine"
+    if color = "0x2C7BE5FF" then return "blue"
+    if color = "0xFFFFFF10" then return "white10"
+    if color = "0xFFFFFF14" then return "white14"
+    if color = "0x7F77DD44" then return "purple44"
+    if color = "0xF09595FF" then return "rose"
+    if color = "0x444441FF" then return "dimOlive"
+    if color = "0x993C1DFF" then return "burnt"
+    return "panel"
+end function
+
+function uiRoundUri(w as Integer, h as Integer, fill as String, border as String) as String
+    return "pkg:/images/ui/rr_" + w.toStr() + "x" + h.toStr() + "_" + uiColorKey(fill) + "_" + uiColorKey(border) + ".png"
+end function
+
+function uiRoundRect(parent as Object, x as Integer, y as Integer, w as Integer, h as Integer, fill as String, border = "" as String, opacity = 1.0 as Float) as Object
+    if border = "" then border = fill
+    return uiPoster(parent, uiRoundUri(w, h, fill, border), x, y, w, h, opacity)
+end function
+
 function uiLabel(parent as Object, text as String, x as Integer, y as Integer, w as Integer, h as Integer, size as Integer, color as String, align = "left" as String) as Object
     node = CreateObject("roSGNode", "Label")
     node.translation = [x, y]
@@ -70,6 +122,9 @@ function uiLabel(parent as Object, text as String, x as Integer, y as Integer, w
     end if
     node.text = text
     node.color = color
+    font = CreateObject("roSGNode", "Font")
+    font.size = size
+    node.font = font
     node.horizAlign = align
     node.vertAlign = "center"
     parent.appendChild(node)
@@ -77,15 +132,15 @@ function uiLabel(parent as Object, text as String, x as Integer, y as Integer, w
 end function
 
 sub uiBadge(parent as Object, x as Integer, y as Integer, w as Integer, label as String, bg as String, fg as String)
-    uiRect(parent, x, y, w, 26, bg)
+    uiRoundRect(parent, x, y, w, 26, bg, bg)
     uiLabel(parent, label, x, y - 1, w, 26, 13, fg, "center")
 end sub
 
-function uiPoster(parent as Object, x as Integer, y as Integer, w as Integer, h as Integer, color as String, text as String, textColor as String) as Object
+function uiPosterCard(parent as Object, x as Integer, y as Integer, w as Integer, h as Integer, color as String, text as String, textColor as String) as Object
     g = CreateObject("roSGNode", "Group")
     g.translation = [x, y]
     parent.appendChild(g)
-    uiRect(g, 0, 0, w, h, color)
+    uiRoundRect(g, 0, 0, w, h, color, color)
     uiLabel(g, text, 0, 0, w, h, 22, textColor, "center")
     return g
 end function
@@ -123,21 +178,21 @@ function uiButton(parent as Object, item as Object, focused as Boolean) as Objec
         end if
     end if
 
-    uiRect(g, 0, 0, item.w, item.h, border)
-    uiRect(g, 2, 2, item.w - 4, item.h - 4, bg)
+    uiRoundRect(g, 0, 0, item.w, item.h, bg, border)
     if focused then
-        uiRect(g, 8, item.h - 8, item.w - 16, 4, textColor)
+        uiRect(g, 14, item.h - 8, item.w - 28, 4, textColor)
     end if
+    if mode = "blank" then return g
 
     if mode = "tile" then
-        uiRect(g, Int((item.w - 58) / 2), 24, 58, 58, border, 0.75)
-        uiLabel(g, item.icon, Int((item.w - 58) / 2), 24, 58, 58, item.iconSize, textColor, "center")
-        uiLabel(g, item.label, 20, 88, item.w - 40, 34, item.titleSize, textColor, "center")
+        uiRoundRect(g, Int((item.w - 54) / 2), 20, 54, 54, border, border, 0.85)
+        uiLabel(g, item.icon, Int((item.w - 54) / 2), 20, 54, 54, item.iconSize, textColor, "center")
+        uiLabel(g, item.label, 20, 82, item.w - 40, 30, item.titleSize, textColor, "center")
         if item.subtitle <> invalid and item.subtitle <> "" then
-            uiLabel(g, item.subtitle, 20, 116, item.w - 40, 30, item.subSize, item.subColor, "center")
+            uiLabel(g, item.subtitle, 20, 112, item.w - 40, 24, item.subSize, item.subColor, "center")
         end if
     else
-        labelX = 74
+        labelX = 62
         labelW = item.w - labelX - 14
         labelAlign = "left"
         if item.icon = invalid or item.icon = "" then
@@ -145,14 +200,14 @@ function uiButton(parent as Object, item as Object, focused as Boolean) as Objec
             labelW = item.w
             labelAlign = "center"
         else
-            uiLabel(g, item.icon, 14, 0, 52, item.h, item.iconSize, textColor, "center")
+            uiLabel(g, item.icon, 12, 0, 44, item.h, item.iconSize, textColor, "center")
         end if
 
-        titleY = 6
+        titleY = 4
         if item.subtitle <> invalid and item.subtitle <> "" then titleY = 2
-        uiLabel(g, item.label, labelX, titleY, labelW, 32, item.titleSize, textColor, labelAlign)
+        uiLabel(g, item.label, labelX, titleY, labelW, 28, item.titleSize, textColor, labelAlign)
         if item.subtitle <> invalid and item.subtitle <> "" then
-            uiLabel(g, item.subtitle, labelX, 30, labelW, 28, item.subSize, item.subColor, labelAlign)
+            uiLabel(g, item.subtitle, labelX, 28, labelW, 24, item.subSize, item.subColor, labelAlign)
         end if
     end if
     return g
@@ -161,9 +216,8 @@ end function
 function uiTopBar(parent as Object, colors as Object) as Object
     uiRect(parent, 0, 0, 1280, 72, colors.bg)
     uiRect(parent, 0, 71, 1280, 1, "0xFFFFFF14")
-    uiRect(parent, 28, 16, 42, 42, colors.purple)
-    uiRect(parent, 42, 16, 28, 42, colors.green, 0.7)
-    uiLabel(parent, "PLAY", 29, 17, 42, 42, 11, colors.text, "center")
+    uiRoundRect(parent, 28, 16, 42, 42, colors.purple, colors.green)
+    uiLabel(parent, "IP", 29, 17, 42, 42, 17, colors.text, "center")
     uiLabel(parent, "IPTV", 82, 13, 78, 40, 25, colors.textPurple)
     uiLabel(parent, "Max", 146, 13, 70, 40, 25, colors.textGreen)
     uiRect(parent, 1128, 23, 9, 9, colors.red)
@@ -173,17 +227,17 @@ function uiTopBar(parent as Object, colors as Object) as Object
 end function
 
 function uiSideNav(parent as Object, colors as Object, activeKey as String, focusItems as Object, startRow as Integer) as Integer
-    uiRect(parent, 0, 72, 188, 648, colors.purpleSoft, 0.45)
-    uiRect(parent, 187, 72, 1, 648, "0xFFFFFF12")
+    uiRect(parent, 0, 72, 226, 648, colors.purpleSoft, 0.45)
+    uiRect(parent, 225, 72, 1, 648, "0xFFFFFF12")
 
     items = appNavItems(activeKey)
     row = startRow
     y = 100
     for each nav in items
         item = {
-            x: 14, y: y, w: 170, h: 50,
+            x: 14, y: y, w: 206, h: 50,
             icon: nav.icon, label: nav.label, subtitle: "",
-            iconSize: 14, titleSize: 14, subSize: 10,
+            iconSize: 13, titleSize: 15, subSize: 10,
             bg: colors.bg, border: colors.bg, textColor: colors.textGreen, subColor: colors.textDim,
             focusBg: colors.purpleSoft, focusBorder: colors.purpleLine, focusTextColor: colors.textPurple,
             row: row, col: 0, page: nav.page, mode: "row"
@@ -199,11 +253,11 @@ function uiSideNav(parent as Object, colors as Object, activeKey as String, focu
         row += 1
     end for
 
-    uiRect(parent, 16, 630, 156, 60, "0xFFFFFF10")
-    uiRect(parent, 26, 643, 34, 34, colors.purple)
+    uiRoundRect(parent, 16, 630, 204, 60, "0xFFFFFF10", "0xFFFFFF10")
+    uiRoundRect(parent, 26, 643, 34, 34, colors.purple, colors.purple)
     uiLabel(parent, "JD", 26, 643, 34, 34, 13, colors.text, "center")
-    uiLabel(parent, "My Profile", 70, 636, 100, 24, 14, colors.textPurple)
-    uiLabel(parent, "Premium", 70, 660, 80, 20, 12, colors.textDim)
+    uiLabel(parent, "My Profile", 70, 636, 126, 24, 14, colors.textPurple)
+    uiLabel(parent, "Premium", 70, 660, 106, 20, 12, colors.textDim)
     return row
 end function
 

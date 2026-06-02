@@ -44,7 +44,7 @@ sub render()
     m.date = clockParts.date
     refreshClock()
     row = uiSideNav(m.canvas, m.colors, "series", m.focusItems, 0)
-    uiLabel(m.canvas, "Search series...", 950, 22, 190, 28, 15, m.colors.textMuted)
+    uiLabel(m.canvas, "Search series", 930, 22, 190, 28, 14, m.colors.textMuted)
     drawPills(["All", "Drama", "Action", "Comedy", "Sci-Fi", "Thriller"], row)
 
     uiLabel(m.canvas, "Continue watching", 230, 158, 260, 26, 14, m.colors.textDim)
@@ -62,14 +62,14 @@ end sub
 
 sub drawPills(items as Object, row as Integer)
     for i = 0 to items.count() - 1
-        item = { x: 230 + i * 105, y: 104, w: 92, h: 38, icon: "", label: items[i], subtitle: "", iconSize: 1, titleSize: 14, subSize: 10, bg: m.colors.bg, border: m.colors.purpleLine, textColor: m.colors.textPurple, subColor: m.colors.textDim, focusBg: m.colors.purple, focusBorder: m.colors.text, focusTextColor: m.colors.text, row: row, col: i + 1, page: "", action: "genre" }
+        item = { x: 246 + i * 100, y: 104, w: 88, h: 36, icon: "", label: items[i], subtitle: "", iconSize: 1, titleSize: 13, subSize: 10, bg: m.colors.bg, border: m.colors.purpleLine, textColor: m.colors.textPurple, subColor: m.colors.textDim, focusBg: m.colors.purple, focusBorder: m.colors.text, focusTextColor: m.colors.text, row: row, col: i + 1, page: "", action: "genre" }
         if i = 0 then item.bg = m.colors.purple
         m.focusItems.push(item)
     end for
 end sub
 
 sub drawContinueCard(x as Integer, y as Integer, w as Integer, title as String, meta as String, progress as Integer, row as Integer, col as Integer)
-    item = { x: x, y: y, w: w, h: 112, icon: "PLAY", label: title, subtitle: meta, iconSize: 14, titleSize: 17, subSize: 13, bg: m.colors.purpleSoft, border: m.colors.purpleLine, textColor: m.colors.textPurple, subColor: m.colors.textMuted, focusBg: m.colors.purpleFocus, focusBorder: m.colors.text, focusTextColor: m.colors.text, row: row, col: col, page: "", action: "play", mode: "row" }
+    item = { x: x, y: y, w: w, h: 112, icon: "PLAY", label: title, subtitle: meta, iconSize: 13, titleSize: 15, subSize: 11, bg: m.colors.purpleSoft, border: m.colors.purpleLine, textColor: m.colors.textPurple, subColor: m.colors.textMuted, focusBg: m.colors.purpleFocus, focusBorder: m.colors.text, focusTextColor: m.colors.text, row: row, col: col, page: "", action: "play", mode: "row" }
     m.focusItems.push(item)
 end sub
 
@@ -79,6 +79,6 @@ sub drawContinueProgress(x as Integer, y as Integer, w as Integer, progress as I
 end sub
 
 sub drawMediaCard(media as Object, x as Integer, y as Integer, w as Integer, h as Integer, row as Integer, col as Integer)
-    item = { x: x, y: y, w: w, h: h, icon: media.icon, label: media.title, subtitle: media.meta + " - " + media.genre, iconSize: 18, titleSize: 15, subSize: 11, bg: m.colors.purpleSoft, border: m.colors.purpleLine, textColor: m.colors.textPurple, subColor: m.colors.textMuted, focusBg: m.colors.greenSoft, focusBorder: m.colors.green, focusTextColor: m.colors.text, row: row, col: col, page: "", action: "series" }
+    item = { x: x, y: y, w: w, h: h, icon: media.icon, label: media.title, subtitle: media.meta + " - " + media.genre, iconSize: 17, titleSize: 14, subSize: 10, bg: m.colors.purpleSoft, border: m.colors.purpleLine, textColor: m.colors.textPurple, subColor: m.colors.textMuted, focusBg: m.colors.greenSoft, focusBorder: m.colors.green, focusTextColor: m.colors.text, row: row, col: col, page: "", action: "series" }
     m.focusItems.push(item)
 end sub

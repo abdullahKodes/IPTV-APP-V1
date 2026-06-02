@@ -4,12 +4,12 @@ sub init()
     m.focusItems = []
     m.focusIndex = 5
     m.channels = [
-        { name: "ESPN HD", now: "Premier League Live", icon: "BALL", live: true },
-        { name: "BBC World", now: "Evening News", icon: "NEWS", live: false },
+        { name: "ESPN HD", now: "Premier League Live", icon: "SP", live: true },
+        { name: "BBC World", now: "Evening News", icon: "NW", live: false },
         { name: "CNN Intl", now: "Breaking News", icon: "CNN", live: false },
-        { name: "beIN Sports", now: "La Liga Live", icon: "FOOT", live: true },
-        { name: "MTV Hits", now: "Top 40 Charts", icon: "NOTE", live: false },
-        { name: "Cartoon Net.", now: "Kids Shows", icon: "KIDS", live: false }
+        { name: "beIN Sports", now: "La Liga Live", icon: "BN", live: true },
+        { name: "MTV Hits", now: "Top 40 Charts", icon: "MTV", live: false },
+        { name: "Cartoon Net.", now: "Kids Shows", icon: "KD", live: false }
     ]
     render()
 end sub
@@ -47,7 +47,7 @@ sub render()
     refreshClock()
     row = uiSideNav(m.canvas, m.colors, "live", m.focusItems, 0)
 
-    uiLabel(m.canvas, "Search channels...", 932, 22, 190, 28, 15, m.colors.textMuted)
+    uiLabel(m.canvas, "Search channels", 910, 22, 190, 28, 14, m.colors.textMuted)
     drawCategoryPills(row)
     for i = 0 to m.channels.count() - 1
         drawChannel(m.channels[i], 230, 148 + i * 70, row + 1 + i, 1)
@@ -63,14 +63,14 @@ end sub
 sub drawCategoryPills(row as Integer)
     cats = ["All", "Sports", "News", "Kids", "Music"]
     for i = 0 to cats.count() - 1
-        item = { x: 230 + i * 88, y: 94, w: 78, h: 38, icon: "", label: cats[i], subtitle: "", iconSize: 1, titleSize: 14, subSize: 10, bg: m.colors.bg, border: m.colors.purpleLine, textColor: m.colors.textPurple, subColor: m.colors.textDim, focusBg: m.colors.purple, focusBorder: m.colors.text, focusTextColor: m.colors.text, row: row, col: i + 1, page: "", action: "cat" }
+        item = { x: 246 + i * 90, y: 94, w: 80, h: 36, icon: "", label: cats[i], subtitle: "", iconSize: 1, titleSize: 13, subSize: 10, bg: m.colors.bg, border: m.colors.purpleLine, textColor: m.colors.textPurple, subColor: m.colors.textDim, focusBg: m.colors.purple, focusBorder: m.colors.text, focusTextColor: m.colors.text, row: row, col: i + 1, page: "", action: "cat" }
         if i = 0 then item.bg = m.colors.purple
         m.focusItems.push(item)
     end for
 end sub
 
 sub drawChannel(ch as Object, x as Integer, y as Integer, row as Integer, col as Integer)
-    item = { x: x, y: y, w: 300, h: 58, icon: ch.icon, label: ch.name, subtitle: ch.now, iconSize: 12, titleSize: 15, subSize: 12, bg: m.colors.purpleSoft, border: m.colors.purpleLine, textColor: m.colors.textPurple, subColor: m.colors.textMuted, focusBg: m.colors.greenSoft, focusBorder: m.colors.green, focusTextColor: m.colors.text, row: row, col: col, page: "", action: "channel", mode: "row" }
+    item = { x: x, y: y, w: 300, h: 58, icon: ch.icon, label: ch.name, subtitle: ch.now, iconSize: 11, titleSize: 14, subSize: 11, bg: m.colors.purpleSoft, border: m.colors.purpleLine, textColor: m.colors.textPurple, subColor: m.colors.textMuted, focusBg: m.colors.greenSoft, focusBorder: m.colors.green, focusTextColor: m.colors.text, row: row, col: col, page: "", action: "channel", mode: "row" }
     m.focusItems.push(item)
 end sub
 
