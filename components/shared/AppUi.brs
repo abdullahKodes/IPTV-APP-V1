@@ -60,13 +60,13 @@ function uiLabel(parent as Object, text as String, x as Integer, y as Integer, w
     node = CreateObject("roSGNode", "Label")
     node.translation = [x, y]
     node.width = w
-    node.height = h
+    if h < 34 then
+        node.height = 34
+    else
+        node.height = h
+    end if
     node.text = text
     node.color = color
-    font = CreateObject("roSGNode", "Font")
-    font.uri = "font:MediumSystemFont"
-    font.size = size
-    node.font = font
     node.horizAlign = align
     node.vertAlign = "center"
     parent.appendChild(node)
@@ -116,9 +116,9 @@ function uiButton(parent as Object, item as Object, focused as Boolean) as Objec
         uiLabel(g, item.icon, 14, 0, 56, item.h, item.iconSize, textColor, "center")
     end if
 
-    uiLabel(g, item.label, labelX, 10, labelW, 26, item.titleSize, textColor, labelAlign)
+    uiLabel(g, item.label, labelX, 4, labelW, 34, item.titleSize, textColor, labelAlign)
     if item.subtitle <> invalid and item.subtitle <> "" then
-        uiLabel(g, item.subtitle, labelX, 38, labelW, 22, item.subSize, item.subColor, labelAlign)
+        uiLabel(g, item.subtitle, labelX, 34, labelW, 34, item.subSize, item.subColor, labelAlign)
     end if
     return g
 end function
