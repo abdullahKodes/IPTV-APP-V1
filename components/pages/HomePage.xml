@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="HomePage" extends="Group">
+  <interface>
+    <field id="navigateTo" type="string" alwaysNotify="true" />
+    <function name="handleKey" />
+    <function name="refreshClock" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/shared/AppUi.brs" />
+  <script type="text/brightscript" uri="pkg:/components/pages/HomePage.brs" />
+</component>
