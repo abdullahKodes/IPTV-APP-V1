@@ -35,7 +35,7 @@ sub activate()
 end sub
 
 sub render()
-    m.top.removeChildren(m.top.getChildCount(), 0)
+    uiClear(m.top)
     m.focusItems = []
     uiRect(m.top, 0, 0, 1280, 720, m.colors.bg)
     clockParts = uiTopBar(m.top, m.colors)

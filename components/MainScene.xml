@@ -1,1 +1,8 @@
-
+<?xml version="1.0" encoding="utf-8"?>
+<component name="MainScene" extends="Scene">
+  <children>
+    <Group id="pageHost" />
+  </children>
+  <script type="text/brightscript" uri="pkg:/components/shared/AppUi.brs" />
+  <script type="text/brightscript" uri="pkg:/components/MainScene.brs" />
+</component>

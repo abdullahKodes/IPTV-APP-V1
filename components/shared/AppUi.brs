@@ -82,6 +82,12 @@ function uiPoster(parent as Object, x as Integer, y as Integer, w as Integer, h 
     return g
 end function
 
+sub uiClear(parent as Object)
+    while parent.getChildCount() > 0
+        parent.removeChild(parent.getChild(0))
+    end while
+end sub
+
 function uiButton(parent as Object, item as Object, focused as Boolean) as Object
     g = CreateObject("roSGNode", "Group")
     g.translation = [item.x, item.y]
