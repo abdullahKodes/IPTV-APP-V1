@@ -1,7 +1,0 @@
-{
-  "files.associations": {
-    "*.brs": "brightscript",
-    "manifest": "properties"
-  },
-  "brightscript.bsdk": "node_modules/brighterscript"
-}
