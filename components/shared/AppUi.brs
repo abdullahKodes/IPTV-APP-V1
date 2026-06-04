@@ -247,9 +247,13 @@ function uiButton(parent as Object, item as Object, focused as Boolean) as Objec
             uiDrawIcon(g, item.icon, 22, Int((item.h - 24) / 2), 24, 24, focused, textColor, item.iconSize)
         end if
 
-        titleY = 4
-        if item.subtitle <> invalid and item.subtitle <> "" then titleY = 2
-        uiLabel(g, item.label, labelX, titleY, labelW, 28, item.titleSize, textColor, labelAlign)
+        titleY = 9
+        titleH = item.h - 18
+        if item.subtitle <> invalid and item.subtitle <> "" then
+            titleY = 3
+            titleH = 28
+        end if
+        uiLabel(g, item.label, labelX, titleY, labelW, titleH, item.titleSize, textColor, labelAlign)
         if item.subtitle <> invalid and item.subtitle <> "" then
             uiLabel(g, item.subtitle, labelX, 28, labelW, 24, item.subSize, item.subColor, labelAlign)
         end if
@@ -258,21 +262,21 @@ function uiButton(parent as Object, item as Object, focused as Boolean) as Objec
 end function
 
 function uiTopBar(parent as Object, colors as Object) as Object
-    uiRect(parent, 0, 0, 1280, 72, colors.bg)
-    uiRect(parent, 0, 71, 1280, 1, "0xFFFFFF14")
-    uiRoundRect(parent, 28, 12, 50, 50, colors.purple, colors.green)
-    uiDrawIcon(parent, "tv", 40, 24, 26, 26, true, colors.text, 18)
-    uiLabel(parent, "IPTV", 92, 9, 92, 44, 29, colors.textPurple)
-    uiLabel(parent, "Max", 176, 9, 82, 44, 29, colors.textGreen)
-    uiRect(parent, 1128, 23, 9, 9, colors.red)
-    clock = uiLabel(parent, "--:--", 1115, 8, 130, 32, 24, colors.text, "right")
-    date = uiLabel(parent, "---", 1052, 38, 193, 24, 14, colors.textMuted, "right")
+    uiRect(parent, 0, 0, 1280, 86, colors.bg)
+    uiRect(parent, 0, 85, 1280, 1, "0xFFFFFF14")
+    uiRoundRect(parent, 30, 15, 50, 50, colors.purple, colors.green)
+    uiDrawIcon(parent, "tv", 42, 27, 26, 26, true, colors.text, 18)
+    uiLabel(parent, "IPTV", 96, 14, 80, 44, 30, colors.textPurple)
+    uiLabel(parent, "Max", 166, 14, 82, 44, 30, colors.textGreen)
+    uiRect(parent, 1128, 28, 9, 9, colors.red)
+    clock = uiLabel(parent, "--:--", 1115, 12, 130, 32, 25, colors.text, "right")
+    date = uiLabel(parent, "---", 1052, 48, 193, 24, 14, colors.textMuted, "right")
     return { clock: clock, date: date }
 end function
 
 function uiSideNav(parent as Object, colors as Object, activeKey as String, focusItems as Object, startRow as Integer) as Integer
-    uiRect(parent, 0, 72, 226, 648, colors.purpleSoft, 0.45)
-    uiRect(parent, 225, 72, 1, 648, "0xFFFFFF12")
+    uiRect(parent, 0, 86, 226, 634, colors.purpleSoft, 0.45)
+    uiRect(parent, 225, 86, 1, 634, "0xFFFFFF12")
 
     items = appNavItems(activeKey)
     row = startRow
