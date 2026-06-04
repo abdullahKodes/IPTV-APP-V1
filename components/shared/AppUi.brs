@@ -105,9 +105,18 @@ function uiRoundUri(w as Integer, h as Integer, fill as String, border as String
     return "pkg:/images/ui/rr_" + w.toStr() + "x" + h.toStr() + "_" + uiColorKey(fill) + "_" + uiColorKey(border) + ".png"
 end function
 
+function uiThinRoundUri(w as Integer, h as Integer, fill as String, border as String) as String
+    return "pkg:/images/ui/thin_" + w.toStr() + "x" + h.toStr() + "_" + uiColorKey(fill) + "_" + uiColorKey(border) + ".png"
+end function
+
 function uiRoundRect(parent as Object, x as Integer, y as Integer, w as Integer, h as Integer, fill as String, border = "" as String, opacity = 1.0 as Float) as Object
     if border = "" then border = fill
     return uiPoster(parent, uiRoundUri(w, h, fill, border), x, y, w, h, opacity)
+end function
+
+function uiThinRoundRect(parent as Object, x as Integer, y as Integer, w as Integer, h as Integer, fill as String, border = "" as String, opacity = 1.0 as Float) as Object
+    if border = "" then border = fill
+    return uiPoster(parent, uiThinRoundUri(w, h, fill, border), x, y, w, h, opacity)
 end function
 
 function uiLabel(parent as Object, text as String, x as Integer, y as Integer, w as Integer, h as Integer, size as Integer, color as String, align = "left" as String) as Object
@@ -210,9 +219,12 @@ function uiButton(parent as Object, item as Object, focused as Boolean) as Objec
         end if
     end if
 
-    uiRoundRect(g, 0, 0, item.w, item.h, bg, border)
-    if focused then
-        uiRect(g, 14, item.h - 8, item.w - 28, 4, textColor)
+    thin = false
+    if item.doesExist("thin") then thin = item.thin
+    if thin then
+        uiThinRoundRect(g, 0, 0, item.w, item.h, bg, border)
+    else
+        uiRoundRect(g, 0, 0, item.w, item.h, bg, border)
     end if
     if mode = "blank" then return g
 
@@ -248,10 +260,10 @@ end function
 function uiTopBar(parent as Object, colors as Object) as Object
     uiRect(parent, 0, 0, 1280, 72, colors.bg)
     uiRect(parent, 0, 71, 1280, 1, "0xFFFFFF14")
-    uiRoundRect(parent, 28, 16, 42, 42, colors.purple, colors.green)
-    uiDrawIcon(parent, "tv", 39, 26, 22, 22, true, colors.text, 17)
-    uiLabel(parent, "IPTV", 82, 13, 78, 40, 25, colors.textPurple)
-    uiLabel(parent, "Max", 146, 13, 70, 40, 25, colors.textGreen)
+    uiRoundRect(parent, 28, 12, 50, 50, colors.purple, colors.green)
+    uiDrawIcon(parent, "tv", 40, 24, 26, 26, true, colors.text, 18)
+    uiLabel(parent, "IPTV", 92, 9, 92, 44, 29, colors.textPurple)
+    uiLabel(parent, "Max", 176, 9, 82, 44, 29, colors.textGreen)
     uiRect(parent, 1128, 23, 9, 9, colors.red)
     clock = uiLabel(parent, "--:--", 1115, 8, 130, 32, 24, colors.text, "right")
     date = uiLabel(parent, "---", 1052, 38, 193, 24, 14, colors.textMuted, "right")

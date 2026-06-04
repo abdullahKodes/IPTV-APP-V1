@@ -2,7 +2,7 @@ sub init()
     m.colors = appColors()
     m.canvas = m.top.findNode("homeCanvas")
     m.focusItems = []
-    m.focusIndex = 0
+    m.focusIndex = 4
     render()
 end sub
 
@@ -81,7 +81,7 @@ sub addHomeNavItem(x as Integer, y as Integer, icon as String, label as String, 
         icon: icon, label: label, subtitle: "",
         iconSize: 12, titleSize: 14, subSize: 10,
         bg: m.colors.bg, border: m.colors.bg, textColor: m.colors.textGreen, subColor: m.colors.textDim,
-        focusBg: m.colors.purpleSoft, focusBorder: m.colors.purpleLine, focusTextColor: m.colors.text,
+        focusBg: m.colors.purpleSoft, focusBorder: m.colors.amber, focusTextColor: m.colors.text,
         row: row, col: 0, page: page, mode: "row"
     }
     if active then
@@ -98,8 +98,8 @@ sub addTile(x as Integer, y as Integer, w as Integer, h as Integer, icon as Stri
         icon: icon, label: label, subtitle: subText,
         iconSize: 17, titleSize: 16, subSize: 12,
         bg: bg, border: border, textColor: textColor, subColor: m.colors.textMuted,
-        focusBg: bg, focusBorder: m.colors.text, focusTextColor: m.colors.text,
-        row: row, col: col, page: page, mode: "tile"
+        focusBg: bg, focusBorder: m.colors.amber, focusTextColor: m.colors.text,
+        row: row, col: col, page: page, mode: "tile", thin: true
     }
     m.focusItems.push(item)
 end sub
