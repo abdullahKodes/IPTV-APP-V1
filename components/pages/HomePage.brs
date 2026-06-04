@@ -104,7 +104,7 @@ sub addTile(x as Integer, y as Integer, w as Integer, h as Integer, icon as Stri
     item = {
         x: x, y: y, w: w, h: h,
         icon: icon, label: label, subtitle: subText,
-        iconSize: 18, titleSize: 28, subSize: 12,
+        iconSize: 18, titleSize: 25, subSize: 12,
         bg: bg, border: border, textColor: textColor, subColor: m.colors.textMuted,
         focusBg: bg, focusBorder: focusBorder, focusTextColor: m.colors.text,
         row: row, col: col, page: page, mode: "tile", thin: true
