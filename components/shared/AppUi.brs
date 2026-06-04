@@ -7,9 +7,11 @@ function appColors() as Object
         purple: "0x6258D6FF",
         purpleSoft: "0x242B57FF",
         purpleFocus: "0x7468F0FF",
+        purpleDeep: "0x1A1F46FF",
         purpleLine: "0x8E86FFFF",
         green: "0x19C6B3FF",
         greenSoft: "0x0D454BFF",
+        greenDeep: "0x07353AFF",
         greenFocus: "0x1EE0CAFF",
         text: "0xE8E6FFFF",
         textMuted: "0xA7B1C8FF",
@@ -77,9 +79,11 @@ function uiColorKey(color as String) as String
     if color = "0x6258D6FF" then return "purple"
     if color = "0x242B57FF" then return "purpleSoft"
     if color = "0x7468F0FF" then return "purpleFocus"
+    if color = "0x1A1F46FF" then return "purpleDeep"
     if color = "0x8E86FFFF" then return "purpleLine"
     if color = "0x19C6B3FF" then return "green"
     if color = "0x0D454BFF" then return "greenSoft"
+    if color = "0x07353AFF" then return "greenDeep"
     if color = "0x1EE0CAFF" then return "greenFocus"
     if color = "0xE8E6FFFF" then return "text"
     if color = "0xA7B1C8FF" then return "textMuted"
@@ -278,8 +282,8 @@ function uiTopBar(parent as Object, colors as Object) as Object
     uiRect(parent, 0, 0, 1280, 86, colors.bg)
     uiRect(parent, 0, 85, 1280, 1, "0xFFFFFF14")
     uiDrawIcon(parent, "iptv", 30, 17, 52, 52, true, colors.textGreen, 18)
-    uiLabel(parent, "IPTV", 96, 12, 84, 52, 34, colors.textPurple)
-    uiLabel(parent, "Max", 158, 12, 82, 52, 34, colors.textGreen)
+    uiLabel(parent, "IPTV", 96, 15, 84, 52, 34, colors.textPurple)
+    uiLabel(parent, "Max", 146, 15, 82, 52, 34, colors.textPurple)
     clock = uiLabel(parent, "--:--", 1115, 12, 130, 32, 25, colors.text, "right")
     date = uiLabel(parent, "---", 1052, 48, 193, 24, 14, colors.textMuted, "right")
     return { clock: clock, date: date }

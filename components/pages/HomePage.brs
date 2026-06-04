@@ -100,13 +100,17 @@ end sub
 
 sub addTile(x as Integer, y as Integer, w as Integer, h as Integer, icon as String, label as String, subText as String, bg as String, border as String, textColor as String, row as Integer, col as Integer, page as String)
     focusBorder = m.colors.greenFocus
-    if bg = m.colors.greenSoft then focusBorder = m.colors.purpleLine
+    focusBg = m.colors.purpleDeep
+    if bg = m.colors.greenSoft then
+        focusBorder = m.colors.purpleLine
+        focusBg = m.colors.greenDeep
+    end if
     item = {
         x: x, y: y, w: w, h: h,
         icon: icon, label: label, subtitle: subText,
         iconSize: 18, titleSize: 25, subSize: 12,
         bg: bg, border: border, textColor: textColor, subColor: m.colors.textMuted,
-        focusBg: bg, focusBorder: focusBorder, focusTextColor: m.colors.text,
+        focusBg: focusBg, focusBorder: focusBorder, focusTextColor: m.colors.text,
         row: row, col: col, page: page, mode: "tile", thin: true
     }
     m.focusItems.push(item)
