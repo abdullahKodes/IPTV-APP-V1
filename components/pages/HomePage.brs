@@ -48,10 +48,10 @@ sub render()
     nextRow = drawHomeSideNav()
 
     uiLabel(m.canvas, "QUICK ACCESS", 514, 150, 430, 34, 18, m.colors.textDim, "center")
-    addTile(480, 230, 260, 152, "ADD", "Add Playlist", "", m.colors.purpleSoft, m.colors.purpleLine, m.colors.textPurple, nextRow, 1, "AddPlaylistPage")
-    addTile(780, 230, 260, 152, "TV", "Live TV", "", m.colors.greenSoft, m.colors.green, m.colors.textGreen, nextRow, 2, "LiveTvPage")
-    addTile(480, 412, 260, 152, "S", "Series", "", m.colors.purpleSoft, m.colors.purpleLine, m.colors.textPurple, nextRow + 1, 1, "SeriesPage")
-    addTile(780, 412, 260, 152, "M", "Movies", "", m.colors.greenSoft, m.colors.green, m.colors.textGreen, nextRow + 1, 2, "MoviesPage")
+    addTile(480, 230, 260, 152, "card_add", "Add Playlist", "", m.colors.purpleSoft, m.colors.purpleLine, m.colors.textPurple, nextRow, 1, "AddPlaylistPage")
+    addTile(780, 230, 260, 152, "card_tv", "Live TV", "", m.colors.greenSoft, m.colors.green, m.colors.textGreen, nextRow, 2, "LiveTvPage")
+    addTile(480, 412, 260, 152, "card_series", "Series", "", m.colors.purpleSoft, m.colors.purpleLine, m.colors.textPurple, nextRow + 1, 1, "SeriesPage")
+    addTile(780, 412, 260, 152, "card_movies", "Movies", "", m.colors.greenSoft, m.colors.green, m.colors.textGreen, nextRow + 1, 2, "MoviesPage")
 
     drawFocus()
 end sub
@@ -104,7 +104,7 @@ sub addTile(x as Integer, y as Integer, w as Integer, h as Integer, icon as Stri
     item = {
         x: x, y: y, w: w, h: h,
         icon: icon, label: label, subtitle: subText,
-        iconSize: 18, titleSize: 22, subSize: 12,
+        iconSize: 18, titleSize: 25, subSize: 12,
         bg: bg, border: border, textColor: textColor, subColor: m.colors.textMuted,
         focusBg: bg, focusBorder: focusBorder, focusTextColor: m.colors.text,
         row: row, col: col, page: page, mode: "tile", thin: true

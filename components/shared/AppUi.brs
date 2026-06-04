@@ -151,7 +151,8 @@ function uiKnownIcon(icon as String) as Boolean
         add: true, play: true, search: true, back: true, sync: true, info: true,
         out: true, plus: true, link: true, m3u: true, x: true, profile: true,
         world: true, note: true, kids: true, sport: true, news: true,
-        heart: true, bell: true
+        heart: true, bell: true,
+        card_add: true, card_tv: true, card_series: true, card_movies: true
     }
     return known.doesExist(LCase(icon))
 end function
@@ -230,7 +231,7 @@ function uiButton(parent as Object, item as Object, focused as Boolean) as Objec
 
     if mode = "tile" then
         uiRoundRect(g, Int((item.w - 54) / 2), 20, 54, 54, border, border, 0.85)
-        uiDrawIcon(g, item.icon, Int((item.w - 36) / 2), 29, 36, 36, focused, textColor, item.iconSize)
+        uiDrawIcon(g, item.icon, Int((item.w - 46) / 2), 23, 46, 46, focused, textColor, item.iconSize)
         tileTitleY = 92
         tileTitleH = 42
         if item.subtitle <> invalid and item.subtitle <> "" then
