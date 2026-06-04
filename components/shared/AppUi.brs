@@ -137,6 +137,14 @@ function uiLabel(parent as Object, text as String, x as Integer, y as Integer, w
     return node
 end function
 
+function uiTopLabel(parent as Object, text as String, x as Integer, y as Integer, w as Integer, h as Integer, size as Integer, color as String) as Object
+    node = uiLabel(parent, text, x, y, w, h, size, color)
+    font = CreateObject("roSGNode", "Font")
+    font.size = size
+    node.font = font
+    return node
+end function
+
 function uiIconUri(icon as String, focused as Boolean) as String
     key = LCase(icon)
     if focused then
@@ -152,7 +160,8 @@ function uiKnownIcon(icon as String) as Boolean
         out: true, plus: true, link: true, m3u: true, x: true, profile: true,
         world: true, note: true, kids: true, sport: true, news: true,
         heart: true, bell: true,
-        card_add: true, card_tv: true, card_series: true, card_movies: true
+        card_add: true, card_tv: true, card_series: true, card_movies: true,
+        iptv: true
     }
     return known.doesExist(LCase(icon))
 end function
@@ -276,10 +285,8 @@ end function
 function uiTopBar(parent as Object, colors as Object) as Object
     uiRect(parent, 0, 0, 1280, 86, colors.bg)
     uiRect(parent, 0, 85, 1280, 1, "0xFFFFFF14")
-    uiRoundRect(parent, 30, 15, 50, 50, colors.purple, colors.green)
-    uiDrawIcon(parent, "tv", 42, 27, 26, 26, true, colors.text, 18)
-    uiLabel(parent, "IPTV", 90, 7, 92, 58, 38, colors.textPurple)
-    uiLabel(parent, "Max", 156, 7, 94, 58, 38, colors.textGreen)
+    uiDrawIcon(parent, "iptv", 30, 17, 52, 52, true, colors.textGreen, 18)
+    uiTopLabel(parent, "IPTV Max", 94, 14, 190, 46, 28, colors.text)
     clock = uiLabel(parent, "--:--", 1115, 12, 130, 32, 25, colors.text, "right")
     date = uiLabel(parent, "---", 1052, 48, 193, 24, 14, colors.textMuted, "right")
     return { clock: clock, date: date }
