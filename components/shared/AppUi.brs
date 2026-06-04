@@ -230,9 +230,9 @@ function uiButton(parent as Object, item as Object, focused as Boolean) as Objec
 
     if mode = "tile" then
         uiRoundRect(g, Int((item.w - 54) / 2), 20, 54, 54, border, border, 0.85)
-        uiDrawIcon(g, item.icon, Int((item.w - 32) / 2), 31, 32, 32, focused, textColor, item.iconSize)
-        tileTitleY = 96
-        tileTitleH = 34
+        uiDrawIcon(g, item.icon, Int((item.w - 36) / 2), 29, 36, 36, focused, textColor, item.iconSize)
+        tileTitleY = 92
+        tileTitleH = 42
         if item.subtitle <> invalid and item.subtitle <> "" then
             tileTitleY = 82
             tileTitleH = 30

@@ -48,10 +48,10 @@ sub render()
     nextRow = drawHomeSideNav()
 
     uiLabel(m.canvas, "QUICK ACCESS", 514, 150, 430, 34, 18, m.colors.textDim, "center")
-    addTile(470, 230, 280, 152, "ADD", "Add Playlist", "", m.colors.purpleSoft, m.colors.purpleLine, m.colors.textPurple, nextRow, 1, "AddPlaylistPage")
-    addTile(790, 230, 280, 152, "TV", "Live TV", "", m.colors.greenSoft, m.colors.green, m.colors.textGreen, nextRow, 2, "LiveTvPage")
-    addTile(470, 412, 280, 152, "S", "Series", "", m.colors.purpleSoft, m.colors.purpleLine, m.colors.textPurple, nextRow + 1, 1, "SeriesPage")
-    addTile(790, 412, 280, 152, "M", "Movies", "", m.colors.greenSoft, m.colors.green, m.colors.textGreen, nextRow + 1, 2, "MoviesPage")
+    addTile(480, 230, 260, 152, "ADD", "Add Playlist", "", m.colors.purpleSoft, m.colors.purpleLine, m.colors.textPurple, nextRow, 1, "AddPlaylistPage")
+    addTile(780, 230, 260, 152, "TV", "Live TV", "", m.colors.greenSoft, m.colors.green, m.colors.textGreen, nextRow, 2, "LiveTvPage")
+    addTile(480, 412, 260, 152, "S", "Series", "", m.colors.purpleSoft, m.colors.purpleLine, m.colors.textPurple, nextRow + 1, 1, "SeriesPage")
+    addTile(780, 412, 260, 152, "M", "Movies", "", m.colors.greenSoft, m.colors.green, m.colors.textGreen, nextRow + 1, 2, "MoviesPage")
 
     drawFocus()
 end sub
@@ -88,9 +88,9 @@ end sub
 
 sub addHomeProfileItem()
     item = {
-        x: 12, y: 632, w: 204, h: 60,
+        x: 12, y: 640, w: 204, h: 52,
         icon: "profile", label: "My Profile", subtitle: "Premium",
-        iconSize: 14, iconW: 36, iconH: 36, iconX: 17, titleSize: 11, subSize: 9,
+        iconSize: 14, iconW: 32, iconH: 32, iconX: 18, titleSize: 10, subSize: 7,
         bg: "0xFFFFFF10", border: m.colors.panel, textColor: m.colors.text, subColor: m.colors.textDim,
         focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         row: 4, col: 0, page: "SettingsPage", mode: "row"
@@ -104,7 +104,7 @@ sub addTile(x as Integer, y as Integer, w as Integer, h as Integer, icon as Stri
     item = {
         x: x, y: y, w: w, h: h,
         icon: icon, label: label, subtitle: subText,
-        iconSize: 17, titleSize: 16, subSize: 12,
+        iconSize: 18, titleSize: 22, subSize: 12,
         bg: bg, border: border, textColor: textColor, subColor: m.colors.textMuted,
         focusBg: bg, focusBorder: focusBorder, focusTextColor: m.colors.text,
         row: row, col: col, page: page, mode: "tile", thin: true
