@@ -9,11 +9,13 @@ function appColors() as Object
         purpleFocus: "0x7468F0FF",
         purpleDeep: "0x1A1F46FF",
         purpleActive: "0x111735FF",
+        purpleBorderDark: "0x0B102BFF",
         purpleLine: "0x8E86FFFF",
         green: "0x19C6B3FF",
         greenSoft: "0x0D454BFF",
         greenDeep: "0x07353AFF",
         greenActive: "0x04282DFF",
+        greenBorderDark: "0x021D22FF",
         greenFocus: "0x1EE0CAFF",
         text: "0xE8E6FFFF",
         textMuted: "0xA7B1C8FF",
@@ -83,11 +85,13 @@ function uiColorKey(color as String) as String
     if color = "0x7468F0FF" then return "purpleFocus"
     if color = "0x1A1F46FF" then return "purpleDeep"
     if color = "0x111735FF" then return "purpleActive"
+    if color = "0x0B102BFF" then return "purpleBorderDark"
     if color = "0x8E86FFFF" then return "purpleLine"
     if color = "0x19C6B3FF" then return "green"
     if color = "0x0D454BFF" then return "greenSoft"
     if color = "0x07353AFF" then return "greenDeep"
     if color = "0x04282DFF" then return "greenActive"
+    if color = "0x021D22FF" then return "greenBorderDark"
     if color = "0x1EE0CAFF" then return "greenFocus"
     if color = "0xE8E6FFFF" then return "text"
     if color = "0xA7B1C8FF" then return "textMuted"
