@@ -123,6 +123,9 @@ function uiLabel(parent as Object, text as String, x as Integer, y as Integer, w
     node = CreateObject("roSGNode", "Label")
     node.translation = [x, y]
     node.width = w
+    font = CreateObject("roSGNode", "Font")
+    font.size = size
+    node.font = font
     desiredHeight = size + 16
     if h < desiredHeight then
         node.height = desiredHeight
@@ -230,8 +233,7 @@ function uiButton(parent as Object, item as Object, focused as Boolean) as Objec
     if mode = "blank" then return g
 
     if mode = "tile" then
-        uiRoundRect(g, Int((item.w - 54) / 2), 20, 54, 54, border, border, 0.85)
-        uiDrawIcon(g, item.icon, Int((item.w - 46) / 2), 23, 46, 46, focused, textColor, item.iconSize)
+        uiDrawIcon(g, item.icon, Int((item.w - 62) / 2), 16, 62, 62, focused, textColor, item.iconSize)
         tileTitleY = 92
         tileTitleH = 42
         if item.subtitle <> invalid and item.subtitle <> "" then
