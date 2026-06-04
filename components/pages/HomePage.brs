@@ -73,7 +73,7 @@ sub addHomeNavItem(x as Integer, y as Integer, icon as String, label as String, 
     item = {
         x: x, y: y, w: 204, h: 52,
         icon: icon, label: label, subtitle: "",
-        iconSize: 12, titleSize: 14, subSize: 10,
+        iconSize: 12, titleSize: 12, subSize: 10,
         bg: m.colors.bg, border: m.colors.bg, textColor: m.colors.textGreen, subColor: m.colors.textDim,
         focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         row: row, col: 0, page: page, mode: "row"
@@ -89,8 +89,8 @@ end sub
 sub addHomeProfileItem()
     item = {
         x: 12, y: 640, w: 204, h: 52,
-        icon: "profile", label: "My Profile", subtitle: "Premium",
-        iconSize: 14, iconW: 32, iconH: 32, iconX: 18, titleSize: 10, subSize: 7,
+        icon: "profile", label: "My Profile", subtitle: "",
+        iconSize: 14, iconW: 32, iconH: 32, iconX: 18, titleSize: 11, subSize: 7,
         bg: "0xFFFFFF10", border: m.colors.panel, textColor: m.colors.text, subColor: m.colors.textDim,
         focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         row: 4, col: 0, page: "SettingsPage", mode: "row"
