@@ -48,10 +48,10 @@ sub render()
     nextRow = drawHomeSideNav()
 
     uiLabel(m.canvas, "QUICK ACCESS", 514, 150, 430, 34, 18, m.colors.textDim, "center")
-    addTile(470, 206, 280, 152, "ADD", "Add Playlist", "Import M3U / URL", m.colors.purpleSoft, m.colors.purpleLine, m.colors.textPurple, nextRow, 1, "AddPlaylistPage")
-    addTile(790, 206, 280, 152, "TV", "Live TV", "Watch channels live", m.colors.greenSoft, m.colors.green, m.colors.textGreen, nextRow, 2, "LiveTvPage")
-    addTile(470, 388, 280, 152, "S", "Series", "TV shows and episodes", m.colors.purpleSoft, m.colors.purpleLine, m.colors.textPurple, nextRow + 1, 1, "SeriesPage")
-    addTile(790, 388, 280, 152, "M", "Movies", "Browse and stream films", m.colors.greenSoft, m.colors.green, m.colors.textGreen, nextRow + 1, 2, "MoviesPage")
+    addTile(470, 230, 280, 152, "ADD", "Add Playlist", "", m.colors.purpleSoft, m.colors.purpleLine, m.colors.textPurple, nextRow, 1, "AddPlaylistPage")
+    addTile(790, 230, 280, 152, "TV", "Live TV", "", m.colors.greenSoft, m.colors.green, m.colors.textGreen, nextRow, 2, "LiveTvPage")
+    addTile(470, 412, 280, 152, "S", "Series", "", m.colors.purpleSoft, m.colors.purpleLine, m.colors.textPurple, nextRow + 1, 1, "SeriesPage")
+    addTile(790, 412, 280, 152, "M", "Movies", "", m.colors.greenSoft, m.colors.green, m.colors.textGreen, nextRow + 1, 2, "MoviesPage")
 
     drawFocus()
 end sub
@@ -90,8 +90,8 @@ sub addHomeProfileItem()
     item = {
         x: 12, y: 632, w: 204, h: 60,
         icon: "profile", label: "My Profile", subtitle: "Premium",
-        iconSize: 13, iconW: 30, iconH: 30, iconX: 19, titleSize: 12, subSize: 10,
-        bg: "0xFFFFFF10", border: "0xFFFFFF18", textColor: m.colors.text, subColor: m.colors.textDim,
+        iconSize: 14, iconW: 36, iconH: 36, iconX: 17, titleSize: 11, subSize: 9,
+        bg: "0xFFFFFF10", border: m.colors.panel, textColor: m.colors.text, subColor: m.colors.textDim,
         focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         row: 4, col: 0, page: "SettingsPage", mode: "row"
     }

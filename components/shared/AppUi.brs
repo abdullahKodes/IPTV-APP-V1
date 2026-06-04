@@ -231,7 +231,13 @@ function uiButton(parent as Object, item as Object, focused as Boolean) as Objec
     if mode = "tile" then
         uiRoundRect(g, Int((item.w - 54) / 2), 20, 54, 54, border, border, 0.85)
         uiDrawIcon(g, item.icon, Int((item.w - 32) / 2), 31, 32, 32, focused, textColor, item.iconSize)
-        uiLabel(g, item.label, 20, 82, item.w - 40, 30, item.titleSize, textColor, "center")
+        tileTitleY = 96
+        tileTitleH = 34
+        if item.subtitle <> invalid and item.subtitle <> "" then
+            tileTitleY = 82
+            tileTitleH = 30
+        end if
+        uiLabel(g, item.label, 20, tileTitleY, item.w - 40, tileTitleH, item.titleSize, textColor, "center")
         if item.subtitle <> invalid and item.subtitle <> "" then
             uiLabel(g, item.subtitle, 20, 112, item.w - 40, 24, item.subSize, item.subColor, "center")
         end if
@@ -272,9 +278,8 @@ function uiTopBar(parent as Object, colors as Object) as Object
     uiRect(parent, 0, 85, 1280, 1, "0xFFFFFF14")
     uiRoundRect(parent, 30, 15, 50, 50, colors.purple, colors.green)
     uiDrawIcon(parent, "tv", 42, 27, 26, 26, true, colors.text, 18)
-    uiLabel(parent, "IPTV", 92, 10, 78, 50, 34, colors.textPurple)
-    uiLabel(parent, "Max", 152, 10, 86, 50, 34, colors.textGreen)
-    uiRect(parent, 1128, 28, 9, 9, colors.red)
+    uiLabel(parent, "IPTV", 90, 7, 92, 58, 38, colors.textPurple)
+    uiLabel(parent, "Max", 156, 7, 94, 58, 38, colors.textGreen)
     clock = uiLabel(parent, "--:--", 1115, 12, 130, 32, 25, colors.text, "right")
     date = uiLabel(parent, "---", 1052, 48, 193, 24, 14, colors.textMuted, "right")
     return { clock: clock, date: date }
