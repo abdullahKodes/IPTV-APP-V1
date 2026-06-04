@@ -141,7 +141,8 @@ function uiKnownIcon(icon as String) as Boolean
         list: true, tv: true, series: true, movies: true, settings: true,
         add: true, play: true, search: true, back: true, sync: true, info: true,
         out: true, plus: true, link: true, m3u: true, x: true, profile: true,
-        world: true, note: true, kids: true, sport: true, news: true
+        world: true, note: true, kids: true, sport: true, news: true,
+        heart: true, bell: true
     }
     return known.doesExist(LCase(icon))
 end function
