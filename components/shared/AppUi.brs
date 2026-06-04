@@ -137,14 +137,6 @@ function uiLabel(parent as Object, text as String, x as Integer, y as Integer, w
     return node
 end function
 
-function uiTopLabel(parent as Object, text as String, x as Integer, y as Integer, w as Integer, h as Integer, size as Integer, color as String) as Object
-    node = uiLabel(parent, text, x, y, w, h, size, color)
-    font = CreateObject("roSGNode", "Font")
-    font.size = size
-    node.font = font
-    return node
-end function
-
 function uiIconUri(icon as String, focused as Boolean) as String
     key = LCase(icon)
     if focused then
@@ -286,7 +278,8 @@ function uiTopBar(parent as Object, colors as Object) as Object
     uiRect(parent, 0, 0, 1280, 86, colors.bg)
     uiRect(parent, 0, 85, 1280, 1, "0xFFFFFF14")
     uiDrawIcon(parent, "iptv", 30, 17, 52, 52, true, colors.textGreen, 18)
-    uiTopLabel(parent, "IPTV Max", 94, 14, 190, 46, 28, colors.text)
+    uiLabel(parent, "IPTV", 96, 10, 84, 52, 34, colors.textPurple)
+    uiLabel(parent, "Max", 164, 10, 82, 52, 34, colors.textGreen)
     clock = uiLabel(parent, "--:--", 1115, 12, 130, 32, 25, colors.text, "right")
     date = uiLabel(parent, "---", 1052, 48, 193, 24, 14, colors.textMuted, "right")
     return { clock: clock, date: date }
