@@ -278,8 +278,8 @@ function uiTopBar(parent as Object, colors as Object) as Object
     uiRect(parent, 0, 0, 1280, 86, colors.bg)
     uiRect(parent, 0, 85, 1280, 1, "0xFFFFFF14")
     uiDrawIcon(parent, "iptv", 30, 17, 52, 52, true, colors.textGreen, 18)
-    uiLabel(parent, "IPTV", 96, 10, 84, 52, 34, colors.textPurple)
-    uiLabel(parent, "Max", 164, 10, 82, 52, 34, colors.textGreen)
+    uiLabel(parent, "IPTV", 96, 12, 84, 52, 34, colors.textPurple)
+    uiLabel(parent, "Max", 158, 12, 82, 52, 34, colors.textGreen)
     clock = uiLabel(parent, "--:--", 1115, 12, 130, 32, 25, colors.text, "right")
     date = uiLabel(parent, "---", 1052, 48, 193, 24, 14, colors.textMuted, "right")
     return { clock: clock, date: date }
