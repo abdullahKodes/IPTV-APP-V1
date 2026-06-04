@@ -53,8 +53,6 @@ sub render()
     addTile(470, 388, 280, 152, "S", "Series", "TV shows and episodes", m.colors.purpleSoft, m.colors.purpleLine, m.colors.textPurple, nextRow + 1, 1, "SeriesPage")
     addTile(790, 388, 280, 152, "M", "Movies", "Browse and stream films", m.colors.greenSoft, m.colors.green, m.colors.textGreen, nextRow + 1, 2, "MoviesPage")
 
-    uiRect(m.canvas, 595, 620, 8, 8, m.colors.green)
-    uiLabel(m.canvas, "Connected - 3 playlists loaded - 4,280 channels", 615, 604, 420, 38, 13, m.colors.textDim)
     drawFocus()
 end sub
 
@@ -92,7 +90,7 @@ sub addHomeProfileItem()
     item = {
         x: 12, y: 632, w: 204, h: 60,
         icon: "profile", label: "My Profile", subtitle: "Premium",
-        iconSize: 13, titleSize: 14, subSize: 12,
+        iconSize: 13, iconW: 30, iconH: 30, iconX: 19, titleSize: 12, subSize: 10,
         bg: "0xFFFFFF10", border: "0xFFFFFF18", textColor: m.colors.text, subColor: m.colors.textDim,
         focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         row: 4, col: 0, page: "SettingsPage", mode: "row"
@@ -101,12 +99,14 @@ sub addHomeProfileItem()
 end sub
 
 sub addTile(x as Integer, y as Integer, w as Integer, h as Integer, icon as String, label as String, subText as String, bg as String, border as String, textColor as String, row as Integer, col as Integer, page as String)
+    focusBorder = m.colors.greenFocus
+    if bg = m.colors.greenSoft then focusBorder = m.colors.purpleLine
     item = {
         x: x, y: y, w: w, h: h,
         icon: icon, label: label, subtitle: subText,
         iconSize: 17, titleSize: 16, subSize: 12,
         bg: bg, border: border, textColor: textColor, subColor: m.colors.textMuted,
-        focusBg: bg, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        focusBg: bg, focusBorder: focusBorder, focusTextColor: m.colors.text,
         row: row, col: col, page: page, mode: "tile", thin: true
     }
     m.focusItems.push(item)

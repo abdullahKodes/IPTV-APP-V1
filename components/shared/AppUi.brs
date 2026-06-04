@@ -244,7 +244,13 @@ function uiButton(parent as Object, item as Object, focused as Boolean) as Objec
             labelW = item.w
             labelAlign = "center"
         else
-            uiDrawIcon(g, item.icon, 22, Int((item.h - 24) / 2), 24, 24, focused, textColor, item.iconSize)
+            iconW = 24
+            iconH = 24
+            iconX = 22
+            if item.doesExist("iconW") then iconW = item.iconW
+            if item.doesExist("iconH") then iconH = item.iconH
+            if item.doesExist("iconX") then iconX = item.iconX
+            uiDrawIcon(g, item.icon, iconX, Int((item.h - iconH) / 2), iconW, iconH, focused, textColor, item.iconSize)
         end if
 
         titleY = 9
@@ -266,8 +272,8 @@ function uiTopBar(parent as Object, colors as Object) as Object
     uiRect(parent, 0, 85, 1280, 1, "0xFFFFFF14")
     uiRoundRect(parent, 30, 15, 50, 50, colors.purple, colors.green)
     uiDrawIcon(parent, "tv", 42, 27, 26, 26, true, colors.text, 18)
-    uiLabel(parent, "IPTV", 96, 14, 80, 44, 30, colors.textPurple)
-    uiLabel(parent, "Max", 166, 14, 82, 44, 30, colors.textGreen)
+    uiLabel(parent, "IPTV", 92, 10, 78, 50, 34, colors.textPurple)
+    uiLabel(parent, "Max", 152, 10, 86, 50, 34, colors.textGreen)
     uiRect(parent, 1128, 28, 9, 9, colors.red)
     clock = uiLabel(parent, "--:--", 1115, 12, 130, 32, 25, colors.text, "right")
     date = uiLabel(parent, "---", 1052, 48, 193, 24, 14, colors.textMuted, "right")
