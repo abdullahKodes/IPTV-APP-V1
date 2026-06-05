@@ -69,15 +69,13 @@ sub render()
     if m.mode = "m3u" then
         addInputField(380, 292, 760, "Playlist Title", "playlistTitle", row + 1, 1, false)
         addInputField(380, 398, 760, "M3U URL", "m3uUrl", row + 2, 1, false)
-        submitText = "Add Playlist"
-        if m.added then submitText = "Playlist Added"
-        addWideAction(530, 520, 460, 56, "plus", submitText, row + 3, 1)
+        addWideAction(530, 510, 460, 56, "plus", "Add Playlist", row + 3, 1)
     else
-        addInputField(380, 258, 760, "Account Name", "accountName", row + 1, 1, false)
-        addInputField(380, 344, 760, "Server URL", "serverUrl", row + 2, 1, false)
-        addInputField(380, 430, 760, "Username", "username", row + 3, 1, false)
-        addInputField(380, 516, 760, "Password", "password", row + 4, 1, true)
-        addWideAction(530, 616, 460, 56, "link", "Connect Account", row + 4, 1)
+        addInputField(380, 250, 760, "Account Name", "accountName", row + 1, 1, false)
+        addInputField(380, 334, 760, "Server URL", "serverUrl", row + 2, 1, false)
+        addInputField(380, 418, 760, "Username", "username", row + 3, 1, false)
+        addInputField(380, 502, 760, "Password", "password", row + 4, 1, true)
+        addWideAction(530, 602, 460, 56, "link", "Connect Account", row + 5, 1)
     end if
 
     uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
@@ -133,7 +131,7 @@ sub addInputField(x as Integer, y as Integer, w as Integer, label as String, fie
     displayValue = value
     if secure and value <> "" then displayValue = maskText(value)
     item = {
-        x: x, y: y + 32, w: w, h: 56,
+        x: x, y: y + 30, w: w, h: 48,
         icon: "", label: displayValue, subtitle: "",
         iconSize: 0, titleSize: 16, subSize: 10,
         bg: m.colors.panel, border: m.colors.panel, textColor: m.colors.text,
