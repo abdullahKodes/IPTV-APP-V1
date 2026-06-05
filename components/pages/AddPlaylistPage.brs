@@ -4,7 +4,7 @@ sub init()
     m.mode = "m3u"
     m.added = false
     m.focusItems = []
-    m.focusIndex = 5
+    m.focusIndex = 6
     render()
 end sub
 
@@ -45,61 +45,89 @@ sub render()
     m.clock = clockParts.clock
     m.date = clockParts.date
     refreshClock()
-    row = uiSideNav(m.canvas, m.colors, "playlists", m.focusItems, 0)
+    row = drawAddPlaylistSideNav()
 
-    uiLabel(m.canvas, "Add New Playlist", 250, 104, 300, 30, 16, m.colors.textDim)
-    addSmallButton(418, 150, 205, 48, "M3U", "M3U Playlist", row, 1, "m3u")
-    addSmallButton(650, 150, 230, 48, "X", "Xtreme Account", row, 2, "xtreme")
+    uiLabel(m.canvas, "Add New Playlist", 330, 118, 760, 42, 25, m.colors.text)
+    addSmallButton(420, 196, 230, 44, "m3u", "M3U Playlist", row, 1, "m3u")
+    addSmallButton(680, 196, 230, 44, "x", "Xtreme Account", row, 2, "xtreme")
 
     if m.mode = "m3u" then
-        drawField(295, 235, "Playlist Title", "e.g. Sports Pack HD", m.colors.purpleLine)
-        drawField(295, 325, "M3U URL", "http://provider.com/list.m3u", m.colors.purpleLine)
+        drawField(330, 292, 760, "Playlist Title", "e.g. Sports Pack HD", m.colors.textMuted)
+        drawField(330, 398, 760, "M3U URL", "http://provider.com/list.m3u", m.colors.textMuted)
         submitText = "Add Playlist"
         if m.added then submitText = "Playlist Added"
-        addWideAction(295, 438, 520, 56, "PLUS", submitText, row + 3, 1)
+        addWideAction(330, 520, 760, 56, "plus", submitText, row + 3, 1)
     else
-        drawField(295, 220, "Account Name", "My Xtreme Account", m.colors.green)
-        drawField(295, 292, "Server URL", "http://server.com:8080", m.colors.green)
-        drawField(295, 364, "Username", "username", m.colors.green)
-        drawField(295, 436, "Password", "********", m.colors.green)
-        addWideAction(295, 528, 520, 56, "LINK", "Connect Account", row + 4, 1)
+        drawField(330, 270, 760, "Account Name", "My Xtreme Account", m.colors.textMuted)
+        drawField(330, 352, 760, "Server URL", "http://server.com:8080", m.colors.textMuted)
+        drawField(330, 434, 760, "Username", "username", m.colors.textMuted)
+        drawField(330, 516, 760, "Password", "********", m.colors.textMuted)
+        addWideAction(330, 608, 760, 56, "link", "Connect Account", row + 4, 1)
     end if
 
-    drawQrPanel()
     uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
 end sub
 
-sub drawField(x as Integer, y as Integer, label as String, value as String, accent as String)
-    uiLabel(m.canvas, label, x, y, 360, 24, 14, accent)
-    uiRect(m.canvas, x, y + 32, 520, 52, "0xFFFFFF10")
-    uiRect(m.canvas, x + 2, y + 34, 516, 48, m.colors.panel)
-    uiLabel(m.canvas, value, x + 18, y + 42, 480, 34, 16, m.colors.textMuted)
+function drawAddPlaylistSideNav() as Integer
+    uiRect(m.canvas, 0, 86, 226, 634, m.colors.panel, 0.66)
+    uiRect(m.canvas, 225, 86, 1, 634, "0xFFFFFF14")
+
+    addAddNavItem(12, 112, "list", "My Playlists", "MyPlaylistsPage", 0, false)
+    addAddNavItem(12, 168, "tv", "Live TV", "LiveTvPage", 1, false)
+    addAddNavItem(12, 224, "series", "Series", "SeriesPage", 2, false)
+    addAddNavItem(12, 280, "movies", "Movies", "MoviesPage", 3, false)
+    addAddNavItem(12, 336, "settings", "Settings", "SettingsPage", 4, false)
+
+    addAddProfileItem()
+    return 6
+end function
+
+sub addAddNavItem(x as Integer, y as Integer, icon as String, label as String, page as String, row as Integer, active as Boolean)
+    item = {
+        x: x, y: y, w: 204, h: 52,
+        icon: icon, label: label, subtitle: "",
+        iconSize: 12, titleSize: 12, subSize: 10,
+        bg: m.colors.bg, border: m.colors.bg, textColor: m.colors.textGreen, subColor: m.colors.textDim,
+        focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        row: row, col: 0, page: page, mode: "row"
+    }
+    if active then
+        item.bg = m.colors.purpleSoft
+        item.border = m.colors.purpleLine
+        item.textColor = m.colors.text
+    end if
+    m.focusItems.push(item)
 end sub
 
-sub drawQrPanel()
-    uiRect(m.canvas, 910, 190, 210, 320, "0xFFFFFF10")
-    uiLabel(m.canvas, "Scan to add", 930, 212, 170, 26, 14, m.colors.purpleLine, "center")
-    uiRect(m.canvas, 962, 258, 104, 104, m.colors.text)
-    uiRect(m.canvas, 976, 272, 24, 24, m.colors.bg)
-    uiRect(m.canvas, 1028, 272, 24, 24, m.colors.bg)
-    uiRect(m.canvas, 976, 324, 24, 24, m.colors.bg)
-    for i = 0 to 9
-        uiRect(m.canvas, 982 + ((i * 19) mod 74), 304 + ((i * 13) mod 52), 8, 8, m.colors.purple)
-    end for
-    uiLabel(m.canvas, "Point your phone camera to scan and import playlist", 928, 384, 174, 58, 13, m.colors.textMuted, "center")
-    uiRect(m.canvas, 910, 530, 210, 86, m.colors.greenSoft)
-    uiLabel(m.canvas, "Tip", 928, 540, 170, 22, 14, m.colors.textGreen)
-    uiLabel(m.canvas, "Use the IPTV Max mobile app to push playlists directly to your TV.", 928, 564, 174, 44, 12, m.colors.textMuted)
+sub addAddProfileItem()
+    item = {
+        x: 12, y: 640, w: 204, h: 52,
+        icon: "profile", label: "My Profile", subtitle: "",
+        iconSize: 14, iconW: 32, iconH: 32, iconX: 18, titleSize: 11, subSize: 7,
+        bg: "0xFFFFFF10", border: m.colors.panel, textColor: m.colors.text, subColor: m.colors.textDim,
+        focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        row: 5, col: 0, page: "SettingsPage", mode: "row"
+    }
+    m.focusItems.push(item)
+end sub
+
+sub drawField(x as Integer, y as Integer, w as Integer, label as String, value as String, accent as String)
+    uiLabel(m.canvas, label, x, y, w, 24, 13, accent)
+    uiRoundRect(m.canvas, x, y + 32, w, 56, m.colors.panel, m.colors.panel)
+    uiLabel(m.canvas, value, x + 24, y + 43, w - 48, 32, 16, m.colors.textMuted)
 end sub
 
 sub addSmallButton(x as Integer, y as Integer, w as Integer, h as Integer, icon as String, label as String, row as Integer, col as Integer, action as String)
     active = m.mode = action
-    item = { x: x, y: y, w: w, h: h, icon: icon, label: label, subtitle: "", iconSize: 14, titleSize: 16, subSize: 10, bg: m.colors.bg, border: m.colors.purpleLine, textColor: m.colors.textPurple, subColor: m.colors.textDim, focusBg: m.colors.purpleFocus, focusBorder: m.colors.text, focusTextColor: m.colors.text, row: row, col: col, action: action, page: "" }
-    if active then item.bg = m.colors.purple
+    item = { x: x, y: y, w: w, h: h, icon: icon, label: label, subtitle: "", iconSize: 14, titleSize: 14, subSize: 10, bg: m.colors.bg, border: m.colors.whiteLine, textColor: m.colors.text, subColor: m.colors.textDim, focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: col, action: action, page: "", mode: "row" }
+    if active then
+        item.bg = m.colors.purpleSoft
+        item.border = m.colors.purpleLine
+    end if
     m.focusItems.push(item)
 end sub
 
 sub addWideAction(x as Integer, y as Integer, w as Integer, h as Integer, icon as String, label as String, row as Integer, col as Integer)
-    item = { x: x, y: y, w: w, h: h, icon: icon, label: label, subtitle: "", iconSize: 14, titleSize: 17, subSize: 10, bg: m.colors.purple, border: m.colors.purple, textColor: m.colors.text, subColor: m.colors.textDim, focusBg: m.colors.greenFocus, focusBorder: m.colors.text, focusTextColor: m.colors.text, row: row, col: col, action: "submit", page: "" }
+    item = { x: x, y: y, w: w, h: h, icon: icon, label: label, subtitle: "", iconSize: 15, titleSize: 17, subSize: 10, bg: m.colors.purple, border: m.colors.purple, textColor: m.colors.text, subColor: m.colors.textDim, focusBg: m.colors.greenFocus, focusBorder: m.colors.text, focusTextColor: m.colors.text, row: row, col: col, action: "submit", page: "", mode: "row" }
     m.focusItems.push(item)
 end sub
