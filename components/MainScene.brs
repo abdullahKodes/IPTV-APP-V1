@@ -41,6 +41,7 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
     if not press then return false
 
     if key = "back" then
+        if m.currentPage <> invalid and m.currentPage.callFunc("handleKey", key) then return true
         if m.currentPage <> invalid and m.currentPageName <> "HomePage" then
             showPage("HomePage")
             return true

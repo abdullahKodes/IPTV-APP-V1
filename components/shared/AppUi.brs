@@ -276,6 +276,9 @@ function uiButton(parent as Object, item as Object, focused as Boolean) as Objec
             if item.doesExist("labelAlign") then labelAlign = item.labelAlign
             uiDrawIcon(g, item.icon, iconX, Int((item.h - iconH) / 2), iconW, iconH, focused, textColor, item.iconSize)
         end if
+        if item.doesExist("labelX") then labelX = item.labelX
+        if item.doesExist("labelW") then labelW = item.labelW
+        if item.doesExist("labelAlign") then labelAlign = item.labelAlign
 
         titleY = 9
         titleH = item.h - 18
