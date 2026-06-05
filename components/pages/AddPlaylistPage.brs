@@ -47,22 +47,22 @@ sub render()
     refreshClock()
     row = drawAddPlaylistSideNav()
 
-    uiLabel(m.canvas, "Add New Playlist", 330, 118, 760, 42, 25, m.colors.text)
-    addSmallButton(420, 196, 230, 44, "m3u", "M3U Playlist", row, 1, "m3u")
-    addSmallButton(680, 196, 230, 44, "x", "Xtreme Account", row, 2, "xtreme")
+    uiLabel(m.canvas, "Add New Playlist", 380, 114, 760, 48, 30, m.colors.text, "center")
+    addSmallButton(505, 198, 230, 48, "", "M3U Playlist", row, 1, "m3u")
+    addSmallButton(765, 198, 230, 48, "", "Xtreme Account", row, 2, "xtreme")
 
     if m.mode = "m3u" then
-        drawField(330, 292, 760, "Playlist Title", "e.g. Sports Pack HD", m.colors.textMuted)
-        drawField(330, 398, 760, "M3U URL", "http://provider.com/list.m3u", m.colors.textMuted)
+        drawField(380, 292, 760, "Playlist Title", "", m.colors.textGreen)
+        drawField(380, 398, 760, "M3U URL", "", m.colors.textGreen)
         submitText = "Add Playlist"
         if m.added then submitText = "Playlist Added"
-        addWideAction(330, 520, 760, 56, "plus", submitText, row + 3, 1)
+        addWideAction(500, 520, 520, 56, "plus", submitText, row + 3, 1)
     else
-        drawField(330, 270, 760, "Account Name", "My Xtreme Account", m.colors.textMuted)
-        drawField(330, 352, 760, "Server URL", "http://server.com:8080", m.colors.textMuted)
-        drawField(330, 434, 760, "Username", "username", m.colors.textMuted)
-        drawField(330, 516, 760, "Password", "********", m.colors.textMuted)
-        addWideAction(330, 608, 760, 56, "link", "Connect Account", row + 4, 1)
+        drawField(380, 258, 760, "Account Name", "", m.colors.textGreen)
+        drawField(380, 344, 760, "Server URL", "", m.colors.textGreen)
+        drawField(380, 430, 760, "Username", "", m.colors.textGreen)
+        drawField(380, 516, 760, "Password", "", m.colors.textGreen)
+        addWideAction(500, 616, 520, 56, "link", "Connect Account", row + 4, 1)
     end if
 
     uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
@@ -119,7 +119,7 @@ end sub
 
 sub addSmallButton(x as Integer, y as Integer, w as Integer, h as Integer, icon as String, label as String, row as Integer, col as Integer, action as String)
     active = m.mode = action
-    item = { x: x, y: y, w: w, h: h, icon: icon, label: label, subtitle: "", iconSize: 14, titleSize: 14, subSize: 10, bg: m.colors.bg, border: m.colors.whiteLine, textColor: m.colors.text, subColor: m.colors.textDim, focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: col, action: action, page: "", mode: "row" }
+    item = { x: x, y: y, w: w, h: h, icon: icon, label: label, subtitle: "", iconSize: 14, titleSize: 15, subSize: 10, bg: m.colors.bg, border: m.colors.whiteLine, textColor: m.colors.text, subColor: m.colors.textDim, focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: col, action: action, page: "", mode: "row" }
     if active then
         item.bg = m.colors.purpleSoft
         item.border = m.colors.purpleLine
@@ -128,6 +128,6 @@ sub addSmallButton(x as Integer, y as Integer, w as Integer, h as Integer, icon 
 end sub
 
 sub addWideAction(x as Integer, y as Integer, w as Integer, h as Integer, icon as String, label as String, row as Integer, col as Integer)
-    item = { x: x, y: y, w: w, h: h, icon: icon, label: label, subtitle: "", iconSize: 15, titleSize: 17, subSize: 10, bg: m.colors.purple, border: m.colors.purple, textColor: m.colors.text, subColor: m.colors.textDim, focusBg: m.colors.greenFocus, focusBorder: m.colors.text, focusTextColor: m.colors.text, row: row, col: col, action: "submit", page: "", mode: "row" }
+    item = { x: x, y: y, w: w, h: h, icon: icon, label: label, subtitle: "", iconSize: 15, titleSize: 17, subSize: 10, bg: m.colors.purpleSoft, border: m.colors.purpleLine, textColor: m.colors.text, subColor: m.colors.textDim, focusBg: m.colors.purpleFocus, focusBorder: m.colors.text, focusTextColor: m.colors.text, row: row, col: col, action: "submit", page: "", mode: "row" }
     m.focusItems.push(item)
 end sub
