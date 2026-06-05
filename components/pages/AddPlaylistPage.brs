@@ -47,7 +47,7 @@ sub render()
     refreshClock()
     row = drawAddPlaylistSideNav()
 
-    uiLabel(m.canvas, "Add New Playlist", 380, 114, 760, 48, 30, m.colors.text, "center")
+    uiLabel(m.canvas, "Add New Playlist", 380, 108, 760, 56, 36, m.colors.text, "center")
     addSmallButton(505, 198, 230, 48, "", "M3U Playlist", row, 1, "m3u")
     addSmallButton(765, 198, 230, 48, "", "Xtreme Account", row, 2, "xtreme")
 
@@ -56,13 +56,13 @@ sub render()
         drawField(380, 398, 760, "M3U URL", "", m.colors.textGreen)
         submitText = "Add Playlist"
         if m.added then submitText = "Playlist Added"
-        addWideAction(530, 520, 460, 56, "", submitText, row + 3, 1)
+        addWideAction(530, 520, 460, 56, "plus", submitText, row + 3, 1)
     else
         drawField(380, 258, 760, "Account Name", "", m.colors.textGreen)
         drawField(380, 344, 760, "Server URL", "", m.colors.textGreen)
         drawField(380, 430, 760, "Username", "", m.colors.textGreen)
         drawField(380, 516, 760, "Password", "", m.colors.textGreen)
-        addWideAction(530, 616, 460, 56, "", "Connect Account", row + 4, 1)
+        addWideAction(530, 616, 460, 56, "link", "Connect Account", row + 4, 1)
     end if
 
     uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
@@ -123,6 +123,6 @@ sub addSmallButton(x as Integer, y as Integer, w as Integer, h as Integer, icon 
 end sub
 
 sub addWideAction(x as Integer, y as Integer, w as Integer, h as Integer, icon as String, label as String, row as Integer, col as Integer)
-    item = { x: x, y: y, w: w, h: h, icon: icon, label: label, subtitle: "", iconSize: 15, titleSize: 17, subSize: 10, bg: m.colors.purpleSoft, border: m.colors.purpleLine, textColor: m.colors.text, subColor: m.colors.textDim, focusBg: m.colors.purpleFocus, focusBorder: m.colors.text, focusTextColor: m.colors.text, row: row, col: col, action: "submit", page: "", mode: "row" }
+    item = { x: x, y: y, w: w, h: h, icon: icon, label: label, subtitle: "", iconSize: 15, iconW: 22, iconH: 22, iconX: 124, labelX: 0, labelW: w, labelAlign: "center", titleSize: 17, subSize: 10, bg: m.colors.purpleActive, border: m.colors.purpleActive, textColor: m.colors.text, subColor: m.colors.textDim, focusBg: m.colors.purpleSoft, focusBorder: m.colors.purpleLine, focusTextColor: m.colors.text, row: row, col: col, action: "submit", page: "", mode: "row", noFocusShift: true }
     m.focusItems.push(item)
 end sub
