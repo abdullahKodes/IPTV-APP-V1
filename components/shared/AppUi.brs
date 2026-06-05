@@ -209,7 +209,9 @@ end sub
 function uiButton(parent as Object, item as Object, focused as Boolean) as Object
     g = CreateObject("roSGNode", "Group")
     g.translation = [item.x, item.y]
-    if focused then
+    noFocusShift = false
+    if item.doesExist("noFocusShift") then noFocusShift = item.noFocusShift
+    if focused and not noFocusShift then
         g.translation = [item.x - 3, item.y - 3]
     end if
     parent.appendChild(g)

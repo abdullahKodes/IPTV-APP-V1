@@ -56,13 +56,13 @@ sub render()
         drawField(380, 398, 760, "M3U URL", "", m.colors.textGreen)
         submitText = "Add Playlist"
         if m.added then submitText = "Playlist Added"
-        addWideAction(500, 520, 520, 56, "plus", submitText, row + 3, 1)
+        addWideAction(530, 520, 460, 56, "", submitText, row + 3, 1)
     else
         drawField(380, 258, 760, "Account Name", "", m.colors.textGreen)
         drawField(380, 344, 760, "Server URL", "", m.colors.textGreen)
         drawField(380, 430, 760, "Username", "", m.colors.textGreen)
         drawField(380, 516, 760, "Password", "", m.colors.textGreen)
-        addWideAction(500, 616, 520, 56, "link", "Connect Account", row + 4, 1)
+        addWideAction(530, 616, 460, 56, "", "Connect Account", row + 4, 1)
     end if
 
     uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
@@ -118,12 +118,7 @@ sub drawField(x as Integer, y as Integer, w as Integer, label as String, value a
 end sub
 
 sub addSmallButton(x as Integer, y as Integer, w as Integer, h as Integer, icon as String, label as String, row as Integer, col as Integer, action as String)
-    active = m.mode = action
-    item = { x: x, y: y, w: w, h: h, icon: icon, label: label, subtitle: "", iconSize: 14, titleSize: 15, subSize: 10, bg: m.colors.bg, border: m.colors.whiteLine, textColor: m.colors.text, subColor: m.colors.textDim, focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: col, action: action, page: "", mode: "row" }
-    if active then
-        item.bg = m.colors.purpleSoft
-        item.border = m.colors.purpleLine
-    end if
+    item = { x: x, y: y, w: w, h: h, icon: icon, label: label, subtitle: "", iconSize: 14, titleSize: 15, subSize: 10, bg: m.colors.bg, border: m.colors.whiteLine, textColor: m.colors.text, subColor: m.colors.textDim, focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: col, action: action, page: "", mode: "row", noFocusShift: true }
     m.focusItems.push(item)
 end sub
 
