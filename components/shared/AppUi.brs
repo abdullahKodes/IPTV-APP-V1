@@ -343,8 +343,12 @@ end function
 sub uiApplyFocus(parent as Object, focusItems as Object, focusIndex as Integer)
     for i = 0 to focusItems.count() - 1
         item = focusItems[i]
-        if item.doesExist("node") and item.node <> invalid then parent.removeChild(item.node)
-        item.node = uiButton(parent, item, i = focusIndex)
+        mode = ""
+        if item.doesExist("mode") then mode = item.mode
+        if mode <> "manual" then
+            if item.doesExist("node") and item.node <> invalid then parent.removeChild(item.node)
+            item.node = uiButton(parent, item, i = focusIndex)
+        end if
     end for
 end sub
 

@@ -1,6 +1,6 @@
 # IPTV App Progress
 
-Last updated: 2026-06-05
+Last updated: 2026-06-08
 
 Read this file before starting a new session. Update it only after a meaningful milestone is completed, such as finishing a screen, fixing a major workflow, committing/pushing, or changing project structure. Do not update it for every tiny visual tweak.
 
@@ -58,11 +58,29 @@ Needs future review:
 
 ### Other Pages
 
-Status: not yet polished page-by-page.
+Status: Live TV has received a first polish pass; remaining pages still need page-by-page design work.
+
+### Live TV Page
+
+Status: first polish pass completed, ready for Roku visual review.
+
+Completed:
+- Compared the current Roku screenshot with the target Live TV reference screenshot.
+- Reworked the page into a cleaner three-column TV layout: app sidebar, channel list, and large player area.
+- Restyled the Live TV sidebar to match the newer Home/Add Playlist sidebar contrast and focus treatment.
+- Added a search box treatment in the top bar area.
+- Darkened channel cards and reduced the previous bright blue block look.
+- Rebuilt the player area with a darker premium panel, live badge, play affordance, progress bar, and EPG strip.
+- Confirmed `npm.cmd run check` passes.
+- Confirmed `npm.cmd run build` creates `build\roku-iptv-app.zip`.
+
+Needs future review:
+- Test on actual Roku/TV for text sizing, focus contrast, and spacing.
+- Confirm the target-inspired player panel reads well from couch distance.
+- Confirm channel list focus and category focus feel natural with the Roku remote.
 
 Screens still expected to need design pass:
 - My Playlists
-- Live TV
 - Series
 - Movies
 - Settings
