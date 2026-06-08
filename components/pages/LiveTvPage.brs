@@ -1,18 +1,23 @@
 sub init()
     m.colors = appColors()
     m.canvas = m.top.findNode("liveTvCanvas")
+    m.video = m.top.findNode("livePlayerVideo")
     m.focusItems = []
     m.focusIndex = 1
     m.categoryIndex = 0
     m.channelIndex = 0
+    m.playing = true
+    m.fullscreen = false
+    demoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
     m.channels = [
-        { name: "ESPN HD", now: "Premier League Live", icon: "sport", live: true },
-        { name: "BBC World", now: "Evening News", icon: "NW", live: false },
-        { name: "CNN Intl", now: "Breaking News", icon: "CNN", live: false },
-        { name: "beIN Sports", now: "La Liga Live", icon: "sport", live: true },
-        { name: "MTV Hits", now: "Top 40 Charts", icon: "MTV", live: false },
-        { name: "Cartoon Net.", now: "Kids Shows", icon: "KD", live: false }
+        { name: "ESPN HD", now: "Premier League Live", icon: "sport", live: true, videoUrl: demoUrl },
+        { name: "BBC World", now: "Evening News", icon: "NW", live: false, videoUrl: demoUrl },
+        { name: "CNN Intl", now: "Breaking News", icon: "CNN", live: false, videoUrl: demoUrl },
+        { name: "beIN Sports", now: "La Liga Live", icon: "sport", live: true, videoUrl: demoUrl },
+        { name: "MTV Hits", now: "Top 40 Charts", icon: "MTV", live: false, videoUrl: demoUrl },
+        { name: "Cartoon Net.", now: "Kids Shows", icon: "KD", live: false, videoUrl: demoUrl }
     ]
+    setupVideo()
     render()
 end sub
 
@@ -21,6 +26,7 @@ sub refreshClock()
 end sub
 
 function handleKey(key as String) as Boolean
+    if m.fullscreen and key = "back" then m.fullscreen = false : render() : return true
     if key = "left" then move(-1, 0) : return true
     if key = "right" then move(1, 0) : return true
     if key = "up" then move(0, -1) : return true
@@ -38,7 +44,8 @@ sub activate()
     item = m.focusItems[m.focusIndex]
     if item.page <> invalid and item.page <> "" then m.top.navigateTo = item.page
     if item.action = "cat" then m.categoryIndex = item.catIndex : render() : return
-    if item.action = "channel" then m.channelIndex = item.channelIndex : render() : return
+    if item.action = "channel" then m.channelIndex = item.channelIndex : playSelectedChannel() : render() : return
+    if item.action = "playerControl" then handlePlayerControl(item.control) : render() : return
 end sub
 
 sub render()
@@ -52,14 +59,77 @@ sub render()
     row = drawLiveSideNav()
 
     drawSearchBox()
-    uiRect(m.canvas, 534, 86, 1, 634, "0xFFFFFF12")
+    uiRect(m.canvas, 480, 86, 1, 634, "0xFFFFFF12")
     channelRow = drawCategoryPills(row)
     drawChannelDivider()
     for i = 0 to m.channels.count() - 1
         drawChannel(m.channels[i], i, 244, 210 + i * 68, channelRow + i, 1)
     end for
     drawPlayer()
+    updateVideoLayout()
     uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
+end sub
+
+sub setupVideo()
+    if m.video = invalid then return
+    m.video.enableUI = false
+    m.video.loop = true
+    playSelectedChannel()
+end sub
+
+sub playSelectedChannel()
+    if m.video = invalid then return
+    channel = m.channels[m.channelIndex]
+    content = CreateObject("roSGNode", "ContentNode")
+    content.url = channel.videoUrl
+    content.streamformat = "mp4"
+    content.title = channel.name
+    m.video.content = content
+    m.playing = true
+    m.video.control = "play"
+end sub
+
+sub handlePlayerControl(control as String)
+    if control = "restart" then seekPlayer(0, true) : return
+    if control = "rewind" then seekPlayer(-15, false) : return
+    if control = "playpause" then togglePlayback() : return
+    if control = "forward" then seekPlayer(15, false) : return
+    if control = "fullscreen" then m.fullscreen = not m.fullscreen : return
+end sub
+
+sub togglePlayback()
+    if m.video = invalid then return
+    if m.playing then
+        m.video.control = "pause"
+        m.playing = false
+    else
+        m.video.control = "resume"
+        m.playing = true
+    end if
+end sub
+
+sub seekPlayer(offset as Integer, absolute as Boolean)
+    if m.video = invalid then return
+    target = 0
+    if not absolute then
+        target = m.video.position + offset
+        if target < 0 then target = 0
+    end if
+    m.video.seek = target
+end sub
+
+sub updateVideoLayout()
+    if m.video = invalid then return
+    if m.fullscreen then
+        m.video.translation = [0, 0]
+        m.video.width = 1280
+        m.video.height = 720
+    else
+        m.video.translation = [564, 258]
+        m.video.width = 606
+        m.video.height = 124
+    end if
+    m.video.visible = true
 end sub
 
 function drawLiveSideNav() as Integer
@@ -107,9 +177,9 @@ sub addLiveProfileItem()
 end sub
 
 sub drawSearchBox()
-    uiRoundRect(m.canvas, 908, 20, 230, 48, m.colors.panel, m.colors.purpleLine)
-    uiDrawIcon(m.canvas, "search", 926, 33, 20, 20, false, m.colors.textDim, 11)
-    uiLabel(m.canvas, "Search channels...", 956, 25, 154, 34, 14, m.colors.textDim)
+    uiRoundRect(m.canvas, 908, 24, 230, 40, m.colors.panel, m.colors.whiteLine)
+    uiDrawIcon(m.canvas, "search", 926, 34, 18, 18, false, m.colors.textDim, 11)
+    uiLabel(m.canvas, "Search channels...", 956, 27, 154, 28, 13, m.colors.textDim)
 end sub
 
 function drawCategoryPills(row as Integer) as Integer
@@ -212,38 +282,76 @@ sub drawLiveBadge(x as Integer, y as Integer)
 end sub
 
 sub drawPlayer()
-    panelX = 560
-    panelY = 112
+    panelX = 540
+    panelY = 132
     panelW = 654
-    panelH = 350
-    drawBorderRect(panelX, panelY, panelW, panelH, m.colors.purpleActive, m.colors.purpleLine, 0.98)
+    panelH = 330
+    ch = m.channels[m.channelIndex]
+    uiRoundRect(m.canvas, panelX, panelY, panelW, panelH, m.colors.purpleActive, m.colors.purpleLine)
 
-    uiRect(m.canvas, panelX + 24, panelY + 24, 54, 22, "0x993C1DFF", 0.76)
-    uiLabel(m.canvas, "LIVE", panelX + 24, panelY + 22, 54, 22, 11, m.colors.text, "center")
-    uiLabel(m.canvas, "ESPN HD", panelX + 94, panelY + 20, 160, 28, 16, m.colors.text)
-    uiLabel(m.canvas, "Premier League - Man City vs Arsenal", panelX + 24, panelY + 58, 430, 30, 17, m.colors.text)
-    uiLabel(m.canvas, "Sports - HD - 1080p", panelX + 24, panelY + 86, 240, 22, 12, m.colors.textMuted)
+    if ch.live then drawLiveBadge(panelX + 24, panelY + 22)
+    titleX = panelX + 24
+    if ch.live then titleX = panelX + 94
+    uiLabel(m.canvas, ch.name, titleX, panelY + 18, 180, 28, 16, m.colors.text)
+    uiLabel(m.canvas, ch.now, panelX + 24, panelY + 56, 430, 28, 17, m.colors.text)
+    uiLabel(m.canvas, "Demo stream - HD - 1080p", panelX + 24, panelY + 82, 260, 22, 12, m.colors.textMuted)
 
-    uiRect(m.canvas, panelX + 24, panelY + 126, panelW - 48, 156, m.colors.black)
-    uiRect(m.canvas, panelX + 301, panelY + 176, 54, 54, m.colors.purple, 0.64)
-    uiDrawIcon(m.canvas, "play", panelX + 317, panelY + 192, 22, 22, true, m.colors.text, 14)
-    uiRect(m.canvas, panelX + 38, panelY + 260, 48, 20, "0x993C1DFF", 0.74)
-    uiLabel(m.canvas, "LIVE", panelX + 38, panelY + 258, 48, 20, 10, m.colors.text, "center")
-    uiLabel(m.canvas, "22:15 / 90:00", panelX + panelW - 190, panelY + 254, 150, 24, 12, m.colors.textDim, "right")
+    uiRoundRect(m.canvas, panelX + 24, panelY + 126, panelW - 48, 124, m.colors.black, m.colors.black)
+    if ch.live then drawLiveBadge(panelX + 38, panelY + 222)
+    uiLabel(m.canvas, "00:15 / demo", panelX + panelW - 190, panelY + 218, 150, 24, 12, m.colors.textDim, "right")
 
-    uiRect(m.canvas, panelX + 24, panelY + 302, panelW - 48, 3, "0xFFFFFF18")
-    uiRect(m.canvas, panelX + 24, panelY + 302, 420, 3, m.colors.purpleLine)
+    drawPlayerControls(panelX + 196, panelY + 262)
+    uiRect(m.canvas, panelX + 24, panelY + 310, panelW - 48, 2, "0xFFFFFF18")
+    uiRect(m.canvas, panelX + 24, panelY + 310, 280, 2, m.colors.greenFocus, 0.72)
 
-    uiLabel(m.canvas, "UP NEXT ON ESPN HD", panelX, 484, 300, 24, 12, m.colors.textDim)
-    drawEpg("21:00", "NFL Highlights", 572)
-    drawEpg("23:00", "SportsCenter", 808)
-    drawEpg("01:00", "NBA Pre-game", 1044)
+    uiLabel(m.canvas, "UP NEXT ON " + ch.name, panelX, 486, 300, 24, 12, m.colors.textDim)
+    drawEpg("21:00", "NFL Highlights", 540)
+    drawEpg("23:00", "SportsCenter", 772)
+    drawEpg("01:00", "NBA Pre-game", 1004)
+end sub
+
+sub drawPlayerControls(x as Integer, y as Integer)
+    addPlayerControl(x, y, 50, "sync", "Restart", "restart", 8, 3)
+    addPlayerControl(x + 60, y, 50, "back", "Back", "rewind", 8, 4)
+    playLabel = "Pause"
+    if not m.playing then playLabel = "Play"
+    addPlayerControl(x + 120, y, 70, "play", playLabel, "playpause", 8, 5)
+    addPlayerControl(x + 200, y, 50, "play", "Next", "forward", 8, 6)
+    addPlayerControl(x + 260, y, 92, "out", "Full", "fullscreen", 8, 7)
+end sub
+
+sub addPlayerControl(x as Integer, y as Integer, w as Integer, icon as String, label as String, control as String, row as Integer, col as Integer)
+    itemIndex = m.focusItems.count()
+    focused = itemIndex = m.focusIndex
+    bg = m.colors.panel
+    border = m.colors.whiteLine
+    textColor = m.colors.textMuted
+    if focused then
+        bg = m.colors.purpleSoft
+        border = m.colors.greenFocus
+        textColor = m.colors.text
+    end if
+    uiRoundRect(m.canvas, x, y, w, 36, bg, border)
+    if w <= 50 then
+        uiDrawIcon(m.canvas, icon, x + 15, y + 9, 18, 18, focused, textColor, 10)
+    else
+        uiDrawIcon(m.canvas, icon, x + 12, y + 9, 18, 18, focused, textColor, 10)
+        uiLabel(m.canvas, label, x + 34, y + 4, w - 40, 24, 11, textColor, "center")
+    end if
+    m.focusItems.push({
+        x: x, y: y, w: w, h: 36,
+        icon: icon, label: label, subtitle: "",
+        iconSize: 10, titleSize: 11, subSize: 10,
+        bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim,
+        focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        row: row, col: col, page: "", action: "playerControl", control: control, mode: "manual"
+    })
 end sub
 
 sub drawEpg(time as String, title as String, x as Integer)
-    uiRoundRect(m.canvas, x, 516, 180, 64, m.colors.panel, m.colors.purpleLine)
-    uiLabel(m.canvas, time, x + 12, 522, 80, 20, 12, m.colors.purpleLine)
-    uiLabel(m.canvas, title, x + 12, 548, 150, 22, 13, m.colors.text)
+    uiRoundRect(m.canvas, x, 518, 190, 54, m.colors.panel, m.colors.whiteLine)
+    uiLabel(m.canvas, time, x + 12, 522, 80, 18, 11, m.colors.greenFocus)
+    uiLabel(m.canvas, title, x + 12, 546, 158, 20, 12, m.colors.text)
 end sub
 
 sub drawBorderRect(x as Integer, y as Integer, w as Integer, h as Integer, fill as String, border as String, opacity = 1.0 as Float)

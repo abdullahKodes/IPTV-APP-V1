@@ -3,6 +3,7 @@
   <children>
     <!-- Live TV renders channel categories, channel list, player mock, controls, and EPG strip. -->
     <Group id="liveTvCanvas" />
+    <Video id="livePlayerVideo" />
   </children>
   <interface>
     <field id="navigateTo" type="string" alwaysNotify="true" />
