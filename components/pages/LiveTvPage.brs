@@ -41,9 +41,50 @@ function handleKey(key as String) as Boolean
 end function
 
 sub move(dx as Integer, dy as Integer)
+    if routeLiveFocus(dx, dy) then render() : return
     m.focusIndex = uiMoveFocus(m.focusItems, m.focusIndex, dx, dy)
     render()
 end sub
+
+function routeLiveFocus(dx as Integer, dy as Integer) as Boolean
+    if m.focusItems.count() = 0 then return false
+    current = m.focusItems[m.focusIndex]
+    searchIndex = findFocusAction("search")
+    if searchIndex < 0 then return false
+
+    if dy < 0 and (current.action = "cat" or current.action = "channel") then
+        m.focusIndex = searchIndex
+        return true
+    end if
+    if dx > 0 and current.action = "cat" and (current.label = "News" or current.label = "Music") then
+        m.focusIndex = searchIndex
+        return true
+    end if
+    if current.action = "search" and dy > 0 then
+        categoryIndex = findCategoryFocus(m.categoryIndex)
+        if categoryIndex >= 0 then m.focusIndex = categoryIndex : return true
+    end if
+    if current.action = "search" and dx < 0 then
+        categoryIndex = findCategoryFocus(2)
+        if categoryIndex >= 0 then m.focusIndex = categoryIndex : return true
+    end if
+    return false
+end function
+
+function findFocusAction(action as String) as Integer
+    for i = 0 to m.focusItems.count() - 1
+        if m.focusItems[i].action = action then return i
+    end for
+    return -1
+end function
+
+function findCategoryFocus(catIndex as Integer) as Integer
+    for i = 0 to m.focusItems.count() - 1
+        item = m.focusItems[i]
+        if item.action = "cat" and item.catIndex = catIndex then return i
+    end for
+    return -1
+end function
 
 sub activate()
     item = m.focusItems[m.focusIndex]
@@ -71,7 +112,7 @@ sub render()
     visible = filteredChannels()
     for i = 0 to visible.count() - 1
         rowData = visible[i]
-        drawChannel(rowData.channel, rowData.index, 244, 208 + i * 60, channelRow + i, 1)
+        drawChannel(rowData.channel, rowData.index, 244, 206 + i * 56, channelRow + i, 1)
     end for
     if visible.count() = 0 then
         uiLabel(m.canvas, "No channels found", 244, 238, 276, 28, 15, m.colors.textDim, "center")
@@ -86,6 +127,7 @@ sub setupVideo()
     if m.video = invalid then return
     m.video.enableUI = false
     m.video.loop = true
+    m.video.setHttpAgent(CreateObject("roHttpAgent"))
     playSelectedChannel()
 end sub
 
@@ -97,7 +139,6 @@ sub playSelectedChannel()
     content.streamformat = "hls"
     content.title = channel.name
     content.HttpCertificatesFile = "common:/certs/ca-bundle.crt"
-    content.Live = channel.live
     m.video.content = content
     m.playing = true
     m.video.control = "play"
@@ -367,7 +408,7 @@ sub drawChannel(ch as Object, channelIndex as Integer, x as Integer, y as Intege
     focused = itemIndex = m.focusIndex
     selected = channelIndex = m.channelIndex
     w = 276
-    h = 54
+    h = 50
     bg = m.colors.panel
     border = m.colors.whiteLine
     iconBg = m.colors.purpleSoft
@@ -388,20 +429,20 @@ sub drawChannel(ch as Object, channelIndex as Integer, x as Integer, y as Intege
     end if
 
     uiRoundRect(m.canvas, x, y, w, h, bg, border)
-    uiRoundRect(m.canvas, x + 12, y + 7, 40, 40, iconBg, iconBg)
-    uiDrawIcon(m.canvas, ch.icon, x + 22, y + 17, 20, 20, focused, titleColor, 10)
-    uiLabel(m.canvas, ch.name, x + 66, y + 6, 132, 22, 14, titleColor)
-    uiLabel(m.canvas, ch.now, x + 66, y + 29, 132, 18, 8, subColor)
+    uiRoundRect(m.canvas, x + 12, y + 7, 36, 36, iconBg, iconBg)
+    uiDrawIcon(m.canvas, ch.icon, x + 21, y + 16, 18, 18, focused, titleColor, 10)
+    uiLabel(m.canvas, ch.name, x + 62, y + 5, 132, 21, 13, titleColor)
+    uiLabel(m.canvas, ch.now, x + 62, y + 27, 132, 17, 8, subColor)
     if ch.live then
-        drawLiveBadge(x + 206, y + 16)
+        drawLiveBadge(x + 206, y + 14)
     end if
 
     item = {
         x: x, y: y, w: w, h: h,
         icon: ch.icon, label: ch.name, subtitle: ch.now,
-        iconSize: 10, iconW: 40, iconH: 40, iconX: 12,
-        labelX: 66, labelW: 132, labelAlign: "left",
-        titleSize: 14, subSize: 9,
+        iconSize: 10, iconW: 36, iconH: 36, iconX: 12,
+        labelX: 62, labelW: 132, labelAlign: "left",
+        titleSize: 13, subSize: 8,
         bg: bg, border: border, textColor: titleColor, subColor: subColor,
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         row: row, col: col, page: "", action: "channel", channelIndex: channelIndex, mode: "manual"
@@ -437,7 +478,7 @@ sub drawPlayer()
     uiRect(m.canvas, panelX + 24, panelY + 366, panelW - 48, 2, "0xFFFFFF18")
     uiRect(m.canvas, panelX + 24, panelY + 366, 320, 2, m.colors.greenFocus, 0.72)
 
-    uiLabel(m.canvas, "UP NEXT ON " + ch.name, panelX, 522, 300, 24, 12, m.colors.textDim)
+    uiLabel(m.canvas, "UP NEXT ON " + ch.name, panelX, 536, 300, 24, 11, m.colors.textDim)
     drawEpg("21:00", "NFL Highlights", 560)
     drawEpg("23:00", "SportsCenter", 770)
     drawEpg("01:00", "NBA Pre-game", 980)
@@ -482,9 +523,9 @@ sub addPlayerControl(x as Integer, y as Integer, w as Integer, icon as String, l
 end sub
 
 sub drawEpg(time as String, title as String, x as Integer)
-    uiRoundRect(m.canvas, x, 552, 190, 54, m.colors.panel, m.colors.whiteLine)
-    uiLabel(m.canvas, time, x + 12, 556, 80, 18, 10, m.colors.greenFocus)
-    uiLabel(m.canvas, title, x + 12, 580, 158, 20, 10, m.colors.text)
+    uiRoundRect(m.canvas, x, 566, 190, 54, m.colors.panel, m.colors.whiteLine)
+    uiLabel(m.canvas, time, x + 12, 570, 80, 18, 9, m.colors.greenFocus)
+    uiLabel(m.canvas, title, x + 12, 594, 158, 20, 9, m.colors.text)
 end sub
 
 sub drawBorderRect(x as Integer, y as Integer, w as Integer, h as Integer, fill as String, border as String, opacity = 1.0 as Float)
