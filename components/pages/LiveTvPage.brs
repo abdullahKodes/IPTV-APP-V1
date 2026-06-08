@@ -88,7 +88,7 @@ sub addLiveNavItem(x as Integer, y as Integer, icon as String, label as String, 
     }
     if active then
         item.bg = m.colors.purpleSoft
-        item.border = m.colors.purpleLine
+        item.border = m.colors.greenFocus
         item.textColor = m.colors.text
     end if
     m.focusItems.push(item)
