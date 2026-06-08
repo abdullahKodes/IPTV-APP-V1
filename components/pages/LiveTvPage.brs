@@ -3,6 +3,8 @@ sub init()
     m.canvas = m.top.findNode("liveTvCanvas")
     m.focusItems = []
     m.focusIndex = 1
+    m.categoryIndex = 0
+    m.channelIndex = 0
     m.channels = [
         { name: "ESPN HD", now: "Premier League Live", icon: "sport", live: true },
         { name: "BBC World", now: "Evening News", icon: "NW", live: false },
@@ -35,6 +37,8 @@ end sub
 sub activate()
     item = m.focusItems[m.focusIndex]
     if item.page <> invalid and item.page <> "" then m.top.navigateTo = item.page
+    if item.action = "cat" then m.categoryIndex = item.catIndex : render() : return
+    if item.action = "channel" then m.channelIndex = item.channelIndex : render() : return
 end sub
 
 sub render()
@@ -50,8 +54,9 @@ sub render()
     drawSearchBox()
     uiRect(m.canvas, 534, 86, 1, 634, "0xFFFFFF12")
     channelRow = drawCategoryPills(row)
+    drawChannelDivider()
     for i = 0 to m.channels.count() - 1
-        drawChannel(m.channels[i], 244, 202 + i * 58, channelRow + i, 1)
+        drawChannel(m.channels[i], i, 244, 210 + i * 68, channelRow + i, 1)
     end for
     drawPlayer()
     uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
@@ -108,76 +113,93 @@ sub drawSearchBox()
 end sub
 
 function drawCategoryPills(row as Integer) as Integer
-    cats = ["All", "Sports", "News", "Kids", "Music"]
+    cats = [
+        { label: "All", x: 244, y: 106, w: 62, row: row, col: 1 },
+        { label: "Sports", x: 316, y: 106, w: 82, row: row, col: 2 },
+        { label: "News", x: 408, y: 106, w: 76, row: row, col: 3 },
+        { label: "Kids", x: 244, y: 150, w: 70, row: row + 1, col: 1 },
+        { label: "Music", x: 324, y: 150, w: 82, row: row + 1, col: 2 }
+    ]
     for i = 0 to cats.count() - 1
-        pillW = 80
-        if cats[i] = "Sports" or cats[i] = "Music" then pillW = 88
-        pillX = 244
-        if i = 1 then pillX = 334
-        if i = 2 then pillX = 432
-        pillY = 104
-        pillRow = row
-        pillCol = i + 1
-        if i > 2 then
-            pillX = 244
-            if i = 4 then pillX = 334
-            pillY = 148
-            pillRow = row + 1
-            pillCol = i - 2
+        cat = cats[i]
+        itemIndex = m.focusItems.count()
+        focused = itemIndex = m.focusIndex
+        selected = i = m.categoryIndex
+        bg = m.colors.bg
+        border = m.colors.whiteLine
+        textColor = m.colors.textPurple
+        if selected then
+            bg = m.colors.purple
+            border = m.colors.purple
+            textColor = m.colors.text
         end if
+        if focused then
+            bg = m.colors.purpleSoft
+            border = m.colors.greenFocus
+            textColor = m.colors.text
+        end if
+        uiRoundRect(m.canvas, cat.x, cat.y, cat.w, 34, bg, border)
+        uiLabel(m.canvas, cat.label, cat.x, cat.y + 1, cat.w, 30, 12, textColor, "center")
         item = {
-            x: pillX, y: pillY, w: pillW, h: 36,
-            icon: "", label: cats[i], subtitle: "",
+            x: cat.x, y: cat.y, w: cat.w, h: 34,
+            icon: "", label: cat.label, subtitle: "",
             iconSize: 1, titleSize: 12, subSize: 10,
-            bg: m.colors.bg, border: m.colors.purpleLine, textColor: m.colors.textPurple, subColor: m.colors.textDim,
+            bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim,
             focusBg: m.colors.purpleSoft, focusBorder: m.colors.purpleLine, focusTextColor: m.colors.text,
-            row: pillRow, col: pillCol, page: "", action: "cat", noFocusShift: true
+            row: cat.row, col: cat.col, page: "", action: "cat", catIndex: i, mode: "manual"
         }
-        if i = 0 then
-            item.bg = m.colors.purple
-            item.border = m.colors.purple
-            item.textColor = m.colors.text
-        end if
         m.focusItems.push(item)
     end for
     return row + 2
 end function
 
-sub drawChannel(ch as Object, x as Integer, y as Integer, row as Integer, col as Integer)
+sub drawChannelDivider()
+    uiRect(m.canvas, 244, 194, 276, 1, "0xFFFFFF18")
+    uiRect(m.canvas, 244, 194, 72, 1, m.colors.greenFocus, 0.72)
+end sub
+
+sub drawChannel(ch as Object, channelIndex as Integer, x as Integer, y as Integer, row as Integer, col as Integer)
     itemIndex = m.focusItems.count()
     focused = itemIndex = m.focusIndex
+    selected = channelIndex = m.channelIndex
     w = 276
-    h = 52
+    h = 60
     bg = m.colors.panel
-    border = "0xFFFFFF14"
-    iconBg = m.colors.purpleActive
+    border = m.colors.whiteLine
+    iconBg = m.colors.purpleSoft
     titleColor = m.colors.text
-    if ch.live then iconBg = m.colors.greenActive
+    subColor = m.colors.textMuted
+    if ch.live then iconBg = m.colors.greenSoft
+    if selected then
+        bg = m.colors.purpleSoft
+        border = m.colors.purpleLine
+    end if
     if focused then
         bg = m.colors.greenSoft
         border = m.colors.greenFocus
-        iconBg = m.colors.greenActive
+        iconBg = m.colors.greenSoft
+        subColor = m.colors.text
     end if
 
     uiRoundRect(m.canvas, x, y, w, h, bg, border)
-    uiRect(m.canvas, x + 14, y + 12, 28, 28, iconBg, 0.94)
-    uiDrawIcon(m.canvas, ch.icon, x + 18, y + 16, 20, 20, focused, titleColor, 11)
-    uiLabel(m.canvas, ch.name, x + 56, y + 5, 150, 24, 14, titleColor)
-    uiLabel(m.canvas, ch.now, x + 56, y + 27, 150, 20, 10, m.colors.textMuted)
+    uiRoundRect(m.canvas, x + 12, y + 8, 44, 44, iconBg, iconBg)
+    uiDrawIcon(m.canvas, ch.icon, x + 23, y + 19, 22, 22, focused, titleColor, 11)
+    uiLabel(m.canvas, ch.name, x + 70, y + 8, 132, 23, 15, titleColor)
+    uiLabel(m.canvas, ch.now, x + 70, y + 32, 132, 18, 10, subColor)
     if ch.live then
-        uiRect(m.canvas, x + 218, y + 16, 42, 20, "0x993C1DFF", 0.76)
-        uiLabel(m.canvas, "LIVE", x + 218, y + 14, 42, 20, 10, m.colors.text, "center")
+        uiRect(m.canvas, x + 218, y + 20, 42, 20, "0x993C1DFF", 0.76)
+        uiLabel(m.canvas, "LIVE", x + 218, y + 18, 42, 20, 10, m.colors.text, "center")
     end if
 
     item = {
         x: x, y: y, w: w, h: h,
         icon: ch.icon, label: ch.name, subtitle: ch.now,
-        iconSize: 11, iconW: 28, iconH: 28, iconX: 18,
-        labelX: 62, labelW: 170, labelAlign: "left",
+        iconSize: 11, iconW: 44, iconH: 44, iconX: 12,
+        labelX: 70, labelW: 132, labelAlign: "left",
         titleSize: 15, subSize: 11,
-        bg: m.colors.panel, border: m.colors.purpleLine, textColor: m.colors.text, subColor: m.colors.textMuted,
-        focusBg: m.colors.greenSoft, focusBorder: m.colors.green, focusTextColor: m.colors.text,
-        row: row, col: col, page: "", action: "channel", mode: "manual", noFocusShift: true
+        bg: bg, border: border, textColor: titleColor, subColor: subColor,
+        focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        row: row, col: col, page: "", action: "channel", channelIndex: channelIndex, mode: "manual"
     }
     m.focusItems.push(item)
 end sub
