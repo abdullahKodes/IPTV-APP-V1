@@ -59,7 +59,7 @@ sub render()
     row = drawLiveSideNav()
 
     drawSearchBox()
-    uiRect(m.canvas, 480, 86, 1, 634, "0xFFFFFF12")
+    uiRect(m.canvas, 534, 86, 1, 634, "0xFFFFFF12")
     channelRow = drawCategoryPills(row)
     drawChannelDivider()
     for i = 0 to m.channels.count() - 1
@@ -125,8 +125,8 @@ sub updateVideoLayout()
         m.video.width = 1280
         m.video.height = 720
     else
-        m.video.translation = [564, 258]
-        m.video.width = 606
+        m.video.translation = [584, 266]
+        m.video.width = 552
         m.video.height = 124
     end if
     m.video.visible = true
@@ -177,9 +177,9 @@ sub addLiveProfileItem()
 end sub
 
 sub drawSearchBox()
-    uiRoundRect(m.canvas, 908, 24, 230, 40, m.colors.panel, m.colors.whiteLine)
-    uiDrawIcon(m.canvas, "search", 926, 34, 18, 18, false, m.colors.textDim, 11)
-    uiLabel(m.canvas, "Search channels...", 956, 27, 154, 28, 13, m.colors.textDim)
+    uiRoundRect(m.canvas, 760, 24, 230, 40, m.colors.panel, m.colors.whiteLine)
+    uiDrawIcon(m.canvas, "search", 778, 34, 18, 18, false, m.colors.textDim, 11)
+    uiLabel(m.canvas, "Search channels...", 808, 27, 154, 28, 13, m.colors.textDim)
 end sub
 
 function drawCategoryPills(row as Integer) as Integer
@@ -282,12 +282,12 @@ sub drawLiveBadge(x as Integer, y as Integer)
 end sub
 
 sub drawPlayer()
-    panelX = 540
-    panelY = 132
-    panelW = 654
+    panelX = 560
+    panelY = 140
+    panelW = 600
     panelH = 330
     ch = m.channels[m.channelIndex]
-    uiRoundRect(m.canvas, panelX, panelY, panelW, panelH, m.colors.purpleActive, m.colors.purpleLine)
+    uiRoundRect(m.canvas, panelX, panelY, panelW, panelH, m.colors.purpleActive, m.colors.greenFocus)
 
     if ch.live then drawLiveBadge(panelX + 24, panelY + 22)
     titleX = panelX + 24
@@ -300,14 +300,14 @@ sub drawPlayer()
     if ch.live then drawLiveBadge(panelX + 38, panelY + 222)
     uiLabel(m.canvas, "00:15 / demo", panelX + panelW - 190, panelY + 218, 150, 24, 12, m.colors.textDim, "right")
 
-    drawPlayerControls(panelX + 196, panelY + 262)
+    drawPlayerControls(panelX + 150, panelY + 262)
     uiRect(m.canvas, panelX + 24, panelY + 310, panelW - 48, 2, "0xFFFFFF18")
     uiRect(m.canvas, panelX + 24, panelY + 310, 280, 2, m.colors.greenFocus, 0.72)
 
     uiLabel(m.canvas, "UP NEXT ON " + ch.name, panelX, 486, 300, 24, 12, m.colors.textDim)
-    drawEpg("21:00", "NFL Highlights", 540)
-    drawEpg("23:00", "SportsCenter", 772)
-    drawEpg("01:00", "NBA Pre-game", 1004)
+    drawEpg("21:00", "NFL Highlights", 560)
+    drawEpg("23:00", "SportsCenter", 770)
+    drawEpg("01:00", "NBA Pre-game", 980)
 end sub
 
 sub drawPlayerControls(x as Integer, y as Integer)
