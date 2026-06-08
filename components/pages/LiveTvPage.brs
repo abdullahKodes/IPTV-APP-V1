@@ -134,7 +134,7 @@ function drawCategoryPills(row as Integer) as Integer
             textColor = m.colors.text
         end if
         if focused then
-            bg = m.colors.purpleSoft
+            bg = m.colors.greenSoft
             border = m.colors.greenFocus
             textColor = m.colors.text
         end if
@@ -171,7 +171,7 @@ sub drawChannel(ch as Object, channelIndex as Integer, x as Integer, y as Intege
     subColor = m.colors.textMuted
     if ch.live then iconBg = m.colors.greenSoft
     if selected then
-        bg = m.colors.greenSoft
+        bg = m.colors.purpleSoft
         border = m.colors.greenFocus
         iconBg = m.colors.greenSoft
         subColor = m.colors.text
