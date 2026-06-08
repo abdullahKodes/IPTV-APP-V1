@@ -129,8 +129,8 @@ function drawCategoryPills(row as Integer) as Integer
         border = m.colors.whiteLine
         textColor = m.colors.textPurple
         if selected then
-            bg = m.colors.purple
-            border = m.colors.purple
+            bg = m.colors.purpleSoft
+            border = m.colors.greenFocus
             textColor = m.colors.text
         end if
         if focused then
@@ -171,8 +171,10 @@ sub drawChannel(ch as Object, channelIndex as Integer, x as Integer, y as Intege
     subColor = m.colors.textMuted
     if ch.live then iconBg = m.colors.greenSoft
     if selected then
-        bg = m.colors.purpleSoft
-        border = m.colors.purpleLine
+        bg = m.colors.greenSoft
+        border = m.colors.greenFocus
+        iconBg = m.colors.greenSoft
+        subColor = m.colors.text
     end if
     if focused then
         bg = m.colors.greenSoft
@@ -187,8 +189,7 @@ sub drawChannel(ch as Object, channelIndex as Integer, x as Integer, y as Intege
     uiLabel(m.canvas, ch.name, x + 70, y + 8, 132, 23, 15, titleColor)
     uiLabel(m.canvas, ch.now, x + 70, y + 32, 132, 18, 10, subColor)
     if ch.live then
-        uiRect(m.canvas, x + 218, y + 20, 42, 20, "0x993C1DFF", 0.76)
-        uiLabel(m.canvas, "LIVE", x + 218, y + 18, 42, 20, 10, m.colors.text, "center")
+        drawLiveBadge(x + 206, y + 19)
     end if
 
     item = {
@@ -202,6 +203,12 @@ sub drawChannel(ch as Object, channelIndex as Integer, x as Integer, y as Intege
         row: row, col: col, page: "", action: "channel", channelIndex: channelIndex, mode: "manual"
     }
     m.focusItems.push(item)
+end sub
+
+sub drawLiveBadge(x as Integer, y as Integer)
+    uiRoundRect(m.canvas, x, y, 58, 22, "0x993C1DFF", "0x993C1DFF")
+    uiRect(m.canvas, x + 8, y + 8, 6, 6, m.colors.red)
+    uiLabel(m.canvas, "LIVE", x + 16, y + 1, 34, 18, 10, m.colors.text, "center")
 end sub
 
 sub drawPlayer()
