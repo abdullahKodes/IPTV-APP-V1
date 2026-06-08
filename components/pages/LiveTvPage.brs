@@ -71,7 +71,7 @@ sub render()
     visible = filteredChannels()
     for i = 0 to visible.count() - 1
         rowData = visible[i]
-        drawChannel(rowData.channel, rowData.index, 244, 210 + i * 68, channelRow + i, 1)
+        drawChannel(rowData.channel, rowData.index, 244, 208 + i * 60, channelRow + i, 1)
     end for
     if visible.count() = 0 then
         uiLabel(m.canvas, "No channels found", 244, 238, 276, 28, 15, m.colors.textDim, "center")
@@ -96,6 +96,8 @@ sub playSelectedChannel()
     content.url = channel.videoUrl
     content.streamformat = "hls"
     content.title = channel.name
+    content.HttpCertificatesFile = "common:/certs/ca-bundle.crt"
+    content.Live = channel.live
     m.video.content = content
     m.playing = true
     m.video.control = "play"
@@ -214,7 +216,7 @@ sub drawSearchBox()
         iconSize: 11, titleSize: 13, subSize: 10,
         bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim,
         focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
-        row: 0, col: 5, page: "", action: "search", mode: "manual"
+        row: 6, col: 5, page: "", action: "search", mode: "manual"
     })
 end sub
 
@@ -365,7 +367,7 @@ sub drawChannel(ch as Object, channelIndex as Integer, x as Integer, y as Intege
     focused = itemIndex = m.focusIndex
     selected = channelIndex = m.channelIndex
     w = 276
-    h = 60
+    h = 54
     bg = m.colors.panel
     border = m.colors.whiteLine
     iconBg = m.colors.purpleSoft
@@ -386,20 +388,20 @@ sub drawChannel(ch as Object, channelIndex as Integer, x as Integer, y as Intege
     end if
 
     uiRoundRect(m.canvas, x, y, w, h, bg, border)
-    uiRoundRect(m.canvas, x + 12, y + 8, 44, 44, iconBg, iconBg)
-    uiDrawIcon(m.canvas, ch.icon, x + 23, y + 19, 22, 22, focused, titleColor, 11)
-    uiLabel(m.canvas, ch.name, x + 70, y + 8, 132, 23, 15, titleColor)
-    uiLabel(m.canvas, ch.now, x + 70, y + 32, 132, 18, 9, subColor)
+    uiRoundRect(m.canvas, x + 12, y + 7, 40, 40, iconBg, iconBg)
+    uiDrawIcon(m.canvas, ch.icon, x + 22, y + 17, 20, 20, focused, titleColor, 10)
+    uiLabel(m.canvas, ch.name, x + 66, y + 6, 132, 22, 14, titleColor)
+    uiLabel(m.canvas, ch.now, x + 66, y + 29, 132, 18, 8, subColor)
     if ch.live then
-        drawLiveBadge(x + 206, y + 19)
+        drawLiveBadge(x + 206, y + 16)
     end if
 
     item = {
         x: x, y: y, w: w, h: h,
         icon: ch.icon, label: ch.name, subtitle: ch.now,
-        iconSize: 11, iconW: 44, iconH: 44, iconX: 12,
-        labelX: 70, labelW: 132, labelAlign: "left",
-        titleSize: 15, subSize: 11,
+        iconSize: 10, iconW: 40, iconH: 40, iconX: 12,
+        labelX: 66, labelW: 132, labelAlign: "left",
+        titleSize: 14, subSize: 9,
         bg: bg, border: border, textColor: titleColor, subColor: subColor,
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         row: row, col: col, page: "", action: "channel", channelIndex: channelIndex, mode: "manual"
@@ -481,8 +483,8 @@ end sub
 
 sub drawEpg(time as String, title as String, x as Integer)
     uiRoundRect(m.canvas, x, 552, 190, 54, m.colors.panel, m.colors.whiteLine)
-    uiLabel(m.canvas, time, x + 12, 556, 80, 18, 11, m.colors.greenFocus)
-    uiLabel(m.canvas, title, x + 12, 580, 158, 20, 12, m.colors.text)
+    uiLabel(m.canvas, time, x + 12, 556, 80, 18, 10, m.colors.greenFocus)
+    uiLabel(m.canvas, title, x + 12, 580, 158, 20, 10, m.colors.text)
 end sub
 
 sub drawBorderRect(x as Integer, y as Integer, w as Integer, h as Integer, fill as String, border as String, opacity = 1.0 as Float)
