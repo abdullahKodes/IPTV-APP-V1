@@ -62,7 +62,7 @@ Status: Live TV has received a first polish pass; remaining pages still need pag
 
 ### Live TV Page
 
-Status: first polish pass completed, ready for Roku visual review.
+Status: completed for now, ready for Roku visual review.
 
 Completed:
 - Compared the current Roku screenshot with the target Live TV reference screenshot.
@@ -75,6 +75,7 @@ Completed:
 - Confirmed `npm.cmd run build` creates `build\roku-iptv-app.zip`.
 - Cleaned the player controls to icon-only buttons, restored the video viewport to a supported fitted frame, and fixed focus routing so Search is reachable from Live TV content.
 - Increased Live TV channel card height, reduced channel title/subtitle text, made channel Up navigation stay in the content area, and removed button outlines from player icon controls.
+- Final channel-card text pass reduced title/subtitle sizes and widened the text area so channel names and current programs can display in full instead of truncating.
 
 Needs future review:
 - Test on actual Roku/TV for text sizing, focus contrast, and spacing.

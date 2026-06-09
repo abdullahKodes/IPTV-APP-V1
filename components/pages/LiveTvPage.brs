@@ -441,21 +441,24 @@ sub drawChannel(ch as Object, channelIndex as Integer, x as Integer, y as Intege
         subColor = m.colors.text
     end if
 
+    textW = 198
+    if ch.live then textW = 140
+
     uiRoundRect(m.canvas, x, y, w, h, bg, border)
     uiRoundRect(m.canvas, x + 12, y + 9, 36, 36, iconBg, iconBg)
     uiDrawIcon(m.canvas, ch.icon, x + 21, y + 18, 18, 18, focused, titleColor, 9)
-    uiLabel(m.canvas, ch.name, x + 62, y + 6, 132, 19, 10, titleColor)
-    uiLabel(m.canvas, ch.now, x + 62, y + 29, 132, 16, 7, subColor)
+    uiLabel(m.canvas, ch.name, x + 62, y + 6, textW, 18, 8, titleColor)
+    uiLabel(m.canvas, ch.now, x + 62, y + 29, textW, 16, 6, subColor)
     if ch.live then
-        drawLiveBadge(x + 206, y + 16)
+        drawLiveBadge(x + 212, y + 16)
     end if
 
     item = {
         x: x, y: y, w: w, h: h,
         icon: ch.icon, label: ch.name, subtitle: ch.now,
         iconSize: 9, iconW: 36, iconH: 36, iconX: 12,
-        labelX: 62, labelW: 132, labelAlign: "left",
-        titleSize: 10, subSize: 7,
+        labelX: 62, labelW: textW, labelAlign: "left",
+        titleSize: 8, subSize: 6,
         bg: bg, border: border, textColor: titleColor, subColor: subColor,
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         row: row, col: col, page: "", action: "channel", channelIndex: channelIndex, mode: "manual"
