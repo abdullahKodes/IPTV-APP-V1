@@ -51,20 +51,22 @@ function routeLiveFocus(dx as Integer, dy as Integer) as Boolean
     current = m.focusItems[m.focusIndex]
     searchIndex = findFocusAction("search")
     if searchIndex < 0 then return false
+    action = ""
+    if current.doesExist("action") then action = current.action
 
-    if dy < 0 and (current.action = "cat" or current.action = "channel") then
+    if dy < 0 and action <> "" and action <> "search" then
         m.focusIndex = searchIndex
         return true
     end if
-    if dx > 0 and current.action = "cat" and (current.label = "News" or current.label = "Music") then
+    if dx > 0 and action = "cat" and (current.label = "News" or current.label = "Music") then
         m.focusIndex = searchIndex
         return true
     end if
-    if current.action = "search" and dy > 0 then
+    if action = "search" and dy > 0 then
         categoryIndex = findCategoryFocus(m.categoryIndex)
         if categoryIndex >= 0 then m.focusIndex = categoryIndex : return true
     end if
-    if current.action = "search" and dx < 0 then
+    if action = "search" and dx < 0 then
         categoryIndex = findCategoryFocus(2)
         if categoryIndex >= 0 then m.focusIndex = categoryIndex : return true
     end if
@@ -194,9 +196,9 @@ sub updateVideoLayout()
         m.video.width = 1280
         m.video.height = 720
     else
-        m.video.translation = [592, 226]
+        m.video.translation = [592, 220]
         m.video.width = 552
-        m.video.height = 226
+        m.video.height = 190
     end if
     m.video.visible = true
 end sub
@@ -482,15 +484,15 @@ sub drawPlayer()
     addPlayerControl(panelX + panelW - 116, panelY + 28, 50, "heart", "Favorite", "favorite", 8, 8)
     addPlayerControl(panelX + panelW - 60, panelY + 28, 50, "out", "Screen", "fullscreen", 8, 9)
 
-    drawBorderRect(panelX + 24, panelY + 118, panelW - 48, 226, m.colors.black, m.colors.black)
-    if ch.live then drawLiveBadge(panelX + 38, panelY + 308)
-    uiLabel(m.canvas, "22:15 / LIVE", panelX + panelW - 164, panelY + 310, 126, 22, 10, m.colors.textDim, "right")
+    uiRoundRect(m.canvas, panelX + 24, panelY + 112, panelW - 48, 190, m.colors.black, m.colors.black)
+    if ch.live then drawLiveBadge(panelX + 38, panelY + 274)
+    uiLabel(m.canvas, "22:15 / LIVE", panelX + panelW - 164, panelY + 274, 126, 22, 10, m.colors.textDim, "right")
 
-    drawPlayerControls(panelX + 24, panelY + 356)
-    uiRect(m.canvas, panelX + 92, panelY + 372, 270, 3, "0xFFFFFF18")
-    uiRect(m.canvas, panelX + 92, panelY + 372, 180, 3, m.colors.greenFocus, 0.72)
+    drawPlayerControls(panelX + 24, panelY + 320)
+    uiRect(m.canvas, panelX + 88, panelY + 337, 328, 3, "0xFFFFFF18")
+    uiRect(m.canvas, panelX + 88, panelY + 337, 220, 3, m.colors.greenFocus, 0.72)
 
-    uiLabel(m.canvas, "UP NEXT ON " + ch.name, panelX, 528, 300, 22, 10, m.colors.textDim)
+    uiLabel(m.canvas, "UP NEXT ON " + ch.name, panelX, 526, 300, 22, 10, m.colors.textDim)
     drawEpg("21:00", "NFL Highlights", 568)
     drawEpg("23:00", "SportsCenter", 764)
     drawEpg("01:00", "NBA Pre-game", 960)
@@ -498,10 +500,10 @@ end sub
 
 sub drawPlayerControls(x as Integer, y as Integer)
     addPlayerControl(x, y, 50, "info", "Info", "restart", 8, 3)
-    addPlayerControl(x + 366, y, 92, "out", "Full", "fullscreen", 8, 6)
     playLabel = "Pause"
     if not m.playing then playLabel = "Play"
-    addPlayerControl(x + 468, y, 92, "play", playLabel, "playpause", 8, 7)
+    addPlayerControl(x + 430, y, 50, "out", "Full", "fullscreen", 8, 6)
+    addPlayerControl(x + 502, y, 50, "play", playLabel, "playpause", 8, 7)
 end sub
 
 sub addPlayerControl(x as Integer, y as Integer, w as Integer, icon as String, label as String, control as String, row as Integer, col as Integer)
@@ -516,12 +518,7 @@ sub addPlayerControl(x as Integer, y as Integer, w as Integer, icon as String, l
         textColor = m.colors.text
     end if
     uiRoundRect(m.canvas, x, y, w, 36, bg, border)
-    if w <= 50 then
-        uiDrawIcon(m.canvas, icon, x + 15, y + 9, 18, 18, focused, textColor, 10)
-    else
-        uiDrawIcon(m.canvas, icon, x + 12, y + 9, 18, 18, focused, textColor, 10)
-        uiLabel(m.canvas, label, x + 34, y + 4, w - 40, 24, 10, textColor, "center")
-    end if
+    uiDrawIcon(m.canvas, icon, x + Int((w - 18) / 2), y + 9, 18, 18, focused, textColor, 10)
     m.focusItems.push({
         x: x, y: y, w: w, h: 36,
         icon: icon, label: label, subtitle: "",

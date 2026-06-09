@@ -1,6 +1,6 @@
 # IPTV App Progress
 
-Last updated: 2026-06-08
+Last updated: 2026-06-09
 
 Read this file before starting a new session. Update it only after a meaningful milestone is completed, such as finishing a screen, fixing a major workflow, committing/pushing, or changing project structure. Do not update it for every tiny visual tweak.
 
@@ -73,6 +73,7 @@ Completed:
 - Rebuilt the player area with a darker premium panel, live badge, play affordance, progress bar, and EPG strip.
 - Confirmed `npm.cmd run check` passes.
 - Confirmed `npm.cmd run build` creates `build\roku-iptv-app.zip`.
+- Cleaned the player controls to icon-only buttons, restored the video viewport to a supported fitted frame, and fixed focus routing so Search is reachable from Live TV content.
 
 Needs future review:
 - Test on actual Roku/TV for text sizing, focus contrast, and spacing.
