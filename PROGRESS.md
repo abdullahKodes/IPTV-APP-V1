@@ -56,9 +56,25 @@ Needs future review:
 - Confirm Add Playlist and Xtreme Account button icon/text alignment on actual TV.
 - Confirm Xtreme Account layout is not too low after latest compacting.
 
+### Branding and Roku Store Assets
+
+Status: updated and ready for Roku visual review.
+
+Completed:
+- Replaced the Roku splash screen with the latest supplied `IPTV Max` splash artwork.
+- Replaced the top-bar brand mark with the latest supplied dark full logo.
+- Rebuilt Roku app-view/channel icons from `roku view 2.png`.
+- Updated the manifest title to `IPTV Max`.
+- Confirmed `npm.cmd run check` passes.
+- Confirmed `npm.cmd run build` creates `build\roku-iptv-app.zip`.
+
+Needs future review:
+- Confirm splash brightness and logo scale on the actual Roku device.
+- Confirm Roku app-view tile crops correctly in the device app grid and any store preview.
+
 ### Other Pages
 
-Status: Live TV has received a first polish pass; remaining pages still need page-by-page design work.
+Status: Live TV and Series have received polish passes; remaining pages still need page-by-page design work.
 
 ### Live TV Page
 
@@ -76,21 +92,40 @@ Completed:
 - Cleaned the player controls to icon-only buttons, restored the video viewport to a supported fitted frame, and fixed focus routing so Search is reachable from Live TV content.
 - Increased Live TV channel card height, reduced channel title/subtitle text, made channel Up navigation stay in the content area, and removed button outlines from player icon controls.
 - Final channel-card text pass reduced title/subtitle sizes and widened the text area so channel names and current programs can display in full instead of truncating.
+- Rebuilt the live badge and player-control assets so badge text and player icons render cleanly on Roku.
+- Adjusted focus routing so player controls can move to the center play control.
 
 Needs future review:
 - Test on actual Roku/TV for text sizing, focus contrast, and spacing.
 - Confirm the target-inspired player panel reads well from couch distance.
 - Confirm channel list focus and category focus feel natural with the Roku remote.
 
+### Series Page
+
+Status: first polish pass completed, ready for Roku visual review.
+
+Completed:
+- Restyled the Series sidebar to match the newer app contrast and active-state treatment.
+- Added a top search box and in-app search keyboard.
+- Added genre/category pills with selected and focused states.
+- Reworked Continue Watching and Popular Series cards into the newer dark-panel style.
+- Added basic filtering by search text and genre.
+
+Needs future review:
+- Test Series page focus movement on actual Roku.
+- Confirm search keyboard behavior and card text sizing from couch distance.
+
 Screens still expected to need design pass:
 - My Playlists
-- Series
 - Movies
 - Settings
 
 ## Current Implementation Notes
 
 - `components/pages/AddPlaylistPage.brs` owns Add Playlist layout and local sidebar rendering.
+- `components/pages/SeriesPage.brs` owns the current Series page layout, genre filtering, and search keyboard.
+- `components/shared/AppUi.brs` owns the shared top bar and now uses `pkg:/images/logo_full_dark_modified.png`.
+- Roku manifest app-view assets are `images/icon_focus_hd.png`, `images/icon_side_hd.png`, and `images/splash_screen_hd.png`.
 - `components/shared/AppUi.brs` has a `noFocusShift` option so selected controls can stay still on focus.
 - `components/shared/AppUi.brs` also supports optional `labelX`, `labelW`, and `labelAlign` for row buttons.
 - Add Playlist input fields use local in-page state in `m.inputs`.

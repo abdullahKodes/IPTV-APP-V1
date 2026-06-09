@@ -55,7 +55,17 @@ function routeLiveFocus(dx as Integer, dy as Integer) as Boolean
     action = ""
     if current.doesExist("action") then action = current.action
 
-    if dy < 0 and (action = "cat" or action = "playerControl") then
+    if dy < 0 and action = "playerControl" then
+        control = ""
+        if current.doesExist("control") then control = current.control
+        if control = "volume" or control = "restart" or control = "fullscreen" then
+            playIndex = findPlayerControl("playpause")
+            if playIndex >= 0 then m.focusIndex = playIndex : return true
+        end if
+        m.focusIndex = searchIndex
+        return true
+    end if
+    if dy < 0 and action = "cat" then
         m.focusIndex = searchIndex
         return true
     end if
@@ -89,6 +99,14 @@ function findCategoryFocus(catIndex as Integer) as Integer
     return -1
 end function
 
+function findPlayerControl(control as String) as Integer
+    for i = 0 to m.focusItems.count() - 1
+        item = m.focusItems[i]
+        if item.action = "playerControl" and item.control = control then return i
+    end for
+    return -1
+end function
+
 sub activate()
     item = m.focusItems[m.focusIndex]
     if item.page <> invalid and item.page <> "" then m.top.navigateTo = item.page
@@ -116,7 +134,7 @@ sub render()
     visible = filteredChannels()
     for i = 0 to visible.count() - 1
         rowData = visible[i]
-        drawChannel(rowData.channel, rowData.index, 244, 250 + i * 60, channelRow + i, 1)
+        drawChannel(rowData.channel, rowData.index, 244, 250 + i * 68, channelRow + i, 1)
     end for
     if visible.count() = 0 then
         uiLabel(m.canvas, "No channels found", 244, 262, 276, 28, 15, m.colors.textDim, "center")
@@ -426,7 +444,7 @@ sub drawChannel(ch as Object, channelIndex as Integer, x as Integer, y as Intege
     focused = itemIndex = m.focusIndex
     selected = channelIndex = m.channelIndex
     w = 276
-    h = 54
+    h = 60
     bg = m.colors.panel
     border = m.colors.whiteLine
     iconBg = m.colors.purpleSoft
@@ -450,18 +468,18 @@ sub drawChannel(ch as Object, channelIndex as Integer, x as Integer, y as Intege
     if ch.live then textW = 146
 
     uiRoundRect(m.canvas, x, y, w, h, bg, border)
-    uiRoundRect(m.canvas, x + 12, y + 10, 34, 34, iconBg, iconBg)
-    uiDrawIcon(m.canvas, ch.icon, x + 21, y + 19, 16, 16, focused, titleColor, 8)
-    uiLabel(m.canvas, ch.name, x + 58, y + 6, textW, 18, 6, titleColor)
-    uiLabel(m.canvas, ch.now, x + 58, y + 29, textW, 16, 5, subColor)
+    uiRoundRect(m.canvas, x + 10, y + 11, 36, 36, iconBg, iconBg)
+    uiDrawIcon(m.canvas, ch.icon, x + 19, y + 20, 18, 18, focused, titleColor, 8)
+    uiLabel(m.canvas, ch.name, x + 58, y + 10, textW, 16, 6, titleColor)
+    uiLabel(m.canvas, ch.now, x + 58, y + 32, textW, 14, 5, subColor)
     if ch.live then
-        drawLiveBadge(x + 212, y + 16)
+        drawLiveBadge(x + 204, y + 19)
     end if
 
     item = {
         x: x, y: y, w: w, h: h,
         icon: ch.icon, label: ch.name, subtitle: ch.now,
-        iconSize: 8, iconW: 34, iconH: 34, iconX: 12,
+        iconSize: 8, iconW: 36, iconH: 36, iconX: 10,
         labelX: 58, labelW: textW, labelAlign: "left",
         titleSize: 6, subSize: 5,
         bg: bg, border: border, textColor: titleColor, subColor: subColor,
@@ -472,8 +490,7 @@ sub drawChannel(ch as Object, channelIndex as Integer, x as Integer, y as Intege
 end sub
 
 sub drawLiveBadge(x as Integer, y as Integer)
-    uiRoundRect(m.canvas, x, y, 58, 22, "0x993C1DFF", "0x993C1DFF")
-    uiLabel(m.canvas, "LIVE", x, y + 1, 58, 18, 8, m.colors.text, "center")
+    uiPoster(m.canvas, "pkg:/images/ui/live_badge.png", x, y, 64, 22)
 end sub
 
 sub drawPlayer()
@@ -489,16 +506,17 @@ sub drawPlayer()
     if ch.live then titleX = panelX + 94
     uiLabel(m.canvas, ch.name, titleX, panelY + 18, 170, 24, 13, m.colors.text)
     uiLabel(m.canvas, ch.now, panelX + 24, panelY + 50, 380, 26, 14, m.colors.text)
-    addPlayerControl(panelX + panelW - 76, panelY + 28, 50, "player_heart", "Favorite", "favorite", 8, 8, 22)
+    addPlayerControl(panelX + panelW - 76, panelY + 28, 50, "player_heart", "Favorite", "favorite", 8, 6, 32)
+
 
     uiRoundRect(m.canvas, panelX + 24, panelY + 112, panelW - 48, 190, m.colors.black, m.colors.black)
-    addPlayerControl(panelX + 268, panelY + 176, 64, "player_play", "Play", "playpause", 10, 5, 64, m.overlay)
+    addPlayerControl(panelX + 268, panelY + 176, 64, "player_play", "Play", "playpause", 9, 5, 64, m.overlay)
     if ch.live then drawLiveBadge(panelX + 38, panelY + 274)
     uiLabel(m.canvas, "22:15 / LIVE", panelX + panelW - 164, panelY + 274, 126, 22, 10, m.colors.textDim, "right")
 
     drawPlayerControls(panelX + 24, panelY + 320)
-    uiRect(m.canvas, panelX + 76, panelY + 337, 340, 3, "0xFFFFFF18")
-    uiRect(m.canvas, panelX + 76, panelY + 337, 226, 3, m.colors.greenFocus, 0.72)
+    uiRect(m.canvas, panelX + 82, panelY + 337, 330, 3, "0xFFFFFF18")
+    uiRect(m.canvas, panelX + 82, panelY + 337, 220, 3, m.colors.greenFocus, 0.72)
 
     uiLabel(m.canvas, "UP NEXT ON " + ch.name, panelX, 526, 300, 22, 10, m.colors.textDim)
     drawEpg("21:00", "NFL Highlights", 568)
@@ -507,9 +525,10 @@ sub drawPlayer()
 end sub
 
 sub drawPlayerControls(x as Integer, y as Integer)
-    addPlayerControl(x, y, 42, "player_volume", "Volume", "volume", 8, 3, 22)
-    addPlayerControl(x + 430, y, 42, "player_replay", "Replay", "restart", 8, 6, 22)
-    addPlayerControl(x + 494, y, 42, "player_full", "Full", "fullscreen", 8, 7, 22)
+    addPlayerControl(x, y, 48, "player_play", "Play", "playpause", 10, 3, 32)
+    addPlayerControl(x + 394, y, 48, "player_volume", "Volume", "volume", 10, 4, 32)
+    addPlayerControl(x + 448, y, 48, "player_replay", "Replay", "restart", 10, 5, 32)
+    addPlayerControl(x + 502, y, 48, "player_full", "Full", "fullscreen", 10, 6, 32)
 end sub
 
 sub addPlayerControl(x as Integer, y as Integer, w as Integer, icon as String, label as String, control as String, row as Integer, col as Integer, iconSize = 18 as Integer, target = invalid as Object)
@@ -523,6 +542,11 @@ sub addPlayerControl(x as Integer, y as Integer, w as Integer, icon as String, l
     iconX = x + Int((w - iconSize) / 2)
     iconY = y + Int((36 - iconSize) / 2)
     if iconSize > 36 then iconY = y
+    if icon = "player_play" and iconSize > 36 then
+        circleBorder = m.colors.textMuted
+        if focused then circleBorder = m.colors.greenFocus
+        uiRoundRect(target, iconX, iconY, iconSize, iconSize, m.colors.black, circleBorder, 0.58)
+    end if
     uiDrawIcon(target, icon, iconX, iconY, iconSize, iconSize, focused, textColor, 10)
     if focused and iconSize <= 36 then uiRect(target, x + Int((w - 28) / 2), y + 32, 28, 2, m.colors.greenFocus, 0.9)
     controlH = 36

@@ -180,7 +180,10 @@ function uiDrawIcon(parent as Object, icon as String, x as Integer, y as Integer
     if icon = "BALL" or icon = "SP" or icon = "BN" or icon = "FOOT" then normalized = "sport"
     if icon = "NEWS" or icon = "NW" or icon = "CNN" then normalized = "news"
     if uiKnownIcon(normalized) then
-        uiPoster(parent, uiIconUri(normalized, focused), x, y, w, h)
+        poster = uiPoster(parent, uiIconUri(normalized, focused), x, y, w, h)
+        if fallbackColor <> invalid and fallbackColor <> "" then
+            poster.blendColor = fallbackColor
+        end if
         return true
     end if
     uiLabel(parent, icon, x, y, w, h, fallbackSize, fallbackColor, "center")
@@ -298,9 +301,7 @@ end function
 function uiTopBar(parent as Object, colors as Object) as Object
     uiRect(parent, 0, 0, 1280, 86, colors.bg)
     uiRect(parent, 0, 85, 1280, 1, "0xFFFFFF14")
-    uiDrawIcon(parent, "iptv", 30, 17, 52, 52, true, colors.textGreen, 18)
-    uiLabel(parent, "IPTV", 96, 15, 84, 52, 34, colors.textPurple)
-    uiLabel(parent, "Max", 146, 15, 82, 52, 34, colors.textPurple)
+    uiPoster(parent, "pkg:/images/logo_full_dark_modified.png", 28, 10, 205, 64)
     clock = uiLabel(parent, "--:--", 1115, 12, 130, 32, 25, colors.text, "right")
     date = uiLabel(parent, "---", 1052, 48, 193, 24, 14, colors.textMuted, "right")
     return { clock: clock, date: date }

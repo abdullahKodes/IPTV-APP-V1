@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <title>IPTV Max App Icon</title>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7F77DD"/>
+      <stop offset="100%" stop-color="#1D9E75"/>
+    </linearGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0d0f1c"/>
+      <stop offset="100%" stop-color="#111420"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#534AB7" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#534AB7" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="200" height="200" rx="40" fill="url(#bg)"/>
+  <rect width="200" height="200" rx="40" fill="url(#glow)"/>
+  <rect width="200" height="200" rx="40" fill="none" stroke="url(#g)" stroke-width="1.2" opacity="0.35"/>
+  <!-- Hex shield outer -->
+  <polygon points="100,28 148,56 148,112 100,140 52,112 52,56"
+           fill="none" stroke="url(#g)" stroke-width="2" opacity="0.65"/>
+  <!-- Hex shield inner -->
+  <polygon points="100,38 138,62 138,108 100,132 62,108 62,62"
+           fill="#080B14" stroke="url(#g)" stroke-width="1.2" opacity="0.85"/>
+  <!-- Signal arcs -->
+  <path d="M84,70 A22,22 0 0 0 84,100" fill="none" stroke="url(#g)" stroke-width="5.5" stroke-linecap="round" opacity="0.95"/>
+  <path d="M75,60 A36,36 0 0 0 75,110" fill="none" stroke="url(#g)" stroke-width="3.5" stroke-linecap="round" opacity="0.52"/>
+  <path d="M66,50 A49,49 0 0 0 66,120" fill="none" stroke="url(#g)" stroke-width="2" stroke-linecap="round" opacity="0.24"/>
+  <!-- Play arrow -->
+  <polygon points="96,68 134,85 96,102" fill="url(#g)" opacity="0.97"/>
+  <!-- Signal dots -->
+  <circle cx="136" cy="85" r="8"   fill="#5DCAA5" opacity="0.90"/>
+  <circle cx="148" cy="85" r="4.5" fill="#5DCAA5" opacity="0.48"/>
+  <circle cx="157" cy="85" r="2.5" fill="#5DCAA5" opacity="0.25"/>
+  <!-- Small outer ring detail -->
+  <circle cx="100" cy="85" r="78" fill="none" stroke="url(#g)" stroke-width="0.6" opacity="0.18"/>
+  <!-- Tick marks -->
+  <g stroke="url(#g)" stroke-width="1.5" opacity="0.3">
+    <line x1="100" y1="6"   x2="100" y2="18"/>
+    <line x1="100" y1="152" x2="100" y2="164"/>
+    <line x1="18"  y1="85"  x2="30"  y2="85"/>
+    <line x1="170" y1="85"  x2="182" y2="85"/>
+  </g>
+  <!-- Bottom label -->
+  <text x="100" y="182" text-anchor="middle"
+        font-family="Inter,Arial,sans-serif" font-size="16" font-weight="700"
+        letter-spacing="4" fill="url(#g)" opacity="0.85">IPTV MAX</text>
+</svg>
