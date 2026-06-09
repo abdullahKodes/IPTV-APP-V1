@@ -54,7 +54,7 @@ function routeLiveFocus(dx as Integer, dy as Integer) as Boolean
     action = ""
     if current.doesExist("action") then action = current.action
 
-    if dy < 0 and action <> "" and action <> "search" then
+    if dy < 0 and (action = "cat" or action = "playerControl") then
         m.focusIndex = searchIndex
         return true
     end if
@@ -114,7 +114,7 @@ sub render()
     visible = filteredChannels()
     for i = 0 to visible.count() - 1
         rowData = visible[i]
-        drawChannel(rowData.channel, rowData.index, 244, 250 + i * 56, channelRow + i, 1)
+        drawChannel(rowData.channel, rowData.index, 244, 250 + i * 60, channelRow + i, 1)
     end for
     if visible.count() = 0 then
         uiLabel(m.canvas, "No channels found", 244, 262, 276, 28, 15, m.colors.textDim, "center")
@@ -420,7 +420,7 @@ sub drawChannel(ch as Object, channelIndex as Integer, x as Integer, y as Intege
     focused = itemIndex = m.focusIndex
     selected = channelIndex = m.channelIndex
     w = 276
-    h = 50
+    h = 54
     bg = m.colors.panel
     border = m.colors.whiteLine
     iconBg = m.colors.purpleSoft
@@ -441,12 +441,12 @@ sub drawChannel(ch as Object, channelIndex as Integer, x as Integer, y as Intege
     end if
 
     uiRoundRect(m.canvas, x, y, w, h, bg, border)
-    uiRoundRect(m.canvas, x + 12, y + 7, 36, 36, iconBg, iconBg)
-    uiDrawIcon(m.canvas, ch.icon, x + 21, y + 16, 18, 18, focused, titleColor, 9)
-    uiLabel(m.canvas, ch.name, x + 62, y + 5, 132, 19, 11, titleColor)
-    uiLabel(m.canvas, ch.now, x + 62, y + 27, 132, 16, 8, subColor)
+    uiRoundRect(m.canvas, x + 12, y + 9, 36, 36, iconBg, iconBg)
+    uiDrawIcon(m.canvas, ch.icon, x + 21, y + 18, 18, 18, focused, titleColor, 9)
+    uiLabel(m.canvas, ch.name, x + 62, y + 6, 132, 19, 10, titleColor)
+    uiLabel(m.canvas, ch.now, x + 62, y + 29, 132, 16, 7, subColor)
     if ch.live then
-        drawLiveBadge(x + 206, y + 14)
+        drawLiveBadge(x + 206, y + 16)
     end if
 
     item = {
@@ -454,7 +454,7 @@ sub drawChannel(ch as Object, channelIndex as Integer, x as Integer, y as Intege
         icon: ch.icon, label: ch.name, subtitle: ch.now,
         iconSize: 9, iconW: 36, iconH: 36, iconX: 12,
         labelX: 62, labelW: 132, labelAlign: "left",
-        titleSize: 11, subSize: 8,
+        titleSize: 10, subSize: 7,
         bg: bg, border: border, textColor: titleColor, subColor: subColor,
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         row: row, col: col, page: "", action: "channel", channelIndex: channelIndex, mode: "manual"
@@ -509,22 +509,18 @@ end sub
 sub addPlayerControl(x as Integer, y as Integer, w as Integer, icon as String, label as String, control as String, row as Integer, col as Integer)
     itemIndex = m.focusItems.count()
     focused = itemIndex = m.focusIndex
-    bg = m.colors.panel
-    border = m.colors.whiteLine
     textColor = m.colors.textMuted
     if focused then
-        bg = m.colors.purpleSoft
-        border = m.colors.greenFocus
         textColor = m.colors.text
     end if
-    uiRoundRect(m.canvas, x, y, w, 36, bg, border)
     uiDrawIcon(m.canvas, icon, x + Int((w - 18) / 2), y + 9, 18, 18, focused, textColor, 10)
+    if focused then uiRect(m.canvas, x + Int((w - 28) / 2), y + 32, 28, 2, m.colors.greenFocus, 0.9)
     m.focusItems.push({
         x: x, y: y, w: w, h: 36,
         icon: icon, label: label, subtitle: "",
         iconSize: 10, titleSize: 10, subSize: 10,
-        bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim,
-        focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        bg: m.colors.bg, border: m.colors.bg, textColor: textColor, subColor: m.colors.textDim,
+        focusBg: m.colors.bg, focusBorder: m.colors.bg, focusTextColor: m.colors.text,
         row: row, col: col, page: "", action: "playerControl", control: control, mode: "manual"
     })
 end sub
