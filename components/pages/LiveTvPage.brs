@@ -112,10 +112,10 @@ sub render()
     visible = filteredChannels()
     for i = 0 to visible.count() - 1
         rowData = visible[i]
-        drawChannel(rowData.channel, rowData.index, 244, 206 + i * 56, channelRow + i, 1)
+        drawChannel(rowData.channel, rowData.index, 244, 250 + i * 56, channelRow + i, 1)
     end for
     if visible.count() = 0 then
-        uiLabel(m.canvas, "No channels found", 244, 238, 276, 28, 15, m.colors.textDim, "center")
+        uiLabel(m.canvas, "No channels found", 244, 262, 276, 28, 15, m.colors.textDim, "center")
     end if
     drawPlayer()
     updateVideoLayout()
@@ -127,7 +127,8 @@ sub setupVideo()
     if m.video = invalid then return
     m.video.enableUI = false
     m.video.loop = true
-    m.video.setHttpAgent(CreateObject("roHttpAgent"))
+    m.video.observeField("state", "onVideoStateChange")
+    m.video.observeField("errorMsg", "onVideoError")
     playSelectedChannel()
 end sub
 
@@ -144,7 +145,16 @@ sub playSelectedChannel()
     m.video.control = "play"
 end sub
 
+sub onVideoStateChange()
+    if m.video <> invalid then print "Live TV video state: "; m.video.state
+end sub
+
+sub onVideoError()
+    if m.video <> invalid then print "Live TV video error: "; m.video.errorMsg
+end sub
+
 sub handlePlayerControl(control as String)
+    if control = "favorite" then return
     if control = "restart" then seekPlayer(0, true) : return
     if control = "rewind" then seekPlayer(-15, false) : return
     if control = "playpause" then togglePlayback() : return
@@ -184,9 +194,9 @@ sub updateVideoLayout()
         m.video.width = 1280
         m.video.height = 720
     else
-        m.video.translation = [584, 224]
+        m.video.translation = [592, 226]
         m.video.width = 552
-        m.video.height = 190
+        m.video.height = 226
     end if
     m.video.visible = true
 end sub
@@ -248,11 +258,11 @@ sub drawSearchBox()
     end if
     label = "Search channels"
     if m.searchQuery <> "" then label = m.searchQuery
-    uiRoundRect(m.canvas, 690, 24, 260, 40, bg, border)
-    uiDrawIcon(m.canvas, "search", 708, 34, 18, 18, focused, textColor, 11)
-    uiLabel(m.canvas, label, 738, 27, 186, 28, 13, textColor)
+    uiRoundRect(m.canvas, 686, 24, 260, 40, bg, border)
+    uiDrawIcon(m.canvas, "search", 704, 34, 18, 18, focused, textColor, 11)
+    uiLabel(m.canvas, label, 734, 27, 198, 28, 12, textColor)
     m.focusItems.push({
-        x: 690, y: 24, w: 260, h: 40,
+        x: 686, y: 24, w: 260, h: 40,
         icon: "search", label: label, subtitle: "",
         iconSize: 11, titleSize: 13, subSize: 10,
         bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim,
@@ -361,9 +371,9 @@ function drawCategoryPills(row as Integer) as Integer
     cats = [
         { label: "All", x: 244, y: 106, w: 62, row: row, col: 1 },
         { label: "Sports", x: 316, y: 106, w: 82, row: row, col: 2 },
-        { label: "News", x: 408, y: 106, w: 76, row: row, col: 3 },
-        { label: "Kids", x: 244, y: 150, w: 70, row: row + 1, col: 1 },
-        { label: "Music", x: 324, y: 150, w: 82, row: row + 1, col: 2 }
+        { label: "News", x: 244, y: 150, w: 76, row: row + 1, col: 1 },
+        { label: "Kids", x: 330, y: 150, w: 70, row: row + 1, col: 2 },
+        { label: "Music", x: 244, y: 194, w: 82, row: row + 2, col: 1 }
     ]
     for i = 0 to cats.count() - 1
         cat = cats[i]
@@ -395,12 +405,12 @@ function drawCategoryPills(row as Integer) as Integer
         }
         m.focusItems.push(item)
     end for
-    return row + 2
+    return row + 3
 end function
 
 sub drawChannelDivider()
-    uiRect(m.canvas, 244, 194, 276, 1, "0xFFFFFF18")
-    uiRect(m.canvas, 244, 194, 72, 1, m.colors.greenFocus, 0.72)
+    uiRect(m.canvas, 244, 238, 276, 1, "0xFFFFFF18")
+    uiRect(m.canvas, 244, 238, 72, 1, m.colors.greenFocus, 0.72)
 end sub
 
 sub drawChannel(ch as Object, channelIndex as Integer, x as Integer, y as Integer, row as Integer, col as Integer)
@@ -430,9 +440,9 @@ sub drawChannel(ch as Object, channelIndex as Integer, x as Integer, y as Intege
 
     uiRoundRect(m.canvas, x, y, w, h, bg, border)
     uiRoundRect(m.canvas, x + 12, y + 7, 36, 36, iconBg, iconBg)
-    uiDrawIcon(m.canvas, ch.icon, x + 21, y + 16, 18, 18, focused, titleColor, 10)
-    uiLabel(m.canvas, ch.name, x + 62, y + 5, 132, 21, 13, titleColor)
-    uiLabel(m.canvas, ch.now, x + 62, y + 27, 132, 17, 8, subColor)
+    uiDrawIcon(m.canvas, ch.icon, x + 21, y + 16, 18, 18, focused, titleColor, 9)
+    uiLabel(m.canvas, ch.name, x + 62, y + 5, 132, 19, 11, titleColor)
+    uiLabel(m.canvas, ch.now, x + 62, y + 27, 132, 16, 8, subColor)
     if ch.live then
         drawLiveBadge(x + 206, y + 14)
     end if
@@ -440,9 +450,9 @@ sub drawChannel(ch as Object, channelIndex as Integer, x as Integer, y as Intege
     item = {
         x: x, y: y, w: w, h: h,
         icon: ch.icon, label: ch.name, subtitle: ch.now,
-        iconSize: 10, iconW: 36, iconH: 36, iconX: 12,
+        iconSize: 9, iconW: 36, iconH: 36, iconX: 12,
         labelX: 62, labelW: 132, labelAlign: "left",
-        titleSize: 13, subSize: 8,
+        titleSize: 11, subSize: 8,
         bg: bg, border: border, textColor: titleColor, subColor: subColor,
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         row: row, col: col, page: "", action: "channel", channelIndex: channelIndex, mode: "manual"
@@ -457,8 +467,8 @@ sub drawLiveBadge(x as Integer, y as Integer)
 end sub
 
 sub drawPlayer()
-    panelX = 560
-    panelY = 112
+    panelX = 568
+    panelY = 108
     panelW = 600
     panelH = 390
     ch = m.channels[m.channelIndex]
@@ -467,31 +477,31 @@ sub drawPlayer()
     if ch.live then drawLiveBadge(panelX + 24, panelY + 22)
     titleX = panelX + 24
     if ch.live then titleX = panelX + 94
-    uiLabel(m.canvas, ch.name, titleX, panelY + 18, 180, 28, 16, m.colors.text)
-    uiLabel(m.canvas, ch.now, panelX + 24, panelY + 58, 520, 30, 18, m.colors.text)
+    uiLabel(m.canvas, ch.name, titleX, panelY + 18, 170, 24, 13, m.colors.text)
+    uiLabel(m.canvas, ch.now, panelX + 24, panelY + 50, 380, 26, 14, m.colors.text)
+    addPlayerControl(panelX + panelW - 116, panelY + 28, 50, "heart", "Favorite", "favorite", 8, 8)
+    addPlayerControl(panelX + panelW - 60, panelY + 28, 50, "out", "Screen", "fullscreen", 8, 9)
 
-    uiRoundRect(m.canvas, panelX + 24, panelY + 112, panelW - 48, 190, m.colors.black, m.colors.black)
-    if ch.live then drawLiveBadge(panelX + 38, panelY + 274)
-    uiLabel(m.canvas, "Live preview", panelX + panelW - 190, panelY + 270, 150, 24, 12, m.colors.textDim, "right")
+    drawBorderRect(panelX + 24, panelY + 118, panelW - 48, 226, m.colors.black, m.colors.black)
+    if ch.live then drawLiveBadge(panelX + 38, panelY + 308)
+    uiLabel(m.canvas, "22:15 / LIVE", panelX + panelW - 164, panelY + 310, 126, 22, 10, m.colors.textDim, "right")
 
-    drawPlayerControls(panelX + 150, panelY + 318)
-    uiRect(m.canvas, panelX + 24, panelY + 366, panelW - 48, 2, "0xFFFFFF18")
-    uiRect(m.canvas, panelX + 24, panelY + 366, 320, 2, m.colors.greenFocus, 0.72)
+    drawPlayerControls(panelX + 24, panelY + 356)
+    uiRect(m.canvas, panelX + 92, panelY + 372, 270, 3, "0xFFFFFF18")
+    uiRect(m.canvas, panelX + 92, panelY + 372, 180, 3, m.colors.greenFocus, 0.72)
 
-    uiLabel(m.canvas, "UP NEXT ON " + ch.name, panelX, 536, 300, 24, 11, m.colors.textDim)
-    drawEpg("21:00", "NFL Highlights", 560)
-    drawEpg("23:00", "SportsCenter", 770)
-    drawEpg("01:00", "NBA Pre-game", 980)
+    uiLabel(m.canvas, "UP NEXT ON " + ch.name, panelX, 528, 300, 22, 10, m.colors.textDim)
+    drawEpg("21:00", "NFL Highlights", 568)
+    drawEpg("23:00", "SportsCenter", 764)
+    drawEpg("01:00", "NBA Pre-game", 960)
 end sub
 
 sub drawPlayerControls(x as Integer, y as Integer)
-    addPlayerControl(x, y, 50, "sync", "Restart", "restart", 8, 3)
-    addPlayerControl(x + 60, y, 50, "back", "Back", "rewind", 8, 4)
+    addPlayerControl(x, y, 50, "info", "Info", "restart", 8, 3)
+    addPlayerControl(x + 366, y, 92, "out", "Full", "fullscreen", 8, 6)
     playLabel = "Pause"
     if not m.playing then playLabel = "Play"
-    addPlayerControl(x + 120, y, 70, "play", playLabel, "playpause", 8, 5)
-    addPlayerControl(x + 200, y, 50, "play", "Next", "forward", 8, 6)
-    addPlayerControl(x + 260, y, 92, "out", "Full", "fullscreen", 8, 7)
+    addPlayerControl(x + 468, y, 92, "play", playLabel, "playpause", 8, 7)
 end sub
 
 sub addPlayerControl(x as Integer, y as Integer, w as Integer, icon as String, label as String, control as String, row as Integer, col as Integer)
@@ -510,12 +520,12 @@ sub addPlayerControl(x as Integer, y as Integer, w as Integer, icon as String, l
         uiDrawIcon(m.canvas, icon, x + 15, y + 9, 18, 18, focused, textColor, 10)
     else
         uiDrawIcon(m.canvas, icon, x + 12, y + 9, 18, 18, focused, textColor, 10)
-        uiLabel(m.canvas, label, x + 34, y + 4, w - 40, 24, 11, textColor, "center")
+        uiLabel(m.canvas, label, x + 34, y + 4, w - 40, 24, 10, textColor, "center")
     end if
     m.focusItems.push({
         x: x, y: y, w: w, h: 36,
         icon: icon, label: label, subtitle: "",
-        iconSize: 10, titleSize: 11, subSize: 10,
+        iconSize: 10, titleSize: 10, subSize: 10,
         bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim,
         focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         row: row, col: col, page: "", action: "playerControl", control: control, mode: "manual"
@@ -523,9 +533,9 @@ sub addPlayerControl(x as Integer, y as Integer, w as Integer, icon as String, l
 end sub
 
 sub drawEpg(time as String, title as String, x as Integer)
-    uiRoundRect(m.canvas, x, 566, 190, 54, m.colors.panel, m.colors.whiteLine)
-    uiLabel(m.canvas, time, x + 12, 570, 80, 18, 9, m.colors.greenFocus)
-    uiLabel(m.canvas, title, x + 12, 594, 158, 20, 9, m.colors.text)
+    uiRoundRect(m.canvas, x, 562, 190, 54, m.colors.panel, m.colors.whiteLine)
+    uiLabel(m.canvas, time, x + 12, 566, 80, 18, 8, m.colors.greenFocus)
+    uiLabel(m.canvas, title, x + 12, 590, 158, 20, 8, m.colors.text)
 end sub
 
 sub drawBorderRect(x as Integer, y as Integer, w as Integer, h as Integer, fill as String, border as String, opacity = 1.0 as Float)
