@@ -164,6 +164,7 @@ function uiKnownIcon(icon as String) as Boolean
         out: true, plus: true, link: true, m3u: true, x: true, profile: true,
         world: true, note: true, kids: true, sport: true, news: true,
         heart: true, bell: true,
+        player_volume: true, player_play: true, player_replay: true, player_full: true, player_heart: true,
         card_add: true, card_tv: true, card_series: true, card_movies: true,
         iptv: true
     }

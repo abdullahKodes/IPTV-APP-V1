@@ -157,6 +157,7 @@ end sub
 
 sub handlePlayerControl(control as String)
     if control = "favorite" then return
+    if control = "volume" then return
     if control = "restart" then seekPlayer(0, true) : return
     if control = "rewind" then seekPlayer(-15, false) : return
     if control = "playpause" then togglePlayback() : return
@@ -481,16 +482,16 @@ sub drawPlayer()
     if ch.live then titleX = panelX + 94
     uiLabel(m.canvas, ch.name, titleX, panelY + 18, 170, 24, 13, m.colors.text)
     uiLabel(m.canvas, ch.now, panelX + 24, panelY + 50, 380, 26, 14, m.colors.text)
-    addPlayerControl(panelX + panelW - 116, panelY + 28, 50, "heart", "Favorite", "favorite", 8, 8)
-    addPlayerControl(panelX + panelW - 60, panelY + 28, 50, "out", "Screen", "fullscreen", 8, 9)
+    addPlayerControl(panelX + panelW - 76, panelY + 28, 50, "player_heart", "Favorite", "favorite", 8, 8, 22)
 
     uiRoundRect(m.canvas, panelX + 24, panelY + 112, panelW - 48, 190, m.colors.black, m.colors.black)
+    addPlayerControl(panelX + 268, panelY + 176, 64, "player_play", "Play", "playpause", 10, 5, 64)
     if ch.live then drawLiveBadge(panelX + 38, panelY + 274)
     uiLabel(m.canvas, "22:15 / LIVE", panelX + panelW - 164, panelY + 274, 126, 22, 10, m.colors.textDim, "right")
 
     drawPlayerControls(panelX + 24, panelY + 320)
-    uiRect(m.canvas, panelX + 88, panelY + 337, 328, 3, "0xFFFFFF18")
-    uiRect(m.canvas, panelX + 88, panelY + 337, 220, 3, m.colors.greenFocus, 0.72)
+    uiRect(m.canvas, panelX + 76, panelY + 337, 340, 3, "0xFFFFFF18")
+    uiRect(m.canvas, panelX + 76, panelY + 337, 226, 3, m.colors.greenFocus, 0.72)
 
     uiLabel(m.canvas, "UP NEXT ON " + ch.name, panelX, 526, 300, 22, 10, m.colors.textDim)
     drawEpg("21:00", "NFL Highlights", 568)
@@ -499,24 +500,27 @@ sub drawPlayer()
 end sub
 
 sub drawPlayerControls(x as Integer, y as Integer)
-    addPlayerControl(x, y, 50, "info", "Info", "restart", 8, 3)
-    playLabel = "Pause"
-    if not m.playing then playLabel = "Play"
-    addPlayerControl(x + 430, y, 50, "out", "Full", "fullscreen", 8, 6)
-    addPlayerControl(x + 502, y, 50, "play", playLabel, "playpause", 8, 7)
+    addPlayerControl(x, y, 42, "player_volume", "Volume", "volume", 8, 3, 22)
+    addPlayerControl(x + 430, y, 42, "player_replay", "Replay", "restart", 8, 6, 22)
+    addPlayerControl(x + 494, y, 42, "player_full", "Full", "fullscreen", 8, 7, 22)
 end sub
 
-sub addPlayerControl(x as Integer, y as Integer, w as Integer, icon as String, label as String, control as String, row as Integer, col as Integer)
+sub addPlayerControl(x as Integer, y as Integer, w as Integer, icon as String, label as String, control as String, row as Integer, col as Integer, iconSize = 18 as Integer)
     itemIndex = m.focusItems.count()
     focused = itemIndex = m.focusIndex
     textColor = m.colors.textMuted
     if focused then
         textColor = m.colors.text
     end if
-    uiDrawIcon(m.canvas, icon, x + Int((w - 18) / 2), y + 9, 18, 18, focused, textColor, 10)
-    if focused then uiRect(m.canvas, x + Int((w - 28) / 2), y + 32, 28, 2, m.colors.greenFocus, 0.9)
+    iconX = x + Int((w - iconSize) / 2)
+    iconY = y + Int((36 - iconSize) / 2)
+    if iconSize > 36 then iconY = y
+    uiDrawIcon(m.canvas, icon, iconX, iconY, iconSize, iconSize, focused, textColor, 10)
+    if focused and iconSize <= 36 then uiRect(m.canvas, x + Int((w - 28) / 2), y + 32, 28, 2, m.colors.greenFocus, 0.9)
+    controlH = 36
+    if iconSize > controlH then controlH = iconSize
     m.focusItems.push({
-        x: x, y: y, w: w, h: 36,
+        x: x, y: y, w: w, h: controlH,
         icon: icon, label: label, subtitle: "",
         iconSize: 10, titleSize: 10, subSize: 10,
         bg: m.colors.bg, border: m.colors.bg, textColor: textColor, subColor: m.colors.textDim,
