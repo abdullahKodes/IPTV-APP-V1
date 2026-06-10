@@ -166,7 +166,7 @@ function uiKnownIcon(icon as String) as Boolean
         heart: true, bell: true,
         player_volume: true, player_play: true, player_replay: true, player_full: true, player_heart: true,
         card_add: true, card_tv: true, card_series: true, card_movies: true,
-        iptv: true
+        iptv: true, cards_badge: true
     }
     return known.doesExist(LCase(icon))
 end function
@@ -181,7 +181,7 @@ function uiDrawIcon(parent as Object, icon as String, x as Integer, y as Integer
     if icon = "NEWS" or icon = "NW" or icon = "CNN" then normalized = "news"
     if uiKnownIcon(normalized) then
         poster = uiPoster(parent, uiIconUri(normalized, focused), x, y, w, h)
-        if fallbackColor <> invalid and fallbackColor <> "" then
+        if normalized <> "cards_badge" and fallbackColor <> invalid and fallbackColor <> "" then
             poster.blendColor = fallbackColor
         end if
         return true
