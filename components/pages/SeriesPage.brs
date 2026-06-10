@@ -10,7 +10,7 @@ sub init()
     m.searchKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "SPACE", "DEL", "CLEAR", "DONE"]
     m.series = [
         { title: "Ozark", meta: "4 Seasons", genre: "Drama - Thriller", icon: "OZ" },
-        { title: "Westworld", meta: "4 Seasons", genre: "Sci-Fi - Drama", icon: "WD" },
+        { title: "Westworld", meta: "4 Seasons", genre: "Sci-Fi - Drama", icon: "AI" },
         { title: "The Crown", meta: "6 Seasons", genre: "Drama - History", icon: "CR" },
         { title: "Peaky Blinders", meta: "6 Seasons", genre: "Crime - Drama", icon: "PB" }
     ]
@@ -52,21 +52,21 @@ sub render()
     m.clock = clockParts.clock
     m.date = clockParts.date
     refreshClock()
-
+    
     row = drawSeriesSideNav()
     drawSearchBox()
-
+    
     drawCategoryPills(row)
 
-    uiLabel(m.canvas, "CONTINUE WATCHING", 244, 168, 300, 26, 13, m.colors.textDim)
-    drawContinueCard(244, 208, 365, "Breaking Bad", "S3 - E7 - 22 min left", 70, 2, 1)
-    drawContinueCard(640, 208, 365, "House of Dragon", "S2 - E3 - 44 min left", 30, 2, 2)
-
+    uiLabel(m.canvas, "CONTINUE WATCHING", 244, 158, 300, 26, 13, m.colors.textDim)
+    drawContinueCard(244, 198, 365, "Breaking Bad", "S3 - E7 - 22 min left", 70, 2, 1)
+    drawContinueCard(640, 198, 365, "House of Dragon", "S2 - E3 - 44 min left", 30, 2, 2)
+    
     uiLabel(m.canvas, "POPULAR SERIES", 244, 362, 250, 26, 13, m.colors.textDim)
     visible = filteredSeries()
     for i = 0 to visible.count() - 1
         rowData = visible[i]
-        drawMediaCard(rowData.series, 244 + i * 212, 402, 200, 208, 3, i + 1)
+        drawMediaCard(rowData.series, 244 + i * 212, 402, 200, 176, 3, i + 1)
     end for
     if visible.count() = 0 then
         uiLabel(m.canvas, "No series found", 244, 430, 746, 28, 15, m.colors.textDim, "center")
@@ -176,7 +176,7 @@ sub drawCategoryPills(row as Integer)
             border = m.colors.greenFocus
             textColor = m.colors.text
         end if
-
+        
         uiRoundRect(m.canvas, cat.x, cat.y, cat.w, cat.h, bg, border)
         uiLabel(m.canvas, catLabel, cat.x, cat.y + 2, cat.w, cat.h - 4, 13, textColor, "center")
 
@@ -233,9 +233,15 @@ sub drawMediaCard(media as Object, x as Integer, y as Integer, w as Integer, h a
     subColor = m.colors.textDim
 
     cardKey = "purple"
+    badgeBg = m.colors.purpleSoft
     seasonColor = m.colors.greenFocus
-    if media.icon = "WD" or media.icon = "PB" then
+    if media.icon = "AI" or media.icon = "PB" then
         cardKey = "green"
+        badgeBg = m.colors.greenSoft
+        seasonColor = m.colors.textPurple
+    end if
+    if media.icon = "OZ" or media.icon = "CR" then
+        badgeBg = m.colors.greenSoft
     end if
     stateKey = "normal"
     if focused then
@@ -247,11 +253,11 @@ sub drawMediaCard(media as Object, x as Integer, y as Integer, w as Integer, h a
     iconW = 36
     iconH = 36
     iconX = x + Int((w - iconW) / 2)
-    iconY = y + Int((h - 72 - iconH) / 2)
+    iconY = y + 28
     uiDrawIcon(m.canvas, "cards_badge", iconX, iconY, iconW, iconH, focused, "0xFFFFFFFF", 12)
-    uiLabel(m.canvas, media.title, x + 16, y + h - 82, w - 32, 24, 12, textColor)
-    uiLabel(m.canvas, media.meta, x + 16, y + h - 56, w - 32, 20, 10, seasonColor)
-    uiLabel(m.canvas, media.genre, x + 16, y + h - 32, w - 32, 22, 8, subColor)
+    uiLabel(m.canvas, media.title, x + 16, y + 104, w - 32, 24, 12, textColor)
+    uiLabel(m.canvas, media.meta, x + 16, y + 128, w - 32, 20, 9, seasonColor)
+    uiLabel(m.canvas, media.genre, x + 16, y + 148, w - 32, 22, 6, subColor)
 
     m.focusItems.push({
         x: x, y: y, w: w, h: h,
