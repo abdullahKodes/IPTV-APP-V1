@@ -248,10 +248,10 @@ sub drawMediaCard(media as Object, x as Integer, y as Integer, w as Integer, h a
     iconH = 36
     iconX = x + Int((w - iconW) / 2)
     iconY = y + Int((h - 72 - iconH) / 2)
-    uiDrawIcon(m.canvas, "cards_badge", iconX, iconY, iconW, iconH, focused, m.colors.text, 12)
-    uiLabel(m.canvas, media.title, x + 16, y + h - 75, w - 32, 24, 12, textColor)
-    uiLabel(m.canvas, media.meta, x + 16, y + h - 49, w - 32, 20, 10, seasonColor)
-    uiLabel(m.canvas, media.genre, x + 16, y + h - 25, w - 32, 22, 7, subColor)
+    uiDrawIcon(m.canvas, "cards_badge", iconX, iconY, iconW, iconH, focused, "0xFFFFFFFF", 12)
+    uiLabel(m.canvas, media.title, x + 16, y + h - 82, w - 32, 24, 12, textColor)
+    uiLabel(m.canvas, media.meta, x + 16, y + h - 56, w - 32, 20, 10, seasonColor)
+    uiLabel(m.canvas, media.genre, x + 16, y + h - 32, w - 32, 22, 8, subColor)
 
     m.focusItems.push({
         x: x, y: y, w: w, h: h,

@@ -122,6 +122,7 @@ Completed:
 - Reworked Popular Series cards into compact Continue Watching-style horizontal cards, with explicit high-contrast abbreviation badges and manifest build version `00021` so Roku replaces the sideloaded app.
 - Added exact `210x86` rounded assets for Popular Series normal/focus states so the cards use a soft Continue Watching-style border and full green card focus on Roku; manifest build version is now `00022`.
 - Restored the previous vertical Popular Series card style at a smaller `200x176` size, keeping soft borders, full-card green focus, readable abbreviation badges, and manifest build version `00023`.
+- Regenerated Popular Series poster assets at the active `200x208` size using the same Home card palette: `purpleSoft`/`purpleActive` and `greenSoft`/`greenActive`; manifest build version is now `00024`.
 - Confirmed `npm.cmd run check` passes.
 - Confirmed `npm.cmd run build` creates `build\roku-iptv-app.zip`.
 

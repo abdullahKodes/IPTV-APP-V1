@@ -181,7 +181,7 @@ function uiDrawIcon(parent as Object, icon as String, x as Integer, y as Integer
     if icon = "NEWS" or icon = "NW" or icon = "CNN" then normalized = "news"
     if uiKnownIcon(normalized) then
         poster = uiPoster(parent, uiIconUri(normalized, focused), x, y, w, h)
-        if normalized <> "cards_badge" and fallbackColor <> invalid and fallbackColor <> "" then
+        if fallbackColor <> invalid and fallbackColor <> "" then
             poster.blendColor = fallbackColor
         end if
         return true
