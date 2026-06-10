@@ -117,6 +117,7 @@ Completed:
 - Reviewed the newer `series design.png` reference and repaired Series spacing: category pills now use one clean row, Continue Watching cards are wider, and Popular Series card sections avoid square edges inside the rounded card.
 - Tuned Series after Roku review: category pills were reduced slightly, Continue Watching cards were scaled back, Continue Watching focus now uses green with no persistent selected state, and Popular Series cards now keep a visible rounded border against the background.
 - Final Series polish pass reduced category width further, added more space between Continue Watching cards, removed persistent Continue Watching selection, and replaced Popular Series square overlays with composite rounded card assets.
+- Tuned Popular Series cards again: reduced card size, softened card borders, and adjusted abbreviation badge colors for stronger contrast against each card background.
 - Confirmed `npm.cmd run check` passes.
 - Confirmed `npm.cmd run build` creates `build\roku-iptv-app.zip`.
 
