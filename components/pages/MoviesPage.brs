@@ -2,12 +2,19 @@ sub init()
     m.colors = appColors()
     m.canvas = m.top.findNode("moviesCanvas")
     m.focusItems = []
-    m.focusIndex = 5
+    m.focusIndex = 7
+    m.selectedGenre = "All"
+    m.searchQuery = ""
+    m.searchEditing = false
+    m.searchKeyboardIndex = 0
+    m.searchKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "SPACE", "DEL", "CLEAR", "DONE"]
     m.movies = [
-        { title: "Inception", meta: "8.8 - Sci-Fi - 2h 28m", icon: "IN" },
-        { title: "The Dark Knight", meta: "9.0 - Action - 2h 32m", icon: "DK" },
-        { title: "Get Out", meta: "7.7 - Horror - 1h 44m", icon: "GO" },
-        { title: "Dune Part 2", meta: "8.5 - Sci-Fi - 2h 46m", icon: "D2" }
+        { title: "Inception", rating: "8.8", meta: "Sci-Fi - 2h 28m", year: "2010", genre: "Sci-Fi - Thriller", icon: "IN", accent: "green" },
+        { title: "The Dark Knight", rating: "9.0", meta: "Action - 2h 32m", year: "2008", genre: "Action - Crime", icon: "DK", accent: "purple" },
+        { title: "Get Out", rating: "7.7", meta: "Horror - 1h 44m", year: "2017", genre: "Horror - Mystery", icon: "GO", accent: "green" },
+        { title: "Dune Part 2", rating: "8.5", meta: "Sci-Fi - 2h 46m", year: "2024", genre: "Sci-Fi - Adventure", icon: "D2", accent: "purple" },
+        { title: "Inside Out 2", rating: "7.6", meta: "Animation - 1h 36m", year: "2024", genre: "Animation - Family", icon: "IO", accent: "green" },
+        { title: "The Fall Guy", rating: "6.9", meta: "Comedy - 2h 06m", year: "2024", genre: "Action - Comedy", icon: "FG", accent: "purple" }
     ]
     render()
 end sub
@@ -17,6 +24,7 @@ sub refreshClock()
 end sub
 
 function handleKey(key as String) as Boolean
+    if m.searchEditing then return handleSearchKeyboardKey(key)
     if key = "left" then move(-1, 0) : return true
     if key = "right" then move(1, 0) : return true
     if key = "up" then move(0, -1) : return true
@@ -26,13 +34,16 @@ function handleKey(key as String) as Boolean
 end function
 
 sub move(dx as Integer, dy as Integer)
+    if routeMoviesFocus(dx, dy) then render() : return
     m.focusIndex = uiMoveFocus(m.focusItems, m.focusIndex, dx, dy)
     render()
 end sub
 
 sub activate()
     item = m.focusItems[m.focusIndex]
-    if item.page <> invalid and item.page <> "" then m.top.navigateTo = item.page
+    if item.page <> invalid and item.page <> "" then m.top.navigateTo = item.page : return
+    if item.action = "search" then openSearchKeyboard() : return
+    if item.action = "genre" then m.selectedGenre = item.label : render() : return
 end sub
 
 sub render()
@@ -43,43 +54,365 @@ sub render()
     m.clock = clockParts.clock
     m.date = clockParts.date
     refreshClock()
-    row = uiSideNav(m.canvas, m.colors, "movies", m.focusItems, 0)
-    uiLabel(m.canvas, "Search movies", 930, 22, 190, 28, 14, m.colors.textMuted)
-    drawPills(["All", "Action", "Horror", "Comedy", "Animation", "Sci-Fi"], row)
-    drawFeatured(row + 1)
-    uiLabel(m.canvas, "All movies", 230, 390, 250, 26, 14, m.colors.textDim)
-    for i = 0 to m.movies.count() - 1
-        drawMovieCard(m.movies[i], 230 + i * 238, 430, 214, 172, row + 2, i + 1)
-    end for
-    uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
 
-    drawFeaturedDetails()
+    row = drawMoviesSideNav()
+    drawSearchBox()
+    drawMoviePills(row)
+
+    uiLabel(m.canvas, "Featured", 244, 154, 250, 26, 13, m.colors.textDim)
+    drawFeatured(row + 1)
+
+    sectionLabel = "ALL MOVIES"
+    if m.selectedGenre <> "All" then sectionLabel = m.selectedGenre + " movies"
+    uiLabel(m.canvas, sectionLabel, 244, 368, 250, 26, 13, m.colors.textDim)
+    visible = filteredMovies()
+    renderCount = visible.count()
+    if renderCount > 4 then renderCount = 4
+    if renderCount > 0 then
+        for i = 0 to renderCount - 1
+            rowData = visible[i]
+            drawMovieCard(rowData.movie, 244 + i * 258, 408, 250, 238, 4, i + 1)
+        end for
+    end if
+    if visible.count() = 0 then
+        uiLabel(m.canvas, "No movies found", 244, 462, 746, 28, 15, m.colors.textDim, "center")
+    end if
+
+    uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
+    if m.searchEditing then drawSearchKeyboardOverlay()
 end sub
 
-sub drawPills(items as Object, row as Integer)
-    for i = 0 to items.count() - 1
-        item = { x: 246 + i * 100, y: 104, w: 88, h: 36, icon: "", label: items[i], subtitle: "", iconSize: 1, titleSize: 13, subSize: 10, bg: m.colors.bg, border: m.colors.purpleLine, textColor: m.colors.textPurple, subColor: m.colors.textDim, focusBg: m.colors.purple, focusBorder: m.colors.text, focusTextColor: m.colors.text, row: row, col: i + 1, page: "", action: "genre" }
-        if i = 0 then item.bg = m.colors.purple
-        m.focusItems.push(item)
+function drawMoviesSideNav() as Integer
+    uiRect(m.canvas, 0, 86, 226, 634, m.colors.panel, 0.66)
+    uiRect(m.canvas, 225, 86, 1, 634, "0xFFFFFF14")
+
+    moviesActive = (m.focusIndex = 3) or (m.focusIndex > 5)
+    addMoviesNavItem(12, 112, "list", "My Playlists", "MyPlaylistsPage", 0, false)
+    addMoviesNavItem(12, 168, "tv", "Live TV", "LiveTvPage", 1, false)
+    addMoviesNavItem(12, 224, "series", "Series", "SeriesPage", 2, false)
+    addMoviesNavItem(12, 280, "movies", "Movies", "MoviesPage", 3, moviesActive)
+    addMoviesNavItem(12, 336, "settings", "Settings", "SettingsPage", 4, false)
+
+    addMoviesProfileItem()
+    return 6
+end function
+
+sub addMoviesNavItem(x as Integer, y as Integer, icon as String, label as String, page as String, row as Integer, active as Boolean)
+    item = {
+        x: x, y: y, w: 204, h: 52,
+        icon: icon, label: label, subtitle: "",
+        iconSize: 12, titleSize: 12, subSize: 10,
+        bg: m.colors.bg, border: m.colors.bg, textColor: m.colors.textGreen, subColor: m.colors.textDim,
+        focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        row: row, col: 0, page: page, mode: "row"
+    }
+    if active then
+        item.bg = m.colors.purpleSoft
+        item.border = m.colors.greenFocus
+        item.textColor = m.colors.text
+    end if
+    m.focusItems.push(item)
+end sub
+
+sub addMoviesProfileItem()
+    item = {
+        x: 12, y: 640, w: 204, h: 52,
+        icon: "profile", label: "My Profile", subtitle: "",
+        iconSize: 14, iconW: 32, iconH: 32, iconX: 18, titleSize: 11, subSize: 7,
+        bg: "0xFFFFFF10", border: m.colors.panel, textColor: m.colors.text, subColor: m.colors.textDim,
+        focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        row: 5, col: 0, page: "SettingsPage", mode: "row"
+    }
+    m.focusItems.push(item)
+end sub
+
+sub drawSearchBox()
+    itemIndex = m.focusItems.count()
+    focused = itemIndex = m.focusIndex
+    bg = m.colors.panel
+    border = m.colors.whiteLine
+    textColor = m.colors.textDim
+    if focused then
+        bg = m.colors.purpleSoft
+        border = m.colors.greenFocus
+        textColor = m.colors.text
+    end if
+
+    label = "Search movies"
+    if m.searchQuery <> "" then label = m.searchQuery
+
+    uiRoundRect(m.canvas, 686, 24, 260, 40, bg, border)
+    uiDrawIcon(m.canvas, "search", 704, 34, 18, 18, focused, textColor, 11)
+    uiLabel(m.canvas, label, 734, 27, 198, 28, 12, textColor)
+
+    m.focusItems.push({
+        x: 686, y: 24, w: 260, h: 40,
+        icon: "search", label: label, subtitle: "",
+        iconSize: 11, titleSize: 13, subSize: 10,
+        bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim,
+        focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        row: 0, col: 1, page: "", action: "search", mode: "manual"
+    })
+end sub
+
+sub drawMoviePills(row as Integer)
+    cats = [
+        { label: "All", x: 244, y: 106, w: 62, h: 34 },
+        { label: "Action", x: 316, y: 106, w: 82, h: 34 },
+        { label: "Horror", x: 410, y: 106, w: 82, h: 34 },
+        { label: "Comedy", x: 504, y: 105, w: 92, h: 36 },
+        { label: "Animation", x: 608, y: 104, w: 150, h: 40 },
+        { label: "Sci-Fi", x: 770, y: 106, w: 82, h: 34 }
+    ]
+
+    for i = 0 to cats.count() - 1
+        cat = cats[i]
+        itemIndex = m.focusItems.count()
+        focused = itemIndex = m.focusIndex
+        selected = cat.label = m.selectedGenre
+        bg = m.colors.bg
+        border = m.colors.whiteLine
+        textColor = m.colors.textPurple
+        if cat.h = 36 then bg = m.colors.panel
+        if selected then
+            bg = m.colors.purpleSoft
+            border = m.colors.greenFocus
+            textColor = m.colors.text
+        end if
+        if focused then
+            bg = m.colors.greenSoft
+            border = m.colors.greenFocus
+            textColor = m.colors.text
+        end if
+        uiRoundRect(m.canvas, cat.x, cat.y, cat.w, cat.h, bg, border)
+        uiLabel(m.canvas, cat.label, cat.x, cat.y + 1, cat.w, cat.h - 4, 12, textColor, "center")
+        m.focusItems.push({
+            x: cat.x, y: cat.y, w: cat.w, h: cat.h,
+            icon: "", label: cat.label, subtitle: "",
+            iconSize: 1, titleSize: 12, subSize: 10,
+            bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim,
+            focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+            row: 1, col: i + 1, page: "", action: "genre", mode: "manual"
+        })
     end for
 end sub
 
 sub drawFeatured(row as Integer)
-    item = { x: 230, y: 178, w: 770, h: 168, icon: "", label: "", subtitle: "", iconSize: 1, titleSize: 1, subSize: 1, bg: m.colors.purpleSoft, border: m.colors.purpleLine, textColor: m.colors.text, subColor: m.colors.textMuted, focusBg: m.colors.purpleFocus, focusBorder: m.colors.text, focusTextColor: m.colors.text, row: row, col: 1, page: "", action: "watch", mode: "blank" }
-    m.focusItems.push(item)
-end sub
+    itemIndex = m.focusItems.count()
+    focused = itemIndex = m.focusIndex
+    bg = m.colors.panel
+    border = m.colors.whiteLine
+    if focused then
+        bg = m.colors.purpleSoft
+        border = m.colors.greenFocus
+    end if
 
-sub drawFeaturedDetails()
-    uiPosterCard(m.canvas, 255, 198, 96, 126, m.colors.purple, "STAR", m.colors.text)
-    uiLabel(m.canvas, "Featured", 376, 198, 88, 22, 12, m.colors.textPurple)
-    uiLabel(m.canvas, "Interstellar", 376, 222, 220, 28, 20, m.colors.text)
-    uiLabel(m.canvas, "2014 - 2h 49m - Sci-Fi - Adventure", 376, 252, 330, 24, 13, m.colors.textMuted)
-    uiLabel(m.canvas, "IMDb 8.7", 376, 272, 120, 24, 13, m.colors.amber)
-    uiLabel(m.canvas, "Watch now", 376, 292, 112, 28, 13, m.colors.text)
+    uiRoundRect(m.canvas, 244, 190, 770, 168, bg, border)
+    uiPosterCard(m.canvas, 270, 218, 96, 126, m.colors.purpleSoft, "IMAX", m.colors.text)
+    uiRoundRect(m.canvas, 390, 212, 100, 34, m.colors.purpleSoft, m.colors.purpleSoft)
+    uiLabel(m.canvas, "Featured", 390, 214, 100, 26, 12, m.colors.textPurple, "center")
+    uiLabel(m.canvas, "Interstellar", 390, 244, 250, 30, 20, m.colors.text)
+    uiLabel(m.canvas, "2014 - 2h 49m - Sci-Fi - Adventure", 390, 276, 342, 24, 13, m.colors.textMuted)
+    uiLabel(m.canvas, "8.7", 410, 308, 46, 24, 13, m.colors.amber)
+    uiLabel(m.canvas, "IMDb", 458, 308, 70, 24, 13, m.colors.textDim)
+    uiRoundRect(m.canvas, 390, 336, 150, 40, m.colors.purple, m.colors.purple)
+    uiDrawIcon(m.canvas, "play", 414, 347, 18, 18, focused, m.colors.text, 10)
+    uiLabel(m.canvas, "Watch now", 440, 340, 86, 30, 14, m.colors.text)
+
+    m.focusItems.push({
+        x: 244, y: 190, w: 770, h: 168,
+        icon: "", label: "Interstellar", subtitle: "Featured",
+        iconSize: 1, titleSize: 1, subSize: 1,
+        bg: bg, border: border, textColor: m.colors.text, subColor: m.colors.textDim,
+        focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        row: 3, col: 1, page: "", action: "watch", mode: "manual"
+    })
 end sub
 
 sub drawMovieCard(movie as Object, x as Integer, y as Integer, w as Integer, h as Integer, row as Integer, col as Integer)
-    item = { x: x, y: y, w: w, h: h, icon: movie.icon, label: movie.title, subtitle: movie.meta, iconSize: 17, titleSize: 14, subSize: 10, bg: m.colors.greenSoft, border: m.colors.green, textColor: m.colors.textGreen, subColor: m.colors.textMuted, focusBg: m.colors.purpleFocus, focusBorder: m.colors.text, focusTextColor: m.colors.text, row: row, col: col, page: "", action: "movie" }
-    if col mod 2 = 0 then item.bg = m.colors.purpleSoft : item.border = m.colors.purpleLine : item.textColor = m.colors.textPurple
-    m.focusItems.push(item)
+    itemIndex = m.focusItems.count()
+    focused = itemIndex = m.focusIndex
+    bg = m.colors.panel
+    border = m.colors.whiteLine
+    iconBg = m.colors.purpleSoft
+    titleColor = m.colors.text
+    subColor = m.colors.textDim
+    if movie.accent = "green" then iconBg = m.colors.greenSoft
+    if focused then
+        bg = m.colors.purpleSoft
+        border = m.colors.greenFocus
+        subColor = m.colors.text
+    end if
+
+    uiRoundRect(m.canvas, x, y, w, h, bg, border)
+    uiRect(m.canvas, x + 2, y + 2, w - 4, 130, iconBg)
+    uiDrawIcon(m.canvas, movie.icon, x + Int((w - 44) / 2), y + 42, 44, 44, focused, titleColor, 13)
+    uiLabel(m.canvas, movie.title, x + 18, y + 134, w - 36, 24, 13, titleColor)
+    uiLabel(m.canvas, movie.rating, x + 34, y + 164, 46, 20, 12, m.colors.amber)
+    uiLabel(m.canvas, movie.meta, x + 18, y + 188, w - 36, 20, 10, m.colors.textDim)
+
+    m.focusItems.push({
+        x: x, y: y, w: w, h: h,
+        icon: movie.icon, label: movie.title, subtitle: movie.meta,
+        iconSize: 14, titleSize: 13, subSize: 9,
+        bg: bg, border: border, textColor: titleColor, subColor: subColor,
+        focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        row: row, col: col, page: "", action: "movie", mode: "manual"
+    })
+end sub
+
+function filteredMovies() as Object
+    res = []
+    query = LCase(m.searchQuery)
+    for i = 0 to m.movies.count() - 1
+        movie = m.movies[i]
+        searchable = LCase(movie.title + " " + movie.genre + " " + movie.year)
+        matchSearch = (query = "") or (Instr(1, searchable, query) > 0)
+        matchGenre = (m.selectedGenre = "All") or (Instr(1, LCase(movie.genre), LCase(m.selectedGenre)) > 0)
+        if matchSearch and matchGenre then
+            res.push({ movie: movie, index: i })
+        end if
+    end for
+    return res
+end function
+
+function routeMoviesFocus(dx as Integer, dy as Integer) as Boolean
+    if m.focusItems.count() = 0 then return false
+    current = m.focusItems[m.focusIndex]
+    action = ""
+    if current.doesExist("action") then action = current.action
+
+    if action = "search" and dy > 0 then
+        pIndex = findMovieFocusByRowCol(1, 1)
+        if pIndex >= 0 then m.focusIndex = pIndex : return true
+    end if
+
+    if action = "genre" then
+        if dy < 0 then
+            sIndex = findMovieFocusAction("search")
+            if sIndex >= 0 then m.focusIndex = sIndex : return true
+        end if
+        if dy > 0 then
+            fIndex = findMovieFocusAction("watch")
+            if fIndex >= 0 then m.focusIndex = fIndex : return true
+        end if
+    end if
+
+    if action = "watch" then
+        if dy < 0 then
+            pIndex = findMovieFocusByRowCol(2, 1)
+            if pIndex >= 0 then m.focusIndex = pIndex : return true
+        end if
+        if dy > 0 then
+            mIndex = findMovieFocusByRowCol(8, 1)
+            if mIndex < 0 then mIndex = findMovieFocusByRowCol(4, 1)
+            if mIndex >= 0 then m.focusIndex = mIndex : return true
+        end if
+    end if
+
+    if action = "movie" and dy < 0 then
+        fIndex = findMovieFocusAction("watch")
+        if fIndex >= 0 then m.focusIndex = fIndex : return true
+    end if
+
+    return false
+end function
+
+function findMovieFocusByRowCol(row as Integer, col as Integer) as Integer
+    for i = 0 to m.focusItems.count() - 1
+        item = m.focusItems[i]
+        if item.row = row and item.col = col then return i
+    end for
+    return -1
+end function
+
+function findMovieFocusAction(action as String) as Integer
+    for i = 0 to m.focusItems.count() - 1
+        item = m.focusItems[i]
+        if item.action = action then return i
+    end for
+    return -1
+end function
+
+sub openSearchKeyboard()
+    m.searchEditing = true
+    m.searchKeyboardIndex = 0
+    render()
+end sub
+
+function handleSearchKeyboardKey(key as String) as Boolean
+    cols = 10
+    keyCount = m.searchKeys.count()
+    if key = "left" and m.searchKeyboardIndex > 0 then m.searchKeyboardIndex -= 1 : render() : return true
+    if key = "right" and m.searchKeyboardIndex < keyCount - 1 then m.searchKeyboardIndex += 1 : render() : return true
+    if key = "up" and m.searchKeyboardIndex - cols >= 0 then m.searchKeyboardIndex -= cols : render() : return true
+    if key = "down" and m.searchKeyboardIndex + cols < keyCount then m.searchKeyboardIndex += cols : render() : return true
+    if key = "back" then closeSearchKeyboard() : return true
+    if key = "OK" then pressSearchKey() : return true
+    return true
+end function
+
+sub pressSearchKey()
+    selected = m.searchKeys[m.searchKeyboardIndex]
+    current = m.searchQuery
+    if selected = "DONE" then
+        closeSearchKeyboard()
+        return
+    end if
+    if selected = "CLEAR" then
+        current = ""
+    else if selected = "DEL" then
+        if current.len() > 0 then current = current.left(current.len() - 1)
+    else if selected = "SPACE" then
+        current += " "
+    else
+        current += selected
+    end if
+    m.searchQuery = current
+    render()
+end sub
+
+sub closeSearchKeyboard()
+    m.searchEditing = false
+    render()
+end sub
+
+sub drawSearchKeyboardOverlay()
+    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.92)
+    uiRect(m.canvas, 260, 116, 760, 488, m.colors.panel, 0.98)
+    uiLabel(m.canvas, "Search Movies", 300, 142, 680, 32, 20, m.colors.textGreen, "center")
+    uiRect(m.canvas, 330, 188, 620, 48, m.colors.bg2)
+    searchText = m.searchQuery
+    if searchText = "" then searchText = "Search movies"
+    uiLabel(m.canvas, searchText, 350, 196, 580, 32, 17, m.colors.text, "left")
+
+    keyW = 56
+    keyH = 42
+    gap = 8
+    startX = 324
+    startY = 268
+    for i = 0 to m.searchKeys.count() - 1
+        row = Int(i / 10)
+        col = i mod 10
+        x = startX + col * (keyW + gap)
+        y = startY + row * (keyH + gap)
+        keyLabel = m.searchKeys[i]
+        if keyLabel = "SPACE" then keyLabel = "Space"
+        if keyLabel = "DEL" then keyLabel = "Del"
+        if keyLabel = "CLEAR" then keyLabel = "Clear"
+        if keyLabel = "DONE" then keyLabel = "Done"
+        bg = m.colors.bg
+        border = m.colors.whiteLine
+        text = m.colors.text
+        if i = m.searchKeyboardIndex then
+            bg = m.colors.purpleSoft
+            border = m.colors.greenFocus
+        end if
+        uiRect(m.canvas, x, y, keyW, keyH, bg)
+        uiRect(m.canvas, x, y, keyW, 2, border)
+        uiRect(m.canvas, x, y + keyH - 2, keyW, 2, border)
+        uiRect(m.canvas, x, y, 2, keyH, border)
+        uiRect(m.canvas, x + keyW - 2, y, 2, keyH, border)
+        uiLabel(m.canvas, keyLabel, x, y + 5, keyW, 28, 12, text, "center")
+    end for
 end sub

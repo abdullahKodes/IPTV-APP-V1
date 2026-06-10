@@ -56,18 +56,17 @@ sub render()
     row = drawSeriesSideNav()
     drawSearchBox()
     
-    uiRect(m.canvas, 534, 86, 1, 634, "0xFFFFFF12")
     drawCategoryPills(row)
 
-    uiLabel(m.canvas, "Continue watching", 244, 158, 260, 26, 14, m.colors.textDim)
-    drawContinueCard(244, 198, 365, "The Last of Us", "S1 - E6 - 28 min left", 70, row + 1, 1)
-    drawContinueCard(625, 198, 365, "House of Dragon", "S2 - E3 - 44 min left", 30, row + 1, 2)
+    uiLabel(m.canvas, "CONTINUE WATCHING", 244, 158, 300, 26, 13, m.colors.textDim)
+    drawContinueCard(244, 198, 365, "Breaking Bad", "S3 - E7 - 22 min left", 70, 2, 1)
+    drawContinueCard(640, 198, 365, "House of Dragon", "S2 - E3 - 44 min left", 30, 2, 2)
     
-    uiLabel(m.canvas, "Popular series", 244, 350, 250, 26, 14, m.colors.textDim)
+    uiLabel(m.canvas, "POPULAR SERIES", 244, 362, 250, 26, 13, m.colors.textDim)
     visible = filteredSeries()
     for i = 0 to visible.count() - 1
         rowData = visible[i]
-        drawMediaCard(rowData.series, 244 + i * 238, 390, 214, 190, row + 2, i + 1)
+        drawMediaCard(rowData.series, 244 + i * 258, 402, 250, 238, 3, i + 1)
     end for
     if visible.count() = 0 then
         uiLabel(m.canvas, "No series found", 244, 430, 746, 28, 15, m.colors.textDim, "center")
@@ -151,15 +150,21 @@ sub drawSearchBox()
 end sub
 
 sub drawCategoryPills(row as Integer)
-    categories = ["All", "Drama", "Action", "Comedy", "Sci-Fi", "Thriller"]
-    xStart = 244
-    yStart = 104
+    categories = [
+        { label: "All", x: 244, y: 106, w: 100, h: 40 },
+        { label: "Drama", x: 356, y: 106, w: 100, h: 40 },
+        { label: "Action", x: 468, y: 106, w: 100, h: 40 },
+        { label: "Comedy", x: 580, y: 106, w: 140, h: 40 },
+        { label: "Sci-Fi", x: 732, y: 106, w: 100, h: 40 },
+        { label: "Thriller", x: 844, y: 106, w: 100, h: 40 }
+    ]
     for i = 0 to categories.count() - 1
-        catLabel = categories[i]
+        cat = categories[i]
+        catLabel = cat.label
         focused = (m.focusIndex = m.focusItems.count())
         selected = (catLabel = m.selectedGenre)
         bg = m.colors.bg
-        border = m.colors.purpleLine
+        border = m.colors.whiteLine
         textColor = m.colors.textPurple
         if selected then
             bg = m.colors.purpleSoft
@@ -167,22 +172,20 @@ sub drawCategoryPills(row as Integer)
             textColor = m.colors.text
         end if
         if focused then
-            bg = m.colors.purpleSoft
+            bg = m.colors.greenSoft
             border = m.colors.greenFocus
             textColor = m.colors.text
         end if
         
-        pillW = 88
-        pillH = 34
-        uiRoundRect(m.canvas, xStart + i * 100, yStart, pillW, pillH, bg, border)
-        uiLabel(m.canvas, catLabel, xStart + i * 100, yStart + 1, pillW, 30, 12, textColor, "center")
+        uiRoundRect(m.canvas, cat.x, cat.y, cat.w, cat.h, bg, border)
+        uiLabel(m.canvas, catLabel, cat.x, cat.y + 2, cat.w, cat.h - 4, 13, textColor, "center")
 
         m.focusItems.push({
-            x: xStart + i * 100, y: yStart, w: pillW, h: pillH,
+            x: cat.x, y: cat.y, w: cat.w, h: cat.h,
             icon: "", label: catLabel, subtitle: "",
             iconSize: 1, titleSize: 12, subSize: 10,
             bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim,
-            focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+            focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
             row: 1, col: i + 1, page: "", action: "genre", mode: "manual"
         })
     end for
@@ -194,20 +197,21 @@ sub drawContinueCard(x as Integer, y as Integer, w as Integer, title as String, 
     border = "0xFFFFFF12"
     textColor = m.colors.text
     subColor = m.colors.textDim
+    iconBg = m.colors.purpleSoft
+    progFill = m.colors.green
     if focused then
-        bg = m.colors.purpleSoft
+        bg = m.colors.greenSoft
         border = m.colors.greenFocus
+        progFill = m.colors.greenFocus
     end if
 
     uiRoundRect(m.canvas, x, y, w, 112, bg, border)
-    uiRoundRect(m.canvas, x + 20, y + 26, 36, 36, m.colors.purpleSoft, m.colors.purpleSoft)
+    uiRoundRect(m.canvas, x + 20, y + 26, 36, 36, iconBg, iconBg)
     uiDrawIcon(m.canvas, "play", x + 29, y + 35, 18, 18, focused, textColor, 10)
     uiLabel(m.canvas, title, x + 74, y + 18, w - 96, 24, 15, textColor)
     uiLabel(m.canvas, meta, x + 74, y + 46, w - 96, 20, 11, subColor)
 
-    ' Progress Bar
     progBg = "0x7F77DD44"
-    progFill = m.colors.green
     uiRect(m.canvas, x + 74, y + 82, w - 96, 4, progBg)
     uiRect(m.canvas, x + 74, y + 82, Int((w - 96) * progress / 100), 4, progFill)
 
@@ -218,7 +222,7 @@ sub drawContinueCard(x as Integer, y as Integer, w as Integer, title as String, 
         labelX: 74, labelW: w - 96, labelAlign: "left",
         titleSize: 15, subSize: 11,
         bg: bg, border: border, textColor: textColor, subColor: subColor,
-        focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         row: 2, col: col, page: "", action: "play", mode: "manual"
     })
 end sub
@@ -226,19 +230,26 @@ end sub
 sub drawMediaCard(media as Object, x as Integer, y as Integer, w as Integer, h as Integer, row as Integer, col as Integer)
     focused = (m.focusIndex = m.focusItems.count())
     bg = m.colors.panel
-    border = "0xFFFFFF12"
+    border = m.colors.purpleLine
     textColor = m.colors.text
     subColor = m.colors.textDim
     if focused then
-        bg = m.colors.purpleSoft
         border = m.colors.greenFocus
     end if
 
-    uiRoundRect(m.canvas, x, y, w, h, bg, border)
-    uiRoundRect(m.canvas, x + Int((w - 64) / 2), y + 24, 64, 64, m.colors.purpleSoft, m.colors.purpleSoft)
-    uiDrawIcon(m.canvas, media.icon, x + Int((w - 64) / 2), y + 24, 64, 64, focused, textColor, 17)
-    uiLabel(m.canvas, media.title, x + 12, y + 104, w - 24, 26, 14, textColor, "center")
-    uiLabel(m.canvas, media.meta + " - " + media.genre, x + 12, y + 138, w - 24, 40, 10, subColor, "center")
+    posterKey = "purpleSoft"
+    if media.icon = "AI" or media.icon = "PB" then posterKey = "greenSoft"
+    borderKey = "purpleLine"
+    if focused then borderKey = "greenFocus"
+
+    uiPoster(m.canvas, "pkg:/images/ui/series_card_" + posterKey + "_" + borderKey + ".png", x, y, w, h)
+    iconX = x + Int((w - 44) / 2)
+    uiRoundRect(m.canvas, iconX, y + 40, 44, 44, m.colors.purpleSoft, m.colors.purpleSoft)
+    uiDrawIcon(m.canvas, media.icon, iconX, y + 40, 44, 44, focused, textColor, 13)
+    uiLabel(m.canvas, media.title, x + 18, y + 154, w - 36, 26, 13, textColor)
+    uiLabel(m.canvas, media.meta, x + 18, y + 182, w - 36, 22, 12, m.colors.purpleLine)
+    if media.icon = "AI" or media.icon = "PB" then uiLabel(m.canvas, media.meta, x + 18, y + 182, w - 36, 22, 12, m.colors.green)
+    uiLabel(m.canvas, media.genre, x + 18, y + 208, w - 36, 22, 10, subColor)
 
     m.focusItems.push({
         x: x, y: y, w: w, h: h,
@@ -285,7 +296,7 @@ function routeSeriesFocus(dx as Integer, dy as Integer) as Boolean
         if dy > 0 then
             col = current.col
             targetCol = 1
-            if col > 3 then targetCol = 2
+            if col > 1 then targetCol = 2
             cIndex = findFocusByRowCol(2, targetCol)
             if cIndex >= 0 then m.focusIndex = cIndex : return true
         end if

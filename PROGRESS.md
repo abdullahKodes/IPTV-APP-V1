@@ -1,6 +1,6 @@
 # IPTV App Progress
 
-Last updated: 2026-06-09
+Last updated: 2026-06-10
 
 Read this file before starting a new session. Update it only after a meaningful milestone is completed, such as finishing a screen, fixing a major workflow, committing/pushing, or changing project structure. Do not update it for every tiny visual tweak.
 
@@ -74,7 +74,7 @@ Needs future review:
 
 ### Other Pages
 
-Status: Live TV and Series have received polish passes; remaining pages still need page-by-page design work.
+Status: Live TV, Series, and Movies have received polish passes; remaining pages still need page-by-page design work.
 
 ### Live TV Page
 
@@ -102,7 +102,7 @@ Needs future review:
 
 ### Series Page
 
-Status: first polish pass completed, ready for Roku visual review.
+Status: polish pass completed, ready for Roku visual review.
 
 Completed:
 - Restyled the Series sidebar to match the newer app contrast and active-state treatment.
@@ -110,14 +110,44 @@ Completed:
 - Added genre/category pills with selected and focused states.
 - Reworked Continue Watching and Popular Series cards into the newer dark-panel style.
 - Added basic filtering by search text and genre.
+- Tightened category pill sizes to supported rounded assets and kept the same purple/green focus treatment.
+- Aligned Series focus routing so Search, genre pills, Continue Watching, and Popular Series move predictably with the Roku remote.
+- Compared against the newly supplied Series/Movies design references and widened the Series layout: one-row category filters, no cramped center divider, wider card spacing, and poster-style Popular Series cards while keeping the app color contrast.
+- Fixed Series category focus to match Live TV's green focus treatment, and restored rounded focus borders for Continue Watching and Popular Series cards using supported Roku rounded assets.
+- Reviewed the newer `series design.png` reference and repaired Series spacing: category pills now use one clean row, Continue Watching cards are wider, and Popular Series card sections avoid square edges inside the rounded card.
+- Tuned Series after Roku review: category pills were reduced slightly, Continue Watching cards were scaled back, Continue Watching focus now uses green with no persistent selected state, and Popular Series cards now keep a visible rounded border against the background.
+- Final Series polish pass reduced category width further, added more space between Continue Watching cards, removed persistent Continue Watching selection, and replaced Popular Series square overlays with composite rounded card assets.
+- Confirmed `npm.cmd run check` passes.
+- Confirmed `npm.cmd run build` creates `build\roku-iptv-app.zip`.
 
 Needs future review:
 - Test Series page focus movement on actual Roku.
 - Confirm search keyboard behavior and card text sizing from couch distance.
 
+### Movies Page
+
+Status: first polish pass completed, ready for Roku visual review.
+
+Completed:
+- Reworked Movies into the newer content-page style used by Live TV and Series.
+- Restyled the Movies sidebar to match the newer contrast and active-state treatment.
+- Added a top search box and in-app search keyboard.
+- Added genre/category pills with selected and focused states.
+- Rebuilt the featured movie panel with darker premium styling, resume text, rating, and progress strip.
+- Reworked movie cards into compact dark panels with consistent green focus borders.
+- Added basic filtering by search text and genre.
+- Compared against the newly supplied Movies design reference and reshaped Movies closer to it: one-row category filters, wide featured strip with Watch Now action, and four poster-style movie cards using the existing app contrast/focus colors.
+- Fixed Movies category focus to match Live TV's green focus treatment, and restored rounded focus borders for the featured/movie cards using supported Roku rounded assets.
+- Confirmed `npm.cmd run check` passes.
+- Confirmed `npm.cmd run build` creates `build\roku-iptv-app.zip`.
+
+Needs future review:
+- Test Movies page focus movement on actual Roku.
+- Confirm movie card text sizing and featured panel spacing from couch distance.
+- Confirm search keyboard behavior on Roku.
+
 Screens still expected to need design pass:
 - My Playlists
-- Movies
 - Settings
 
 ## Current Implementation Notes
