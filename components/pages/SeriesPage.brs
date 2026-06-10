@@ -66,7 +66,7 @@ sub render()
     visible = filteredSeries()
     for i = 0 to visible.count() - 1
         rowData = visible[i]
-        drawMediaCard(rowData.series, 244 + i * 212, 402, 200, 176, 3, i + 1)
+        drawMediaCard(rowData.series, 244 + i * 212, 402, 200, 190, 3, i + 1)
     end for
     if visible.count() = 0 then
         uiLabel(m.canvas, "No series found", 244, 430, 746, 28, 15, m.colors.textDim, "center")
@@ -196,6 +196,7 @@ sub drawContinueCard(x as Integer, y as Integer, w as Integer, title as String, 
     bg = m.colors.panel
     border = "0xFFFFFF12"
     textColor = m.colors.text
+    titleColor = m.colors.textGreen
     subColor = m.colors.textDim
     iconBg = m.colors.purpleSoft
     progFill = m.colors.green
@@ -208,7 +209,7 @@ sub drawContinueCard(x as Integer, y as Integer, w as Integer, title as String, 
     uiRoundRect(m.canvas, x, y, w, 112, bg, border)
     uiRoundRect(m.canvas, x + 20, y + 26, 36, 36, iconBg, iconBg)
     uiDrawIcon(m.canvas, "play", x + 29, y + 35, 18, 18, focused, textColor, 10)
-    uiLabel(m.canvas, title, x + 74, y + 18, w - 96, 24, 15, textColor)
+    uiLabel(m.canvas, title, x + 74, y + 18, w - 96, 24, 15, titleColor)
     uiLabel(m.canvas, meta, x + 74, y + 46, w - 96, 20, 11, subColor)
 
     progBg = "0x7F77DD44"
@@ -229,7 +230,7 @@ end sub
 
 sub drawMediaCard(media as Object, x as Integer, y as Integer, w as Integer, h as Integer, row as Integer, col as Integer)
     focused = (m.focusIndex = m.focusItems.count())
-    textColor = m.colors.text
+    textColor = m.colors.textGreen
     subColor = m.colors.textDim
 
     cardKey = "purple"
@@ -253,11 +254,11 @@ sub drawMediaCard(media as Object, x as Integer, y as Integer, w as Integer, h a
     iconW = 36
     iconH = 36
     iconX = x + Int((w - iconW) / 2)
-    iconY = y + 28
+    iconY = y + 36
     uiDrawIcon(m.canvas, "cards_badge", iconX, iconY, iconW, iconH, focused, "0xFFFFFFFF", 12)
-    uiLabel(m.canvas, media.title, x + 16, y + 104, w - 32, 24, 12, textColor)
-    uiLabel(m.canvas, media.meta, x + 16, y + 128, w - 32, 20, 9, seasonColor)
-    uiLabel(m.canvas, media.genre, x + 16, y + 148, w - 32, 22, 6, subColor)
+    uiLabel(m.canvas, media.title, x + 16, y + 112, w - 32, 24, 12, textColor)
+    uiLabel(m.canvas, media.meta, x + 16, y + 137, w - 32, 20, 8, seasonColor)
+    uiLabel(m.canvas, media.genre, x + 16, y + 160, w - 32, 22, 5, subColor)
 
     m.focusItems.push({
         x: x, y: y, w: w, h: h,

@@ -129,6 +129,7 @@ Completed:
 - Regenerated Popular Series card assets with the GitHub-tracked `200x208` size and title spacing intact, but moved the color split lower so the dark text palette is shorter; manifest build version is now `00028`.
 - Restored the previous stable Popular Series implementation from commit `231fb43`, using `series_card_tiny_*` assets again so the rounded card background renders instead of floating icons; manifest build version is now `00029`.
 - Restored the exact Popular Series card code and `series_card_poster_*` assets from commit `63aab03 fixing cards issue`; manifest build version is now `00030`.
+- Increased Popular Series poster cards slightly to `200x190`, adjusted title/meta/genre spacing, and regenerated the upper color panels with Home `purpleSoft`/`greenSoft`; manifest build version is now `00031`.
 - Confirmed `npm.cmd run check` passes.
 - Confirmed `npm.cmd run build` creates `build\roku-iptv-app.zip`.
 
