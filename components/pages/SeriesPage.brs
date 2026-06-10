@@ -66,7 +66,7 @@ sub render()
     visible = filteredSeries()
     for i = 0 to visible.count() - 1
         rowData = visible[i]
-        drawMediaCard(rowData.series, 244 + i * 222, 402, 210, 86, 3, i + 1)
+        drawMediaCard(rowData.series, 244 + i * 212, 402, 200, 176, 3, i + 1)
     end for
     if visible.count() = 0 then
         uiLabel(m.canvas, "No series found", 244, 430, 746, 28, 15, m.colors.textDim, "center")
@@ -229,38 +229,40 @@ end sub
 
 sub drawMediaCard(media as Object, x as Integer, y as Integer, w as Integer, h as Integer, row as Integer, col as Integer)
     focused = (m.focusIndex = m.focusItems.count())
-    bg = m.colors.panel
-    border = "0xFFFFFF12"
     textColor = m.colors.text
     subColor = m.colors.textDim
-    if focused then
-        bg = m.colors.greenSoft
-        border = m.colors.greenFocus
-    end if
 
-    uiRoundRect(m.canvas, x, y, w, h, bg, border)
-
+    cardKey = "purple"
     badgeBg = m.colors.purpleSoft
     seasonColor = m.colors.greenFocus
     if media.icon = "AI" or media.icon = "PB" then
+        cardKey = "green"
         badgeBg = m.colors.greenSoft
         seasonColor = m.colors.textPurple
     end if
     if media.icon = "OZ" or media.icon = "CR" then
-        badgeBg = m.colors.purpleSoft
+        badgeBg = m.colors.greenSoft
     end if
-    uiRoundRect(m.canvas, x + 15, y + 23, 40, 40, badgeBg, badgeBg)
-    uiLabel(m.canvas, media.icon, x + 15, y + 23, 40, 40, 14, m.colors.text, "center")
-    uiLabel(m.canvas, media.title, x + 70, y + 14, w - 86, 24, 12, textColor)
-    uiLabel(m.canvas, media.meta, x + 70, y + 40, w - 86, 20, 10, seasonColor)
-    uiLabel(m.canvas, media.genre, x + 70, y + 58, w - 86, 22, 8, subColor)
+    stateKey = "normal"
+    if focused then
+        stateKey = "focus"
+        seasonColor = m.colors.textGreen
+    end if
+
+    uiPoster(m.canvas, "pkg:/images/ui/series_card_poster_" + cardKey + "_" + stateKey + ".png", x, y, w, h)
+    iconX = x + Int((w - 40) / 2)
+    uiRoundRect(m.canvas, iconX, y + 34, 40, 40, badgeBg, badgeBg)
+    uiLabel(m.canvas, media.icon, iconX, y + 34, 40, 40, 14, m.colors.text, "center")
+    uiLabel(m.canvas, media.title, x + 16, y + 108, w - 32, 24, 12, textColor)
+    uiLabel(m.canvas, media.meta, x + 16, y + 132, w - 32, 20, 10, seasonColor)
+    uiLabel(m.canvas, media.genre, x + 16, y + 150, w - 32, 22, 8, subColor)
 
     m.focusItems.push({
         x: x, y: y, w: w, h: h,
         icon: media.icon, label: media.title, subtitle: media.meta + " - " + media.genre,
         iconSize: 17, iconW: 64, iconH: 64, iconX: Int((w - 64) / 2),
         titleSize: 14, subSize: 10,
-        bg: bg, border: border, textColor: textColor, subColor: subColor,
+        bg: m.colors.panel, border: "0xFFFFFF12", textColor: textColor, subColor: subColor,
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         row: 3, col: col, page: "", action: "series", mode: "manual"
     })
