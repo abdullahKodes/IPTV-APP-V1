@@ -66,7 +66,7 @@ sub render()
     visible = filteredSeries()
     for i = 0 to visible.count() - 1
         rowData = visible[i]
-        drawMediaCard(rowData.series, 244 + i * 228, 402, 210, 86, 3, i + 1)
+        drawMediaCard(rowData.series, 244 + i * 222, 402, 210, 86, 3, i + 1)
     end for
     if visible.count() = 0 then
         uiLabel(m.canvas, "No series found", 244, 430, 746, 28, 15, m.colors.textDim, "center")
@@ -230,7 +230,7 @@ end sub
 sub drawMediaCard(media as Object, x as Integer, y as Integer, w as Integer, h as Integer, row as Integer, col as Integer)
     focused = (m.focusIndex = m.focusItems.count())
     bg = m.colors.panel
-    border = m.colors.panel
+    border = "0xFFFFFF12"
     textColor = m.colors.text
     subColor = m.colors.textDim
     if focused then
@@ -261,7 +261,7 @@ sub drawMediaCard(media as Object, x as Integer, y as Integer, w as Integer, h a
         iconSize: 17, iconW: 64, iconH: 64, iconX: Int((w - 64) / 2),
         titleSize: 14, subSize: 10,
         bg: bg, border: border, textColor: textColor, subColor: subColor,
-        focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         row: 3, col: col, page: "", action: "series", mode: "manual"
     })
 end sub
