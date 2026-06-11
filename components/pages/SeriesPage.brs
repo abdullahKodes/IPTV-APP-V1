@@ -151,12 +151,12 @@ end sub
 
 sub drawCategoryPills(row as Integer)
     categories = [
-        { label: "All", x: 244, y: 106, w: 100, h: 40 },
-        { label: "Drama", x: 356, y: 106, w: 100, h: 40 },
-        { label: "Action", x: 468, y: 106, w: 100, h: 40 },
-        { label: "Comedy", x: 580, y: 106, w: 140, h: 40 },
-        { label: "Sci-Fi", x: 732, y: 106, w: 100, h: 40 },
-        { label: "Thriller", x: 844, y: 106, w: 100, h: 40 }
+        { label: "All", x: 244, y: 106, w: 100, h: 34 },
+        { label: "Drama", x: 356, y: 106, w: 100, h: 34 },
+        { label: "Action", x: 468, y: 106, w: 100, h: 34 },
+        { label: "Comedy", x: 580, y: 106, w: 140, h: 34 },
+        { label: "Sci-Fi", x: 732, y: 106, w: 100, h: 34 },
+        { label: "Thriller", x: 844, y: 106, w: 100, h: 34 }
     ]
     for i = 0 to categories.count() - 1
         cat = categories[i]
@@ -178,7 +178,7 @@ sub drawCategoryPills(row as Integer)
         end if
         
         uiRoundRect(m.canvas, cat.x, cat.y, cat.w, cat.h, bg, border)
-        uiLabel(m.canvas, catLabel, cat.x, cat.y + 2, cat.w, cat.h - 4, 13, textColor, "center")
+        uiLabel(m.canvas, catLabel, cat.x, cat.y + 1, cat.w, 30, 13, textColor, "center")
 
         m.focusItems.push({
             x: cat.x, y: cat.y, w: cat.w, h: cat.h,
@@ -196,7 +196,6 @@ sub drawContinueCard(x as Integer, y as Integer, w as Integer, title as String, 
     bg = m.colors.panel
     border = "0xFFFFFF12"
     textColor = m.colors.text
-    titleColor = m.colors.textGreen
     subColor = m.colors.textDim
     iconBg = m.colors.purpleSoft
     progFill = m.colors.green
@@ -209,7 +208,7 @@ sub drawContinueCard(x as Integer, y as Integer, w as Integer, title as String, 
     uiRoundRect(m.canvas, x, y, w, 112, bg, border)
     uiRoundRect(m.canvas, x + 20, y + 26, 36, 36, iconBg, iconBg)
     uiDrawIcon(m.canvas, "play", x + 29, y + 35, 18, 18, focused, textColor, 10)
-    uiLabel(m.canvas, title, x + 74, y + 18, w - 96, 24, 15, titleColor)
+    uiLabel(m.canvas, title, x + 74, y + 18, w - 96, 24, 15, textColor)
     uiLabel(m.canvas, meta, x + 74, y + 46, w - 96, 20, 11, subColor)
 
     progBg = "0x7F77DD44"
@@ -235,11 +234,10 @@ sub drawMediaCard(media as Object, x as Integer, y as Integer, w as Integer, h a
 
     cardKey = "purple"
     badgeBg = m.colors.purpleSoft
-    seasonColor = m.colors.greenFocus
+    seasonColor = "0xFFFFFFFF"
     if media.icon = "AI" or media.icon = "PB" then
         cardKey = "green"
         badgeBg = m.colors.greenSoft
-        seasonColor = m.colors.textPurple
     end if
     if media.icon = "OZ" or media.icon = "CR" then
         badgeBg = m.colors.greenSoft
@@ -247,7 +245,6 @@ sub drawMediaCard(media as Object, x as Integer, y as Integer, w as Integer, h a
     stateKey = "normal"
     if focused then
         stateKey = "focus"
-        seasonColor = m.colors.textGreen
     end if
 
     uiPoster(m.canvas, "pkg:/images/ui/series_card_poster_" + cardKey + "_" + stateKey + ".png", x, y, w, h)

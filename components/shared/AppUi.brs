@@ -114,7 +114,9 @@ function uiColorKey(color as String) as String
 end function
 
 function uiRoundUri(w as Integer, h as Integer, fill as String, border as String) as String
-    return "pkg:/images/ui/rr_" + w.toStr() + "x" + h.toStr() + "_" + uiColorKey(fill) + "_" + uiColorKey(border) + ".png"
+    widthStr = w.toStr()
+    if w = 140 and h = 34 then widthStr = "100" ' Fallback for missing asset
+    return "pkg:/images/ui/rr_" + widthStr + "x" + h.toStr() + "_" + uiColorKey(fill) + "_" + uiColorKey(border) + ".png"
 end function
 
 function uiThinRoundUri(w as Integer, h as Integer, fill as String, border as String) as String
