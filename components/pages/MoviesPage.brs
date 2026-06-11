@@ -9,12 +9,12 @@ sub init()
     m.searchKeyboardIndex = 0
     m.searchKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "SPACE", "DEL", "CLEAR", "DONE"]
     m.movies = [
-        { title: "Inception", rating: "8.8", meta: "Sci-Fi - 2h 28m", year: "2010", genre: "Sci-Fi - Thriller", icon: "IN", accent: "green" },
-        { title: "The Dark Knight", rating: "9.0", meta: "Action - 2h 32m", year: "2008", genre: "Action - Crime", icon: "DK", accent: "purple" },
-        { title: "Get Out", rating: "7.7", meta: "Horror - 1h 44m", year: "2017", genre: "Horror - Mystery", icon: "GO", accent: "green" },
-        { title: "Dune Part 2", rating: "8.5", meta: "Sci-Fi - 2h 46m", year: "2024", genre: "Sci-Fi - Adventure", icon: "D2", accent: "purple" },
-        { title: "Inside Out 2", rating: "7.6", meta: "Animation - 1h 36m", year: "2024", genre: "Animation - Family", icon: "IO", accent: "green" },
-        { title: "The Fall Guy", rating: "6.9", meta: "Comedy - 2h 06m", year: "2024", genre: "Action - Comedy", icon: "FG", accent: "purple" }
+        { title: "Inception", meta: "Sci-Fi - 2h 28m", year: "2010", genre: "Sci-Fi - Thriller", icon: "IN", accent: "green" },
+        { title: "The Dark Knight", meta: "Action - 2h 32m", year: "2008", genre: "Action - Crime", icon: "DK", accent: "purple" },
+        { title: "Get Out", meta: "Horror - 1h 44m", year: "2017", genre: "Horror - Mystery", icon: "GO", accent: "green" },
+        { title: "Dune Part 2", meta: "Sci-Fi - 2h 46m", year: "2024", genre: "Sci-Fi - Adventure", icon: "D2", accent: "purple" },
+        { title: "Inside Out 2", meta: "Animation - 1h 36m", year: "2024", genre: "Animation - Family", icon: "IO", accent: "green" },
+        { title: "The Fall Guy", meta: "Comedy - 2h 06m", year: "2024", genre: "Action - Comedy", icon: "FG", accent: "purple" }
     ]
     render()
 end sub
@@ -59,23 +59,23 @@ sub render()
     drawSearchBox()
     drawMoviePills(row)
 
-    uiLabel(m.canvas, "Featured", 244, 154, 250, 26, 13, m.colors.textDim)
+    uiLabel(m.canvas, "FEATURED MOVIE", 244, 166, 250, 26, 13, m.colors.textDim)
     drawFeatured(row + 1)
 
     sectionLabel = "ALL MOVIES"
     if m.selectedGenre <> "All" then sectionLabel = m.selectedGenre + " movies"
-    uiLabel(m.canvas, sectionLabel, 244, 368, 250, 26, 13, m.colors.textDim)
+    uiLabel(m.canvas, sectionLabel, 244, 404, 250, 26, 13, m.colors.textDim)
     visible = filteredMovies()
     renderCount = visible.count()
     if renderCount > 4 then renderCount = 4
     if renderCount > 0 then
         for i = 0 to renderCount - 1
             rowData = visible[i]
-            drawMovieCard(rowData.movie, 244 + i * 258, 408, 250, 238, 4, i + 1)
+            drawMovieCard(rowData.movie, 244 + i * 212, 444, 200, 190, 4, i + 1)
         end for
     end if
     if visible.count() = 0 then
-        uiLabel(m.canvas, "No movies found", 244, 462, 746, 28, 15, m.colors.textDim, "center")
+        uiLabel(m.canvas, "No movies found", 244, 478, 746, 28, 15, m.colors.textDim, "center")
     end if
 
     uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
@@ -157,12 +157,12 @@ end sub
 
 sub drawMoviePills(row as Integer)
     cats = [
-        { label: "All", x: 244, y: 106, w: 62, h: 34 },
-        { label: "Action", x: 316, y: 106, w: 82, h: 34 },
-        { label: "Horror", x: 410, y: 106, w: 82, h: 34 },
-        { label: "Comedy", x: 504, y: 105, w: 92, h: 36 },
-        { label: "Animation", x: 608, y: 104, w: 150, h: 40 },
-        { label: "Sci-Fi", x: 770, y: 106, w: 82, h: 34 }
+        { label: "All", x: 244, y: 106, w: 100, h: 40 },
+        { label: "Action", x: 356, y: 106, w: 100, h: 40 },
+        { label: "Horror", x: 468, y: 106, w: 100, h: 40 },
+        { label: "Comedy", x: 580, y: 106, w: 140, h: 40 },
+        { label: "Animation", x: 732, y: 106, w: 150, h: 40 },
+        { label: "Sci-Fi", x: 894, y: 106, w: 100, h: 40 }
     ]
 
     for i = 0 to cats.count() - 1
@@ -173,7 +173,6 @@ sub drawMoviePills(row as Integer)
         bg = m.colors.bg
         border = m.colors.whiteLine
         textColor = m.colors.textPurple
-        if cat.h = 36 then bg = m.colors.panel
         if selected then
             bg = m.colors.purpleSoft
             border = m.colors.greenFocus
@@ -185,7 +184,7 @@ sub drawMoviePills(row as Integer)
             textColor = m.colors.text
         end if
         uiRoundRect(m.canvas, cat.x, cat.y, cat.w, cat.h, bg, border)
-        uiLabel(m.canvas, cat.label, cat.x, cat.y + 1, cat.w, cat.h - 4, 12, textColor, "center")
+        uiLabel(m.canvas, cat.label, cat.x, cat.y + 2, cat.w, cat.h - 4, 13, textColor, "center")
         m.focusItems.push({
             x: cat.x, y: cat.y, w: cat.w, h: cat.h,
             icon: "", label: cat.label, subtitle: "",
@@ -200,31 +199,33 @@ end sub
 sub drawFeatured(row as Integer)
     itemIndex = m.focusItems.count()
     focused = itemIndex = m.focusIndex
-    bg = m.colors.panel
-    border = m.colors.whiteLine
+    cardUri = "pkg:/images/ui/movie_featured_770x184_panel_whiteSoft.png"
+    titleColor = m.colors.textGreen
+    subColor = m.colors.textDim
+    labelColor = "0xFFFFFFFF"
+    buttonUri = "pkg:/images/ui/movie_watch_140x40_panel_greenFocus.png"
+    buttonText = "0xFFFFFFFF"
     if focused then
-        bg = m.colors.purpleSoft
-        border = m.colors.greenFocus
+        cardUri = "pkg:/images/ui/movie_featured_770x184_panel_greenFocus.png"
+        buttonUri = "pkg:/images/ui/movie_watch_140x40_greenSoft_greenFocus.png"
+        buttonText = "0xFFFFFFFF"
     end if
 
-    uiRoundRect(m.canvas, 244, 190, 770, 168, bg, border)
-    uiPosterCard(m.canvas, 270, 218, 96, 126, m.colors.purpleSoft, "IMAX", m.colors.text)
-    uiRoundRect(m.canvas, 390, 212, 100, 34, m.colors.purpleSoft, m.colors.purpleSoft)
-    uiLabel(m.canvas, "Featured", 390, 214, 100, 26, 12, m.colors.textPurple, "center")
-    uiLabel(m.canvas, "Interstellar", 390, 244, 250, 30, 20, m.colors.text)
-    uiLabel(m.canvas, "2014 - 2h 49m - Sci-Fi - Adventure", 390, 276, 342, 24, 13, m.colors.textMuted)
-    uiLabel(m.canvas, "8.7", 410, 308, 46, 24, 13, m.colors.amber)
-    uiLabel(m.canvas, "IMDb", 458, 308, 70, 24, 13, m.colors.textDim)
-    uiRoundRect(m.canvas, 390, 336, 150, 40, m.colors.purple, m.colors.purple)
-    uiDrawIcon(m.canvas, "play", 414, 347, 18, 18, focused, m.colors.text, 10)
-    uiLabel(m.canvas, "Watch now", 440, 340, 86, 30, 14, m.colors.text)
+    uiPoster(m.canvas, cardUri, 244, 206, 770, 184)
+    uiPoster(m.canvas, "pkg:/images/icons/movie_featured.png", 288, 250, 64, 64)
+    uiPoster(m.canvas, "pkg:/images/ui/movie_featured_badge_100x34_purpleDeep.png", 390, 226, 100, 34)
+    uiLabel(m.canvas, "Featured", 390, 230, 100, 24, 12, labelColor, "center")
+    uiLabel(m.canvas, "Interstellar", 390, 258, 260, 30, 20, titleColor)
+    uiLabel(m.canvas, "2014 - 2h 49m - Sci-Fi - Adventure", 390, 290, 380, 24, 13, subColor)
+    uiPoster(m.canvas, buttonUri, 390, 324, 140, 40)
+    uiLabel(m.canvas, "Watch now", 400, 329, 120, 28, 12, buttonText, "center")
 
     m.focusItems.push({
-        x: 244, y: 190, w: 770, h: 168,
+        x: 390, y: 324, w: 140, h: 40,
         icon: "", label: "Interstellar", subtitle: "Featured",
         iconSize: 1, titleSize: 1, subSize: 1,
-        bg: bg, border: border, textColor: m.colors.text, subColor: m.colors.textDim,
-        focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        bg: m.colors.panel, border: m.colors.whiteSoft, textColor: m.colors.text, subColor: m.colors.textDim,
+        focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         row: 3, col: 1, page: "", action: "watch", mode: "manual"
     })
 end sub
@@ -232,31 +233,31 @@ end sub
 sub drawMovieCard(movie as Object, x as Integer, y as Integer, w as Integer, h as Integer, row as Integer, col as Integer)
     itemIndex = m.focusItems.count()
     focused = itemIndex = m.focusIndex
-    bg = m.colors.panel
-    border = m.colors.whiteLine
-    iconBg = m.colors.purpleSoft
-    titleColor = m.colors.text
-    subColor = m.colors.textDim
-    if movie.accent = "green" then iconBg = m.colors.greenSoft
+    cardKey = "purple"
+    titleColor = m.colors.textGreen
+    metaColor = m.colors.textPurple
+    if movie.accent = "green" then cardKey = "green"
+    stateKey = "normal"
     if focused then
-        bg = m.colors.purpleSoft
-        border = m.colors.greenFocus
-        subColor = m.colors.text
+        stateKey = "focus"
+        metaColor = m.colors.textGreen
     end if
 
-    uiRoundRect(m.canvas, x, y, w, h, bg, border)
-    uiRect(m.canvas, x + 2, y + 2, w - 4, 130, iconBg)
-    uiDrawIcon(m.canvas, movie.icon, x + Int((w - 44) / 2), y + 42, 44, 44, focused, titleColor, 13)
-    uiLabel(m.canvas, movie.title, x + 18, y + 134, w - 36, 24, 13, titleColor)
-    uiLabel(m.canvas, movie.rating, x + 34, y + 164, 46, 20, 12, m.colors.amber)
-    uiLabel(m.canvas, movie.meta, x + 18, y + 188, w - 36, 20, 10, m.colors.textDim)
+    uiPoster(m.canvas, "pkg:/images/ui/series_card_poster_" + cardKey + "_" + stateKey + ".png", x, y, w, h)
+    iconW = 36
+    iconH = 36
+    iconX = x + Int((w - iconW) / 2)
+    iconY = y + 36
+    uiPoster(m.canvas, "pkg:/images/icons/movie_cards.png", iconX, iconY, iconW, iconH)
+    uiLabel(m.canvas, movie.title, x + 16, y + 126, w - 32, 26, 12, titleColor)
+    uiLabel(m.canvas, movie.meta, x + 16, y + 154, w - 32, 22, 9, metaColor)
 
     m.focusItems.push({
         x: x, y: y, w: w, h: h,
         icon: movie.icon, label: movie.title, subtitle: movie.meta,
         iconSize: 14, titleSize: 13, subSize: 9,
-        bg: bg, border: border, textColor: titleColor, subColor: subColor,
-        focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        bg: m.colors.panel, border: "0xFFFFFF12", textColor: titleColor, subColor: metaColor,
+        focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         row: row, col: col, page: "", action: "movie", mode: "manual"
     })
 end sub
@@ -300,7 +301,7 @@ function routeMoviesFocus(dx as Integer, dy as Integer) as Boolean
 
     if action = "watch" then
         if dy < 0 then
-            pIndex = findMovieFocusByRowCol(2, 1)
+            pIndex = findMovieFocusByRowCol(1, 1)
             if pIndex >= 0 then m.focusIndex = pIndex : return true
         end if
         if dy > 0 then
