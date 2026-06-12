@@ -15,12 +15,12 @@ sub init()
     m.searchKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "SPACE", "DEL", "CLEAR", "DONE"]
     demoUrl = "https://roku.s.cpl.delvenetworks.com/media/59021fabe3b645968e382ac726cd6c7b/60b4a471ffb74809beb2f7d5a15b3193/roku_ep_111_segment_1_final-cc_mix_033015-a7ec8a288c4bcec001c118181c668de321108861.m3u8"
     m.channels = [
-        { name: "ESPN HD", now: "Premier League Live", icon: "sport", live: true, videoUrl: demoUrl },
-        { name: "BBC World", now: "Evening News", icon: "NW", live: false, videoUrl: demoUrl },
-        { name: "CNN Intl", now: "Breaking News", icon: "CNN", live: false, videoUrl: demoUrl },
-        { name: "beIN Sports", now: "La Liga Live", icon: "sport", live: true, videoUrl: demoUrl },
-        { name: "MTV Hits", now: "Top 40 Charts", icon: "MTV", live: false, videoUrl: demoUrl },
-        { name: "Cartoon Net.", now: "Kids Shows", icon: "KD", live: false, videoUrl: demoUrl }
+        { name: "ESPN HD", now: "Premier League Live", icon: "sport", live: true, category: "Sports", videoUrl: demoUrl },
+        { name: "BBC World", now: "Evening News", icon: "NW", live: false, category: "News", videoUrl: demoUrl },
+        { name: "CNN Intl", now: "Breaking News", icon: "CNN", live: false, category: "News", videoUrl: demoUrl },
+        { name: "beIN Sports", now: "La Liga Live", icon: "sport", live: true, category: "Sports", videoUrl: demoUrl },
+        { name: "MTV Hits", now: "Top 40 Charts", icon: "MTV", live: false, category: "Music", videoUrl: demoUrl },
+        { name: "Cartoon Net.", now: "Kids Shows", icon: "KD", live: false, category: "Kids", videoUrl: demoUrl }
     ]
     setupVideo()
     render()
@@ -66,10 +66,14 @@ function routeLiveFocus(dx as Integer, dy as Integer) as Boolean
         return true
     end if
     if dy < 0 and action = "cat" then
+        aboveIndex = findCategoryInRow(current.row - 1, current.col)
+        if aboveIndex >= 0 then m.focusIndex = aboveIndex : return true
         m.focusIndex = searchIndex
         return true
     end if
-    if dx > 0 and action = "cat" and (current.label = "News" or current.label = "Music") then
+    if dx > 0 and action = "cat" then
+        rightIndex = findCategoryInRow(current.row, current.col + 1)
+        if rightIndex >= 0 then m.focusIndex = rightIndex : return true
         m.focusIndex = searchIndex
         return true
     end if
@@ -99,6 +103,22 @@ function findCategoryFocus(catIndex as Integer) as Integer
     return -1
 end function
 
+function findCategoryInRow(row as Integer, col as Integer) as Integer
+    best = -1
+    bestScore = 999999
+    for i = 0 to m.focusItems.count() - 1
+        item = m.focusItems[i]
+        if item.action = "cat" and item.row = row then
+            score = Abs(item.col - col)
+            if score < bestScore then
+                bestScore = score
+                best = i
+            end if
+        end if
+    end for
+    return best
+end function
+
 function findPlayerControl(control as String) as Integer
     for i = 0 to m.focusItems.count() - 1
         item = m.focusItems[i]
@@ -110,10 +130,20 @@ end function
 sub activate()
     item = m.focusItems[m.focusIndex]
     if item.page <> invalid and item.page <> "" then m.top.navigateTo = item.page
-    if item.action = "cat" then m.categoryIndex = item.catIndex : render() : return
+    if item.action = "cat" then selectLiveCategory(item.catIndex) : return
     if item.action = "channel" then m.channelIndex = item.channelIndex : playSelectedChannel() : render() : return
     if item.action = "playerControl" then handlePlayerControl(item.control) : render() : return
     if item.action = "search" then openSearchKeyboard() : return
+end sub
+
+sub selectLiveCategory(categoryIndex as Integer)
+    m.categoryIndex = categoryIndex
+    visible = filteredChannels()
+    if visible.count() > 0 then
+        m.channelIndex = visible[0].index
+        playSelectedChannel()
+    end if
+    render()
 end sub
 
 sub render()
@@ -383,14 +413,23 @@ end sub
 function filteredChannels() as Object
     results = []
     query = LCase(m.searchQuery)
+    category = liveCategoryLabel(m.categoryIndex)
     for i = 0 to m.channels.count() - 1
         ch = m.channels[i]
-        searchable = LCase(ch.name + " " + ch.now)
-        if query = "" or Instr(1, searchable, query) > 0 then
+        searchable = LCase(ch.name + " " + ch.now + " " + ch.category)
+        matchSearch = (query = "") or (Instr(1, searchable, query) > 0)
+        matchCategory = (category = "All") or (ch.category = category)
+        if matchSearch and matchCategory then
             results.push({ channel: ch, index: i })
         end if
     end for
     return results
+end function
+
+function liveCategoryLabel(index as Integer) as String
+    labels = ["All", "Sports", "News", "Kids", "Music"]
+    if index >= 0 and index < labels.count() then return labels[index]
+    return "All"
 end function
 
 function drawCategoryPills(row as Integer) as Integer

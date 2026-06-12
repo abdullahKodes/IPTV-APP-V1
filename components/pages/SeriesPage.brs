@@ -178,7 +178,7 @@ sub drawCategoryPills(row as Integer)
         end if
         
         uiRoundRect(m.canvas, cat.x, cat.y, cat.w, cat.h, bg, border)
-        uiLabel(m.canvas, catLabel, cat.x, cat.y + 1, cat.w, 30, 13, textColor, "center")
+        uiLabel(m.canvas, catLabel, cat.x, cat.y + 1, cat.w, 30, 12, textColor, "center")
 
         m.focusItems.push({
             x: cat.x, y: cat.y, w: cat.w, h: cat.h,
@@ -234,7 +234,8 @@ sub drawMediaCard(media as Object, x as Integer, y as Integer, w as Integer, h a
 
     cardKey = "purple"
     badgeBg = m.colors.purpleSoft
-    seasonColor = "0xFFFFFFFF"
+    seasonColor = m.colors.textPurple
+    categoryColor = m.colors.textDim
     if media.icon = "AI" or media.icon = "PB" then
         cardKey = "green"
         badgeBg = m.colors.greenSoft
@@ -245,6 +246,8 @@ sub drawMediaCard(media as Object, x as Integer, y as Integer, w as Integer, h a
     stateKey = "normal"
     if focused then
         stateKey = "focus"
+        seasonColor = m.colors.textGreen
+        categoryColor = m.colors.textGreen
     end if
 
     uiPoster(m.canvas, "pkg:/images/ui/series_card_poster_" + cardKey + "_" + stateKey + ".png", x, y, w, h)
@@ -255,14 +258,14 @@ sub drawMediaCard(media as Object, x as Integer, y as Integer, w as Integer, h a
     uiDrawIcon(m.canvas, "cards_badge", iconX, iconY, iconW, iconH, focused, "0xFFFFFFFF", 12)
     uiLabel(m.canvas, media.title, x + 16, y + 112, w - 32, 24, 12, textColor)
     uiLabel(m.canvas, media.meta, x + 16, y + 137, w - 32, 20, 8, seasonColor)
-    uiLabel(m.canvas, media.genre, x + 16, y + 160, w - 32, 22, 5, subColor)
+    uiLabel(m.canvas, media.genre, x + 16, y + 160, w - 32, 22, 5, categoryColor)
 
     m.focusItems.push({
         x: x, y: y, w: w, h: h,
         icon: media.icon, label: media.title, subtitle: media.meta + " - " + media.genre,
         iconSize: 17, iconW: 64, iconH: 64, iconX: Int((w - 64) / 2),
         titleSize: 14, subSize: 10,
-        bg: m.colors.panel, border: "0xFFFFFF12", textColor: textColor, subColor: subColor,
+        bg: m.colors.panel, border: "0xFFFFFF12", textColor: textColor, subColor: categoryColor,
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         row: 3, col: col, page: "", action: "series", mode: "manual"
     })

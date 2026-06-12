@@ -157,21 +157,12 @@ end sub
 
 sub drawMoviePills(row as Integer)
     cats = [
-<<<<<<< HEAD
         { label: "All", x: 244, y: 106, w: 100, h: 34 },
         { label: "Action", x: 356, y: 106, w: 100, h: 34 },
         { label: "Horror", x: 468, y: 106, w: 100, h: 34 },
         { label: "Comedy", x: 580, y: 106, w: 140, h: 34 },
         { label: "Animation", x: 732, y: 106, w: 140, h: 34 },
         { label: "Sci-Fi", x: 884, y: 106, w: 100, h: 34 }
-=======
-        { label: "All", x: 244, y: 106, w: 100, h: 40 },
-        { label: "Action", x: 356, y: 106, w: 100, h: 40 },
-        { label: "Horror", x: 468, y: 106, w: 100, h: 40 },
-        { label: "Comedy", x: 580, y: 106, w: 140, h: 40 },
-        { label: "Animation", x: 732, y: 106, w: 150, h: 40 },
-        { label: "Sci-Fi", x: 894, y: 106, w: 100, h: 40 }
->>>>>>> 0c3f10a68c53e4869091610e6b1dee6e22bd1bbb
     ]
 
     for i = 0 to cats.count() - 1
@@ -193,11 +184,7 @@ sub drawMoviePills(row as Integer)
             textColor = m.colors.text
         end if
         uiRoundRect(m.canvas, cat.x, cat.y, cat.w, cat.h, bg, border)
-<<<<<<< HEAD
-        uiLabel(m.canvas, cat.label, cat.x, cat.y + 1, cat.w, 30, 13, textColor, "center")
-=======
-        uiLabel(m.canvas, cat.label, cat.x, cat.y + 2, cat.w, cat.h - 4, 13, textColor, "center")
->>>>>>> 0c3f10a68c53e4869091610e6b1dee6e22bd1bbb
+        uiLabel(m.canvas, cat.label, cat.x, cat.y + 1, cat.w, 30, 12, textColor, "center")
         m.focusItems.push({
             x: cat.x, y: cat.y, w: cat.w, h: cat.h,
             icon: "", label: cat.label, subtitle: "",
@@ -212,32 +199,20 @@ end sub
 sub drawFeatured(row as Integer)
     itemIndex = m.focusItems.count()
     focused = itemIndex = m.focusIndex
-<<<<<<< HEAD
-=======
-    cardUri = "pkg:/images/ui/movie_featured_770x184_panel_whiteSoft.png"
->>>>>>> 0c3f10a68c53e4869091610e6b1dee6e22bd1bbb
     titleColor = m.colors.textGreen
     subColor = m.colors.textDim
     labelColor = "0xFFFFFFFF"
     buttonUri = "pkg:/images/ui/movie_watch_140x40_panel_greenFocus.png"
     buttonText = "0xFFFFFFFF"
     if focused then
-<<<<<<< HEAD
-=======
-        cardUri = "pkg:/images/ui/movie_featured_770x184_panel_greenFocus.png"
->>>>>>> 0c3f10a68c53e4869091610e6b1dee6e22bd1bbb
         buttonUri = "pkg:/images/ui/movie_watch_140x40_greenSoft_greenFocus.png"
         buttonText = "0xFFFFFFFF"
     end if
 
-<<<<<<< HEAD
     uiPoster(m.canvas, "pkg:/images/ui/movie_featured_770x184_panel_whiteSoft.png", 244, 206, 770, 184)
     if focused then
         uiPoster(m.canvas, "pkg:/images/ui/movie_featured_770x184_panel_greenFocus.png", 244, 206, 770, 184)
     end if
-=======
-    uiPoster(m.canvas, cardUri, 244, 206, 770, 184)
->>>>>>> 0c3f10a68c53e4869091610e6b1dee6e22bd1bbb
     uiPoster(m.canvas, "pkg:/images/icons/movie_featured.png", 288, 250, 64, 64)
     uiPoster(m.canvas, "pkg:/images/ui/movie_featured_badge_100x34_purpleDeep.png", 390, 226, 100, 34)
     uiLabel(m.canvas, "Featured", 390, 230, 100, 24, 12, labelColor, "center")
