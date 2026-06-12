@@ -168,6 +168,10 @@ Completed:
 - Tweaked Movies poster cards after Roku screenshot review: enlarged the poster-driven area, tightened the title/meta palette, slightly enlarged the featured poster, and bumped manifest build version to `00038`.
 - Filled the Movies card poster region with zoomed/scaled artwork, muted the movie card category/meta line so focused titles stand apart, increased selected backdrop visibility, and bumped manifest build version to `00039`.
 - Generated exact card-ratio demo artwork under `images/demo/card_art/`, wired movie cards to use those filled card images, changed the focused background to use the same card image as the focused movie, and bumped manifest build version to `00040`.
+- Generated wider `images/demo/card_fill/` assets, reduced card image inset to nearly edge-to-edge, forced card artwork to `scaleToFill`, and bumped manifest build version to `00041`.
+- Generated transparent rounded card-slot PNGs under `images/demo/card_slot/`, inset movie artwork safely inside the card frame, redrew the card frame above poster artwork, added a green rounded border behind the Featured poster, and bumped manifest build version to `00042`.
+- Reworked Movies cards away from the old Series card PNGs: movie artwork now clips into a fixed poster window, text sits in a separate dark strip, transparent rounded frame overlays guarantee visible normal/focus borders, the Featured poster uses an explicit green frame asset, unused card-slot assets were removed, and manifest build version is now `00043`.
+- Reworked Movies cards again after Roku review into narrower rounded poster tiles with wider spacing, softer normal outlines, a less heavy focused card, neutral Featured poster framing, and manifest build version `00044`.
 
 Needs future review:
 - Test Movies page focus movement on actual Roku.

@@ -76,10 +76,10 @@ sub render()
         slot = 0
         for i = m.movieWindowStart to endIndex
             rowData = visible[i]
-            drawMovieCard(rowData.movie, i, rowData.index, 244 + slot * 212, 444, 200, 190, 4, slot + 1)
+            drawMovieCard(rowData.movie, i, rowData.index, 244 + slot * 208, 438, 156, 216, 4, slot + 1)
             slot += 1
         end for
-        drawMovieScrollbar(visible.count(), 1108, 444, 190)
+        drawMovieScrollbar(visible.count(), 1084, 438, 216)
     end if
     if visible.count() = 0 then
         uiLabel(m.canvas, "No movies found", 244, 478, 746, 28, 15, m.colors.textDim, "center")
@@ -251,12 +251,12 @@ sub drawMovieCard(movie as Object, mediaIndex as Integer, sourceIndex as Integer
         titleColor = m.colors.textGreen
     end if
 
-    uiPoster(m.canvas, "pkg:/images/ui/series_card_poster_purple_normal.png", x, y, w, h)
-    if focused then uiPoster(m.canvas, "pkg:/images/ui/series_card_poster_green_focus.png", x, y, w, h)
-    drawMoviePoster(movie, x, y, w, focused)
-    uiRect(m.canvas, x + 10, y + 132, w - 20, 1, "0xFFFFFF12", 0.8)
-    uiLabel(m.canvas, movie.title, x + 16, y + 138, w - 32, 20, 9, titleColor)
-    uiLabel(m.canvas, movie.genre + " - " + movie.duration, x + 16, y + 158, w - 32, 18, 6, metaColor)
+    bgUri = "pkg:/images/demo/frames/movie_tile_normal.png"
+    if focused then bgUri = "pkg:/images/demo/frames/movie_tile_focus.png"
+    uiPoster(m.canvas, bgUri, x, y, w, h)
+    drawMoviePoster(movie, x + 10, y + 10, w - 20, 142)
+    uiLabel(m.canvas, movie.title, x + 12, y + 166, w - 24, 20, 8, titleColor)
+    uiLabel(m.canvas, movie.genre + " - " + movie.duration, x + 12, y + 186, w - 24, 18, 6, metaColor)
 
     m.focusItems.push({
         x: x, y: y, w: w, h: h,
@@ -268,17 +268,18 @@ sub drawMovieCard(movie as Object, mediaIndex as Integer, sourceIndex as Integer
     })
 end sub
 
-sub drawMoviePoster(movie as Object, x as Integer, y as Integer, w as Integer, focused as Boolean)
-    cardUrl = movieCardUrl(movie)
+sub drawMoviePoster(movie as Object, x as Integer, y as Integer, w as Integer, h as Integer)
+    cardUrl = moviePosterArtUrl(movie)
     if cardUrl <> "" then
-        uiPoster(m.canvas, cardUrl, x + 8, y + 8, w - 16, 124)
+        poster = uiPoster(m.canvas, cardUrl, x, y, w, h)
+        poster.loadDisplayMode = "scaleToZoom"
     else
         iconW = 36
         iconH = 36
         iconX = x + Int((w - iconW) / 2)
-        iconY = y + 45
+        iconY = y + Int((h - iconH) / 2) - 6
         uiPoster(m.canvas, "pkg:/images/icons/movie_cards.png", iconX, iconY, iconW, iconH)
-        uiLabel(m.canvas, movie.year, x + 16, y + 100, w - 32, 18, 8, m.colors.textMuted, "center")
+        uiLabel(m.canvas, movie.year, x + 16, y + h - 24, w - 32, 18, 8, m.colors.textMuted, "center")
     end if
 end sub
 
@@ -288,6 +289,7 @@ sub drawFeaturedPoster(movie as Object, x as Integer, y as Integer, w as Integer
     if posterUrl <> "" then
         poster = uiPoster(m.canvas, posterUrl, x, y, w, h)
         poster.loadDisplayMode = "scaleToZoom"
+        uiPoster(m.canvas, "pkg:/images/demo/frames/featured_poster_frame_neutral.png", x - 4, y - 4, w + 8, h + 8)
     else
         uiRoundRect(m.canvas, x, y, w, h, m.colors.purpleSoft, m.colors.greenFocus)
         uiPoster(m.canvas, "pkg:/images/icons/movie_featured.png", x + 15, y + 28, 44, 44)
@@ -308,8 +310,12 @@ sub drawSelectedBackdrop(visible as Object)
 end sub
 
 function movieCardUrl(movie as Object) as String
-    if movie.doesExist("cardUrl") and movie.cardUrl <> "" then return movie.cardUrl
+    return moviePosterArtUrl(movie)
+end function
+
+function moviePosterArtUrl(movie as Object) as String
     if movie.doesExist("posterUrl") and movie.posterUrl <> "" then return movie.posterUrl
+    if movie.doesExist("cardUrl") and movie.cardUrl <> "" then return movie.cardUrl
     return ""
 end function
 
