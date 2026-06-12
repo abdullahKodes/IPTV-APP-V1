@@ -76,10 +76,10 @@ sub render()
         slot = 0
         for i = m.movieWindowStart to endIndex
             rowData = visible[i]
-            drawMovieCard(rowData.movie, i, rowData.index, 244 + slot * 208, 438, 156, 216, 4, slot + 1)
+            drawMovieCard(rowData.movie, i, rowData.index, 244 + slot * 222, 444, 200, 190, 4, slot + 1)
             slot += 1
         end for
-        drawMovieScrollbar(visible.count(), 1084, 438, 216)
+        drawMovieScrollbar(visible.count(), 1130, 444, 190)
     end if
     if visible.count() = 0 then
         uiLabel(m.canvas, "No movies found", 244, 478, 746, 28, 15, m.colors.textDim, "center")
@@ -220,7 +220,7 @@ sub drawFeatured(movie as Object, row as Integer)
     if focused then
         uiPoster(m.canvas, "pkg:/images/ui/movie_featured_770x184_panel_greenFocus.png", 244, 206, 770, 184)
     end if
-    drawFeaturedPoster(movie, 278, 222, 92, 142)
+    drawFeaturedPoster(movie, 278, 227, 92, 142)
     uiPoster(m.canvas, "pkg:/images/ui/movie_featured_badge_100x34_purpleDeep.png", 404, 226, 100, 34)
     uiLabel(m.canvas, "Featured", 404, 230, 100, 24, 12, labelColor, "center")
     uiLabel(m.canvas, movie.title, 404, 258, 300, 30, 20, titleColor)
@@ -251,12 +251,13 @@ sub drawMovieCard(movie as Object, mediaIndex as Integer, sourceIndex as Integer
         titleColor = m.colors.textGreen
     end if
 
-    bgUri = "pkg:/images/demo/frames/movie_tile_normal.png"
-    if focused then bgUri = "pkg:/images/demo/frames/movie_tile_focus.png"
+    bgUri = "pkg:/images/demo/frames/movie_tile_wide_normal.png"
+    if focused then bgUri = "pkg:/images/demo/frames/movie_tile_wide_focus.png"
     uiPoster(m.canvas, bgUri, x, y, w, h)
-    drawMoviePoster(movie, x + 10, y + 10, w - 20, 142)
-    uiLabel(m.canvas, movie.title, x + 12, y + 166, w - 24, 20, 8, titleColor)
-    uiLabel(m.canvas, movie.genre + " - " + movie.duration, x + 12, y + 186, w - 24, 18, 6, metaColor)
+    drawMoviePoster(movie, x + 3, y + 3, w - 6, 128)
+    uiRect(m.canvas, x + 12, y + 136, w - 24, 1, "0xFFFFFF12", 0.72)
+    uiLabel(m.canvas, movie.title, x + 14, y + 142, w - 28, 20, 9, titleColor)
+    uiLabel(m.canvas, movie.genre + " - " + movie.duration, x + 14, y + 162, w - 28, 18, 6, metaColor)
 
     m.focusItems.push({
         x: x, y: y, w: w, h: h,
@@ -269,10 +270,11 @@ sub drawMovieCard(movie as Object, mediaIndex as Integer, sourceIndex as Integer
 end sub
 
 sub drawMoviePoster(movie as Object, x as Integer, y as Integer, w as Integer, h as Integer)
-    cardUrl = moviePosterArtUrl(movie)
+    cardUrl = movieCardUrl(movie)
     if cardUrl <> "" then
         poster = uiPoster(m.canvas, cardUrl, x, y, w, h)
         poster.loadDisplayMode = "scaleToZoom"
+        uiPoster(m.canvas, "pkg:/images/demo/frames/movie_image_top_corner_mask.png", x, y, w, h)
     else
         iconW = 36
         iconH = 36
@@ -287,8 +289,9 @@ sub drawFeaturedPoster(movie as Object, x as Integer, y as Integer, w as Integer
     posterUrl = ""
     if movie.doesExist("posterUrl") then posterUrl = movie.posterUrl
     if posterUrl <> "" then
-        poster = uiPoster(m.canvas, posterUrl, x, y, w, h)
+        poster = uiPoster(m.canvas, posterUrl, x - 4, y - 4, w + 8, h + 8)
         poster.loadDisplayMode = "scaleToZoom"
+        uiPoster(m.canvas, "pkg:/images/demo/frames/featured_poster_corner_mask.png", x - 4, y - 4, w + 8, h + 8)
         uiPoster(m.canvas, "pkg:/images/demo/frames/featured_poster_frame_neutral.png", x - 4, y - 4, w + 8, h + 8)
     else
         uiRoundRect(m.canvas, x, y, w, h, m.colors.purpleSoft, m.colors.greenFocus)
@@ -310,12 +313,8 @@ sub drawSelectedBackdrop(visible as Object)
 end sub
 
 function movieCardUrl(movie as Object) as String
-    return moviePosterArtUrl(movie)
-end function
-
-function moviePosterArtUrl(movie as Object) as String
-    if movie.doesExist("posterUrl") and movie.posterUrl <> "" then return movie.posterUrl
     if movie.doesExist("cardUrl") and movie.cardUrl <> "" then return movie.cardUrl
+    if movie.doesExist("posterUrl") and movie.posterUrl <> "" then return movie.posterUrl
     return ""
 end function
 
