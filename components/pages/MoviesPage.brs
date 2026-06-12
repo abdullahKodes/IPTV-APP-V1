@@ -7,15 +7,13 @@ sub init()
     m.searchQuery = ""
     m.searchEditing = false
     m.searchKeyboardIndex = 0
+    m.movieWindowStart = 0
+    m.movieWindowSize = 4
+    m.selectedMovieIndex = 0
+    m.featuredMovieIndex = -1
+    m.focusArea = "normal"
     m.searchKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "SPACE", "DEL", "CLEAR", "DONE"]
-    m.movies = [
-        { title: "Inception", meta: "Sci-Fi - 2h 28m", year: "2010", genre: "Sci-Fi - Thriller", icon: "IN", accent: "green" },
-        { title: "The Dark Knight", meta: "Action - 2h 32m", year: "2008", genre: "Action - Crime", icon: "DK", accent: "purple" },
-        { title: "Get Out", meta: "Horror - 1h 44m", year: "2017", genre: "Horror - Mystery", icon: "GO", accent: "green" },
-        { title: "Dune Part 2", meta: "Sci-Fi - 2h 46m", year: "2024", genre: "Sci-Fi - Adventure", icon: "D2", accent: "purple" },
-        { title: "Inside Out 2", meta: "Animation - 1h 36m", year: "2024", genre: "Animation - Family", icon: "IO", accent: "green" },
-        { title: "The Fall Guy", meta: "Comedy - 2h 06m", year: "2024", genre: "Action - Comedy", icon: "FG", accent: "purple" }
-    ]
+    m.movies = mockMovieCatalog()
     render()
 end sub
 
@@ -36,6 +34,7 @@ end function
 sub move(dx as Integer, dy as Integer)
     if routeMoviesFocus(dx, dy) then render() : return
     m.focusIndex = uiMoveFocus(m.focusItems, m.focusIndex, dx, dy)
+    syncMovieFocus()
     render()
 end sub
 
@@ -43,13 +42,17 @@ sub activate()
     item = m.focusItems[m.focusIndex]
     if item.page <> invalid and item.page <> "" then m.top.navigateTo = item.page : return
     if item.action = "search" then openSearchKeyboard() : return
-    if item.action = "genre" then m.selectedGenre = item.label : render() : return
+    if item.action = "genre" then m.selectedGenre = item.label : resetMovieWindow() : render() : return
+    if item.action = "movie" then m.featuredMovieIndex = item.sourceIndex : m.selectedMovieIndex = item.mediaIndex : render() : return
 end sub
 
 sub render()
     uiClear(m.canvas)
     m.focusItems = []
     uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg)
+    visible = filteredMovies()
+    normalizeMovieWindow(visible.count())
+    drawSelectedBackdrop(visible)
     clockParts = uiTopBar(m.canvas, m.colors)
     m.clock = clockParts.clock
     m.date = clockParts.date
@@ -60,19 +63,23 @@ sub render()
     drawMoviePills(row)
 
     uiLabel(m.canvas, "FEATURED MOVIE", 244, 166, 250, 26, 13, m.colors.textDim)
-    drawFeatured(row + 1)
+    drawFeatured(featuredMovie(visible), row + 1)
 
     sectionLabel = "ALL MOVIES"
     if m.selectedGenre <> "All" then sectionLabel = m.selectedGenre + " movies"
+    countText = visible.count().toStr() + " titles"
     uiLabel(m.canvas, sectionLabel, 244, 404, 250, 26, 13, m.colors.textDim)
-    visible = filteredMovies()
-    renderCount = visible.count()
-    if renderCount > 4 then renderCount = 4
-    if renderCount > 0 then
-        for i = 0 to renderCount - 1
+    uiLabel(m.canvas, countText, 824, 404, 190, 26, 12, m.colors.textDim, "right")
+    if visible.count() > 0 then
+        endIndex = m.movieWindowStart + m.movieWindowSize - 1
+        if endIndex > visible.count() - 1 then endIndex = visible.count() - 1
+        slot = 0
+        for i = m.movieWindowStart to endIndex
             rowData = visible[i]
-            drawMovieCard(rowData.movie, 244 + i * 212, 444, 200, 190, 4, i + 1)
+            drawMovieCard(rowData.movie, i, rowData.index, 244 + slot * 212, 444, 200, 190, 4, slot + 1)
+            slot += 1
         end for
+        drawMovieScrollbar(visible.count(), 1108, 444, 190)
     end if
     if visible.count() = 0 then
         uiLabel(m.canvas, "No movies found", 244, 478, 746, 28, 15, m.colors.textDim, "center")
@@ -196,7 +203,7 @@ sub drawMoviePills(row as Integer)
     end for
 end sub
 
-sub drawFeatured(row as Integer)
+sub drawFeatured(movie as Object, row as Integer)
     itemIndex = m.focusItems.count()
     focused = itemIndex = m.focusIndex
     titleColor = m.colors.textGreen
@@ -213,17 +220,17 @@ sub drawFeatured(row as Integer)
     if focused then
         uiPoster(m.canvas, "pkg:/images/ui/movie_featured_770x184_panel_greenFocus.png", 244, 206, 770, 184)
     end if
-    uiPoster(m.canvas, "pkg:/images/icons/movie_featured.png", 288, 250, 64, 64)
-    uiPoster(m.canvas, "pkg:/images/ui/movie_featured_badge_100x34_purpleDeep.png", 390, 226, 100, 34)
-    uiLabel(m.canvas, "Featured", 390, 230, 100, 24, 12, labelColor, "center")
-    uiLabel(m.canvas, "Interstellar", 390, 258, 260, 30, 20, titleColor)
-    uiLabel(m.canvas, "2014 - 2h 49m - Sci-Fi - Adventure", 390, 290, 380, 24, 13, subColor)
-    uiPoster(m.canvas, buttonUri, 390, 324, 140, 40)
-    uiLabel(m.canvas, "Watch now", 400, 329, 120, 28, 12, buttonText, "center")
+    drawFeaturedPoster(movie, 278, 222, 92, 142)
+    uiPoster(m.canvas, "pkg:/images/ui/movie_featured_badge_100x34_purpleDeep.png", 404, 226, 100, 34)
+    uiLabel(m.canvas, "Featured", 404, 230, 100, 24, 12, labelColor, "center")
+    uiLabel(m.canvas, movie.title, 404, 258, 300, 30, 20, titleColor)
+    uiLabel(m.canvas, movie.year + " - " + movie.duration + " - " + movie.genre, 404, 290, 430, 24, 13, subColor)
+    uiPoster(m.canvas, buttonUri, 404, 324, 140, 40)
+    uiLabel(m.canvas, "Watch now", 414, 329, 120, 28, 12, buttonText, "center")
 
     m.focusItems.push({
-        x: 390, y: 324, w: 140, h: 40,
-        icon: "", label: "Interstellar", subtitle: "Featured",
+        x: 404, y: 324, w: 140, h: 40,
+        icon: "", label: movie.title, subtitle: "Featured",
         iconSize: 1, titleSize: 1, subSize: 1,
         bg: m.colors.panel, border: m.colors.whiteSoft, textColor: m.colors.text, subColor: m.colors.textDim,
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
@@ -231,36 +238,120 @@ sub drawFeatured(row as Integer)
     })
 end sub
 
-sub drawMovieCard(movie as Object, x as Integer, y as Integer, w as Integer, h as Integer, row as Integer, col as Integer)
+sub drawMovieCard(movie as Object, mediaIndex as Integer, sourceIndex as Integer, x as Integer, y as Integer, w as Integer, h as Integer, row as Integer, col as Integer)
     itemIndex = m.focusItems.count()
     focused = itemIndex = m.focusIndex
-    cardKey = "purple"
-    titleColor = m.colors.textGreen
-    metaColor = m.colors.textPurple
-    if movie.accent = "green" then cardKey = "green"
-    stateKey = "normal"
+    if m.focusArea = "movies" then
+        focused = mediaIndex = m.selectedMovieIndex
+        if focused then m.focusIndex = itemIndex
+    end if
+    titleColor = m.colors.text
+    metaColor = m.colors.textDim
     if focused then
-        stateKey = "focus"
-        metaColor = m.colors.textGreen
+        titleColor = m.colors.textGreen
     end if
 
-    uiPoster(m.canvas, "pkg:/images/ui/series_card_poster_" + cardKey + "_" + stateKey + ".png", x, y, w, h)
-    iconW = 36
-    iconH = 36
-    iconX = x + Int((w - iconW) / 2)
-    iconY = y + 36
-    uiPoster(m.canvas, "pkg:/images/icons/movie_cards.png", iconX, iconY, iconW, iconH)
-    uiLabel(m.canvas, movie.title, x + 16, y + 126, w - 32, 26, 12, titleColor)
-    uiLabel(m.canvas, movie.meta, x + 16, y + 154, w - 32, 22, 9, metaColor)
+    uiPoster(m.canvas, "pkg:/images/ui/series_card_poster_purple_normal.png", x, y, w, h)
+    if focused then uiPoster(m.canvas, "pkg:/images/ui/series_card_poster_green_focus.png", x, y, w, h)
+    drawMoviePoster(movie, x, y, w, focused)
+    uiRect(m.canvas, x + 10, y + 132, w - 20, 1, "0xFFFFFF12", 0.8)
+    uiLabel(m.canvas, movie.title, x + 16, y + 138, w - 32, 20, 9, titleColor)
+    uiLabel(m.canvas, movie.genre + " - " + movie.duration, x + 16, y + 158, w - 32, 18, 6, metaColor)
 
     m.focusItems.push({
         x: x, y: y, w: w, h: h,
-        icon: movie.icon, label: movie.title, subtitle: movie.meta,
+        icon: "", label: movie.title, subtitle: movie.genre,
         iconSize: 14, titleSize: 13, subSize: 9,
         bg: m.colors.panel, border: "0xFFFFFF12", textColor: titleColor, subColor: metaColor,
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
-        row: row, col: col, page: "", action: "movie", mode: "manual"
+        row: row, col: col, page: "", action: "movie", mediaIndex: mediaIndex, sourceIndex: sourceIndex, mode: "manual"
     })
+end sub
+
+sub drawMoviePoster(movie as Object, x as Integer, y as Integer, w as Integer, focused as Boolean)
+    cardUrl = movieCardUrl(movie)
+    if cardUrl <> "" then
+        uiPoster(m.canvas, cardUrl, x + 8, y + 8, w - 16, 124)
+    else
+        iconW = 36
+        iconH = 36
+        iconX = x + Int((w - iconW) / 2)
+        iconY = y + 45
+        uiPoster(m.canvas, "pkg:/images/icons/movie_cards.png", iconX, iconY, iconW, iconH)
+        uiLabel(m.canvas, movie.year, x + 16, y + 100, w - 32, 18, 8, m.colors.textMuted, "center")
+    end if
+end sub
+
+sub drawFeaturedPoster(movie as Object, x as Integer, y as Integer, w as Integer, h as Integer)
+    posterUrl = ""
+    if movie.doesExist("posterUrl") then posterUrl = movie.posterUrl
+    if posterUrl <> "" then
+        poster = uiPoster(m.canvas, posterUrl, x, y, w, h)
+        poster.loadDisplayMode = "scaleToZoom"
+    else
+        uiRoundRect(m.canvas, x, y, w, h, m.colors.purpleSoft, m.colors.greenFocus)
+        uiPoster(m.canvas, "pkg:/images/icons/movie_featured.png", x + 15, y + 28, 44, 44)
+        uiLabel(m.canvas, movie.year, x + 8, y + 86, w - 16, 20, 8, m.colors.textMuted, "center")
+    end if
+end sub
+
+sub drawSelectedBackdrop(visible as Object)
+    movie = selectedMovieForBackdrop(visible)
+    if movie = invalid then return
+
+    bgUrl = movieCardUrl(movie)
+    if bgUrl <> "" then
+        backdrop = uiPoster(m.canvas, bgUrl, 226, 86, 1054, 634, 0.28)
+        backdrop.loadDisplayMode = "scaleToZoom"
+    end if
+    uiRect(m.canvas, 226, 86, 1054, 634, m.colors.bg, 0.68)
+end sub
+
+function movieCardUrl(movie as Object) as String
+    if movie.doesExist("cardUrl") and movie.cardUrl <> "" then return movie.cardUrl
+    if movie.doesExist("posterUrl") and movie.posterUrl <> "" then return movie.posterUrl
+    return ""
+end function
+
+function selectedMovieForBackdrop(visible as Object) as Dynamic
+    if visible.count() > 0 and m.focusArea = "movies" then
+        if m.selectedMovieIndex >= 0 and m.selectedMovieIndex < visible.count() then return visible[m.selectedMovieIndex].movie
+    end if
+    return featuredMovie(visible)
+end function
+
+function featuredMovie(visible = invalid as Dynamic) as Object
+    if m.movies.count() = 0 then return {
+        title: "Featured Movie",
+        year: "",
+        duration: "",
+        genre: "",
+        rating: "",
+        posterUrl: "",
+        backdropUrl: "",
+        streamUrl: "",
+        resumePercent: 0,
+        accent: "purple"
+    }
+    if m.featuredMovieIndex >= 0 and m.featuredMovieIndex < m.movies.count() then return m.movies[m.featuredMovieIndex]
+    for i = 0 to m.movies.count() - 1
+        movie = m.movies[i]
+        if movie.doesExist("featured") and movie.featured then return movie
+    end for
+    return m.movies[0]
+end function
+
+sub drawMovieScrollbar(total as Integer, x as Integer, y as Integer, h as Integer)
+    if total <= m.movieWindowSize then return
+    uiRect(m.canvas, x, y, 4, h, "0xFFFFFF18", 0.72)
+    maxStart = total - m.movieWindowSize
+    if maxStart < 1 then maxStart = 1
+    thumbH = Int(h * m.movieWindowSize / total)
+    if thumbH < 42 then thumbH = 42
+    if thumbH > h then thumbH = h
+    thumbY = y
+    if h > thumbH then thumbY = y + Int((h - thumbH) * m.movieWindowStart / maxStart)
+    uiRect(m.canvas, x - 2, thumbY, 8, thumbH, m.colors.greenFocus, 0.9)
 end sub
 
 function filteredMovies() as Object
@@ -268,7 +359,7 @@ function filteredMovies() as Object
     query = LCase(m.searchQuery)
     for i = 0 to m.movies.count() - 1
         movie = m.movies[i]
-        searchable = LCase(movie.title + " " + movie.genre + " " + movie.year)
+        searchable = LCase(movie.title + " " + movie.genre + " " + movie.year + " " + movie.rating)
         matchSearch = (query = "") or (Instr(1, searchable, query) > 0)
         matchGenre = (m.selectedGenre = "All") or (Instr(1, LCase(movie.genre), LCase(m.selectedGenre)) > 0)
         if matchSearch and matchGenre then
@@ -278,11 +369,37 @@ function filteredMovies() as Object
     return res
 end function
 
+sub resetMovieWindow()
+    m.movieWindowStart = 0
+    m.selectedMovieIndex = 0
+    m.focusArea = "normal"
+end sub
+
+sub normalizeMovieWindow(total as Integer)
+    if total <= 0 then
+        m.movieWindowStart = 0
+        m.selectedMovieIndex = 0
+        if m.focusArea = "movies" then m.focusArea = "normal"
+        return
+    end if
+    if m.selectedMovieIndex < 0 then m.selectedMovieIndex = 0
+    if m.selectedMovieIndex > total - 1 then m.selectedMovieIndex = total - 1
+    if m.movieWindowStart < 0 then m.movieWindowStart = 0
+    maxStart = total - m.movieWindowSize
+    if maxStart < 0 then maxStart = 0
+    if m.movieWindowStart > maxStart then m.movieWindowStart = maxStart
+    if m.selectedMovieIndex < m.movieWindowStart then m.movieWindowStart = m.selectedMovieIndex
+    if m.selectedMovieIndex >= m.movieWindowStart + m.movieWindowSize then
+        m.movieWindowStart = m.selectedMovieIndex - m.movieWindowSize + 1
+    end if
+end sub
+
 function routeMoviesFocus(dx as Integer, dy as Integer) as Boolean
     if m.focusItems.count() = 0 then return false
     current = m.focusItems[m.focusIndex]
     action = ""
     if current.doesExist("action") then action = current.action
+    if action <> "movie" then m.focusArea = "normal"
 
     if action = "search" and dy > 0 then
         pIndex = findMovieFocusByRowCol(1, 1)
@@ -308,13 +425,39 @@ function routeMoviesFocus(dx as Integer, dy as Integer) as Boolean
         if dy > 0 then
             mIndex = findMovieFocusByRowCol(8, 1)
             if mIndex < 0 then mIndex = findMovieFocusByRowCol(4, 1)
-            if mIndex >= 0 then m.focusIndex = mIndex : return true
+            if mIndex >= 0 then
+                m.selectedMovieIndex = m.movieWindowStart
+                m.focusArea = "movies"
+                m.focusIndex = mIndex
+                return true
+            end if
         end if
     end if
 
-    if action = "movie" and dy < 0 then
-        fIndex = findMovieFocusAction("watch")
-        if fIndex >= 0 then m.focusIndex = fIndex : return true
+    if action = "movie" then
+        visible = filteredMovies()
+        if current.doesExist("mediaIndex") then m.selectedMovieIndex = current.mediaIndex
+        if dx < 0 and m.selectedMovieIndex > 0 then
+            m.selectedMovieIndex -= 1
+            m.focusArea = "movies"
+            normalizeMovieWindow(visible.count())
+            return true
+        end if
+        if dx > 0 and m.selectedMovieIndex < visible.count() - 1 then
+            m.selectedMovieIndex += 1
+            m.focusArea = "movies"
+            normalizeMovieWindow(visible.count())
+            return true
+        end if
+        if dx <> 0 then
+            m.focusArea = "normal"
+            return false
+        end if
+        if dy < 0 then
+            m.focusArea = "normal"
+            fIndex = findMovieFocusAction("watch")
+            if fIndex >= 0 then m.focusIndex = fIndex : return true
+        end if
     end if
 
     return false
@@ -335,6 +478,19 @@ function findMovieFocusAction(action as String) as Integer
     end for
     return -1
 end function
+
+sub syncMovieFocus()
+    if m.focusIndex < 0 or m.focusIndex >= m.focusItems.count() then return
+    item = m.focusItems[m.focusIndex]
+    action = ""
+    if item.doesExist("action") then action = item.action
+    if action = "movie" then
+        if item.doesExist("mediaIndex") then m.selectedMovieIndex = item.mediaIndex
+        m.focusArea = "movies"
+    else
+        m.focusArea = "normal"
+    end if
+end sub
 
 sub openSearchKeyboard()
     m.searchEditing = true
@@ -371,6 +527,9 @@ sub pressSearchKey()
         current += selected
     end if
     m.searchQuery = current
+    m.movieWindowStart = 0
+    m.selectedMovieIndex = 0
+    m.focusArea = "normal"
     render()
 end sub
 

@@ -1,6 +1,6 @@
 # IPTV App Progress
 
-Last updated: 2026-06-10
+Last updated: 2026-06-12
 
 Read this file before starting a new session. Update it only after a meaningful milestone is completed, such as finishing a screen, fixing a major workflow, committing/pushing, or changing project structure. Do not update it for every tiny visual tweak.
 
@@ -139,7 +139,7 @@ Needs future review:
 
 ### Movies Page
 
-Status: first polish pass completed, ready for Roku visual review.
+Status: first polish pass completed; backend-readiness pass started with dynamic catalog rendering.
 
 Completed:
 - Reworked Movies into the newer content-page style used by Live TV and Series.
@@ -153,6 +153,21 @@ Completed:
 - Fixed Movies category focus to match Live TV's green focus treatment, and restored rounded focus borders for the featured/movie cards using supported Roku rounded assets.
 - Confirmed `npm.cmd run check` passes.
 - Confirmed `npm.cmd run build` creates `build\roku-iptv-app.zip`.
+- Converted Movies from inline demo cards to a backend-shaped movie catalog in `components/shared/MediaData.brs`.
+- Movies now renders a four-card visible window from the filtered catalog instead of assuming the full movie list fits on screen.
+- Movie card focus can move through a larger dataset with left/right navigation while the visible card window slides.
+- Movie cards now support future `posterUrl`, `backdropUrl`, `streamUrl`, ratings, resume progress, featured flags, and playlist IDs while keeping safe local fallbacks when artwork URLs are empty.
+- Added a selected/featured backdrop hook so future backend artwork can tint the page background at low opacity without changing the approved layout skeleton.
+- Confirmed `npm.cmd run check` passes after the backend-readiness pass.
+- Confirmed `npm.cmd run build` creates `build\roku-iptv-app.zip` after the backend-readiness pass.
+- Fixed the first dynamic Movies Roku review pass: simplified the scrolling indicator, removed card-level resume bars from the movie library row, made card focus state single/clearer, and made OK on a movie promote it into the featured panel.
+- Confirmed `npm.cmd run check` and `npm.cmd run build` pass after the Movies focus/scrolling fixes.
+- Reworked the Movies scrolling affordance into a vertical scrollbar beside the movie row, removed the remaining focused-card underline that looked like a resume bar, added local seeded demo poster/backdrop images under `images/demo/`, and cleaned old test files from `build/` before creating a fresh zip.
+- Bumped manifest build version to `00037` so Roku sideload refreshes the changed Movies page.
+- Confirmed `build/` now only contains `roku-iptv-app.zip` after the final fresh build.
+- Tweaked Movies poster cards after Roku screenshot review: enlarged the poster-driven area, tightened the title/meta palette, slightly enlarged the featured poster, and bumped manifest build version to `00038`.
+- Filled the Movies card poster region with zoomed/scaled artwork, muted the movie card category/meta line so focused titles stand apart, increased selected backdrop visibility, and bumped manifest build version to `00039`.
+- Generated exact card-ratio demo artwork under `images/demo/card_art/`, wired movie cards to use those filled card images, changed the focused background to use the same card image as the focused movie, and bumped manifest build version to `00040`.
 
 Needs future review:
 - Test Movies page focus movement on actual Roku.
@@ -167,6 +182,7 @@ Screens still expected to need design pass:
 
 - `components/pages/AddPlaylistPage.brs` owns Add Playlist layout and local sidebar rendering.
 - `components/pages/SeriesPage.brs` owns the current Series page layout, genre filtering, and search keyboard.
+- `components/shared/MediaData.brs` owns backend-shaped mock movie data for the dynamic Movies page until real backend or playlist parsing replaces it.
 - `components/shared/AppUi.brs` owns the shared top bar and now uses `pkg:/images/logo_full_dark_modified.png`.
 - Roku manifest app-view assets are `images/icon_focus_hd.png`, `images/icon_side_hd.png`, and `images/splash_screen_hd.png`.
 - `components/shared/AppUi.brs` has a `noFocusShift` option so selected controls can stay still on focus.

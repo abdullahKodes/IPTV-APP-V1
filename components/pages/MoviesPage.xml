@@ -10,5 +10,6 @@
     <function name="refreshClock" />
   </interface>
   <script type="text/brightscript" uri="pkg:/components/shared/AppUi.brs" />
+  <script type="text/brightscript" uri="pkg:/components/shared/MediaData.brs" />
   <script type="text/brightscript" uri="pkg:/components/pages/MoviesPage.brs" />
 </component>
