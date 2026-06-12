@@ -39,6 +39,7 @@ sub move(dx as Integer, dy as Integer)
 end sub
 
 sub activate()
+    if m.focusIndex < 0 or m.focusIndex >= m.focusItems.count() then return
     item = m.focusItems[m.focusIndex]
     if item.page <> invalid and item.page <> "" then m.top.navigateTo = item.page : return
     if item.action = "search" then openSearchKeyboard() : return
@@ -223,14 +224,16 @@ sub drawFeatured(movie as Object, row as Integer)
     drawFeaturedPoster(movie, 278, 227, 92, 142)
     uiPoster(m.canvas, "pkg:/images/ui/movie_featured_badge_100x34_purpleDeep.png", 404, 226, 100, 34)
     uiLabel(m.canvas, "Featured", 404, 230, 100, 24, 12, labelColor, "center")
-    uiLabel(m.canvas, movie.title, 404, 258, 300, 30, 20, titleColor)
-    uiLabel(m.canvas, movie.year + " - " + movie.duration + " - " + movie.genre, 404, 290, 430, 24, 13, subColor)
+    title = movieText(movie, "title", "Untitled")
+    meta = movieText(movie, "year") + " - " + movieText(movie, "duration") + " - " + movieText(movie, "genre")
+    uiLabel(m.canvas, title, 404, 258, 300, 30, 20, titleColor)
+    uiLabel(m.canvas, meta, 404, 290, 430, 24, 13, subColor)
     uiPoster(m.canvas, buttonUri, 404, 324, 140, 40)
     uiLabel(m.canvas, "Watch now", 414, 329, 120, 28, 12, buttonText, "center")
 
     m.focusItems.push({
         x: 404, y: 324, w: 140, h: 40,
-        icon: "", label: movie.title, subtitle: "Featured",
+        icon: "", label: title, subtitle: "Featured",
         iconSize: 1, titleSize: 1, subSize: 1,
         bg: m.colors.panel, border: m.colors.whiteSoft, textColor: m.colors.text, subColor: m.colors.textDim,
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
@@ -250,18 +253,21 @@ sub drawMovieCard(movie as Object, mediaIndex as Integer, sourceIndex as Integer
     if focused then
         titleColor = m.colors.textGreen
     end if
+    title = movieText(movie, "title", "Untitled")
+    meta = movieText(movie, "genre") + " - " + movieText(movie, "duration")
 
     bgUri = "pkg:/images/demo/frames/movie_tile_wide_normal.png"
     if focused then bgUri = "pkg:/images/demo/frames/movie_tile_wide_focus.png"
     uiPoster(m.canvas, bgUri, x, y, w, h)
     drawMoviePoster(movie, x + 3, y + 3, w - 6, 128)
     uiRect(m.canvas, x + 12, y + 136, w - 24, 1, "0xFFFFFF12", 0.72)
-    uiLabel(m.canvas, movie.title, x + 14, y + 142, w - 28, 20, 9, titleColor)
-    uiLabel(m.canvas, movie.genre + " - " + movie.duration, x + 14, y + 162, w - 28, 18, 6, metaColor)
+    uiLabel(m.canvas, title, x + 14, y + 142, w - 28, 20, 9, titleColor)
+    uiLabel(m.canvas, meta, x + 14, y + 162, w - 28, 18, 6, metaColor)
+    drawMovieCardBorder(x, y, w, h, focused)
 
     m.focusItems.push({
         x: x, y: y, w: w, h: h,
-        icon: "", label: movie.title, subtitle: movie.genre,
+        icon: "", label: title, subtitle: movieText(movie, "genre"),
         iconSize: 14, titleSize: 13, subSize: 9,
         bg: m.colors.panel, border: "0xFFFFFF12", textColor: titleColor, subColor: metaColor,
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
@@ -281,13 +287,18 @@ sub drawMoviePoster(movie as Object, x as Integer, y as Integer, w as Integer, h
         iconX = x + Int((w - iconW) / 2)
         iconY = y + Int((h - iconH) / 2) - 6
         uiPoster(m.canvas, "pkg:/images/icons/movie_cards.png", iconX, iconY, iconW, iconH)
-        uiLabel(m.canvas, movie.year, x + 16, y + h - 24, w - 32, 18, 8, m.colors.textMuted, "center")
+        uiLabel(m.canvas, movieText(movie, "year"), x + 16, y + h - 24, w - 32, 18, 8, m.colors.textMuted, "center")
     end if
 end sub
 
+sub drawMovieCardBorder(x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean)
+    borderUri = "pkg:/images/demo/frames/movie_tile_wide_border_normal.png"
+    if focused then borderUri = "pkg:/images/demo/frames/movie_tile_wide_border_focus.png"
+    uiPoster(m.canvas, borderUri, x, y, w, h)
+end sub
+
 sub drawFeaturedPoster(movie as Object, x as Integer, y as Integer, w as Integer, h as Integer)
-    posterUrl = ""
-    if movie.doesExist("posterUrl") then posterUrl = movie.posterUrl
+    posterUrl = movieText(movie, "posterUrl")
     if posterUrl <> "" then
         poster = uiPoster(m.canvas, posterUrl, x - 4, y - 4, w + 8, h + 8)
         poster.loadDisplayMode = "scaleToZoom"
@@ -313,9 +324,28 @@ sub drawSelectedBackdrop(visible as Object)
 end sub
 
 function movieCardUrl(movie as Object) as String
-    if movie.doesExist("cardUrl") and movie.cardUrl <> "" then return movie.cardUrl
-    if movie.doesExist("posterUrl") and movie.posterUrl <> "" then return movie.posterUrl
+    cardUrl = movieText(movie, "cardUrl")
+    if cardUrl <> "" then return cardUrl
+    posterUrl = movieText(movie, "posterUrl")
+    if posterUrl <> "" then return posterUrl
     return ""
+end function
+
+function movieText(movie as Dynamic, key as String, fallback = "" as String) as String
+    if movie = invalid then return fallback
+    if not movie.doesExist(key) then return fallback
+    value = movie[key]
+    if value = invalid then return fallback
+    valueType = type(value)
+    if valueType = "String" or valueType = "roString" then return value
+    if valueType = "Integer" or valueType = "roInt" or valueType = "LongInteger" or valueType = "roLongInteger" or valueType = "Float" or valueType = "roFloat" or valueType = "Double" or valueType = "roDouble" then return value.toStr()
+    return fallback
+end function
+
+function movieFlag(movie as Dynamic, key as String) as Boolean
+    if movie = invalid then return false
+    if not movie.doesExist(key) then return false
+    return movie[key] = true
 end function
 
 function selectedMovieForBackdrop(visible as Object) as Dynamic
@@ -341,7 +371,7 @@ function featuredMovie(visible = invalid as Dynamic) as Object
     if m.featuredMovieIndex >= 0 and m.featuredMovieIndex < m.movies.count() then return m.movies[m.featuredMovieIndex]
     for i = 0 to m.movies.count() - 1
         movie = m.movies[i]
-        if movie.doesExist("featured") and movie.featured then return movie
+        if movieFlag(movie, "featured") then return movie
     end for
     return m.movies[0]
 end function
@@ -364,9 +394,9 @@ function filteredMovies() as Object
     query = LCase(m.searchQuery)
     for i = 0 to m.movies.count() - 1
         movie = m.movies[i]
-        searchable = LCase(movie.title + " " + movie.genre + " " + movie.year + " " + movie.rating)
+        searchable = LCase(movieText(movie, "title") + " " + movieText(movie, "genre") + " " + movieText(movie, "year") + " " + movieText(movie, "rating"))
         matchSearch = (query = "") or (Instr(1, searchable, query) > 0)
-        matchGenre = (m.selectedGenre = "All") or (Instr(1, LCase(movie.genre), LCase(m.selectedGenre)) > 0)
+        matchGenre = (m.selectedGenre = "All") or (Instr(1, LCase(movieText(movie, "genre")), LCase(m.selectedGenre)) > 0)
         if matchSearch and matchGenre then
             res.push({ movie: movie, index: i })
         end if
@@ -527,8 +557,10 @@ sub pressSearchKey()
     else if selected = "DEL" then
         if current.len() > 0 then current = current.left(current.len() - 1)
     else if selected = "SPACE" then
+        if current.len() >= 64 then return
         current += " "
     else
+        if current.len() >= 64 then return
         current += selected
     end if
     m.searchQuery = current

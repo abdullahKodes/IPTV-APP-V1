@@ -240,6 +240,7 @@ function uiButton(parent as Object, item as Object, focused as Boolean) as Objec
             mode = "row"
         end if
     end if
+    if mode = "manual" then return g
 
     thin = false
     if item.doesExist("thin") then thin = item.thin
