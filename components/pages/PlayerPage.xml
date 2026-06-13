@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<component name="MoviesPage" extends="Group">
+<component name="PlayerPage" extends="Group">
   <children>
-    <!-- Movies renders genre filters, featured movie panel, ratings, and movie grid. -->
-    <Group id="moviesCanvas" />
+    <Video id="playerVideo" />
+    <Group id="playerCanvas" />
   </children>
   <interface>
     <field id="navigateTo" type="string" alwaysNotify="true" />
     <field id="playbackTitle" type="string" />
     <field id="playbackSubtitle" type="string" />
-    <field id="playbackUrl" type="string" />
+    <field id="playbackUrl" type="string" alwaysNotify="true" />
     <field id="playbackFormat" type="string" />
     <field id="playbackPosterUrl" type="string" />
     <field id="returnPage" type="string" />
@@ -16,6 +16,5 @@
     <function name="refreshClock" />
   </interface>
   <script type="text/brightscript" uri="pkg:/components/shared/AppUi.brs" />
-  <script type="text/brightscript" uri="pkg:/components/shared/MediaData.brs" />
-  <script type="text/brightscript" uri="pkg:/components/pages/MoviesPage.brs" />
+  <script type="text/brightscript" uri="pkg:/components/pages/PlayerPage.brs" />
 </component>

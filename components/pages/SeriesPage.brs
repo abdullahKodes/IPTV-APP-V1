@@ -46,7 +46,22 @@ sub activate()
     if item.page <> invalid and item.page <> "" then m.top.navigateTo = item.page : return
     if item.action = "search" then openSearchKeyboard() : return
     if item.action = "genre" then m.selectedGenre = item.label : resetSeriesWindow() : render() : return
-    if item.action = "series" then m.selectedSeriesIndex = item.mediaIndex : m.focusArea = "series" : render() : return
+    if item.action = "play" then playSeries(m.series[item.sourceIndex]) : return
+    if item.action = "series" then playSeries(m.series[item.sourceIndex]) : return
+end sub
+
+sub playSeries(series as Object)
+    if series = invalid then return
+    subtitle = seriesText(series, "seasons")
+    episode = seriesText(series, "activeEpisodeTitle")
+    if episode <> "" then subtitle = episode + " - " + subtitle
+    m.top.playbackTitle = seriesText(series, "title", "Demo Video")
+    m.top.playbackSubtitle = subtitle
+    m.top.playbackUrl = mediaPlaybackUrl(series)
+    m.top.playbackFormat = mediaPlaybackFormat(series)
+    m.top.playbackPosterUrl = seriesCardUrl(series)
+    m.top.returnPage = "SeriesPage"
+    m.top.navigateTo = "PlayerPage"
 end sub
 
 sub render()
@@ -79,10 +94,10 @@ sub render()
         slot = 0
         for i = m.seriesWindowStart to endIndex
             rowData = visible[i]
-            drawMediaCard(rowData.series, i, rowData.index, 244 + slot * 212, 402, 200, 190, 3, slot + 1)
+            drawMediaCard(rowData.series, i, rowData.index, 244 + slot * 212, 402, 200, 202, 3, slot + 1)
             slot += 1
         end for
-        drawSeriesScrollbar(visible.count(), 1130, 402, 190)
+        drawSeriesScrollbar(visible.count(), 1130, 402, 202)
     end if
     if visible.count() = 0 then
         uiLabel(m.canvas, "No series found", 244, 430, 746, 28, 15, m.colors.textDim, "center")
@@ -219,7 +234,7 @@ sub drawResumeSeriesCards()
         drawContinueCard(rowData.series, rowData.index, i, 244 + slot * 432, 194, 410, 136, 2, slot + 1)
         slot += 1
     end for
-    drawResumeScrollbar(maxCards, 1100, 194, 136)
+    drawResumeScrollbar(maxCards, 1130, 194, 136)
 end sub
 
 sub drawContinueCard(series as Object, sourceIndex as Integer, resumeIndex as Integer, x as Integer, y as Integer, w as Integer, h as Integer, row as Integer, col as Integer)
@@ -256,7 +271,7 @@ sub drawContinueCard(series as Object, sourceIndex as Integer, resumeIndex as In
     uiLabel(m.canvas, title, x + 116, y + 20, w - 138, 28, 17, textColor)
     uiLabel(m.canvas, meta, x + 116, y + 52, w - 138, 22, 11, subColor)
     uiPoster(m.canvas, buttonUri, x + 116, y + 84, 126, 34)
-    uiLabel(m.canvas, "Watch now", x + 123, y + 88, 112, 24, 11, "0xFFFFFFFF", "center")
+    uiLabel(m.canvas, "Watch now", x + 123, y + 89, 112, 20, 8, "0xFFFFFFFF", "center")
 
     m.focusItems.push({
         x: x, y: y, w: w, h: h,
@@ -304,8 +319,8 @@ sub drawMediaCard(series as Object, mediaIndex as Integer, sourceIndex as Intege
     title = seriesText(series, "title", "Untitled")
     meta = seriesText(series, "seasons")
     if meta = "" then meta = seriesText(series, "episodeCount")
-    uiLabel(m.canvas, title, x + 14, y + 142, w - 28, 20, 9, textColor)
-    uiLabel(m.canvas, meta, x + 14, y + 162, w - 28, 18, 6, metaColor)
+    uiLabel(m.canvas, title, x + 14, y + 143, w - 28, 22, 10, textColor)
+    uiLabel(m.canvas, meta, x + 14, y + 167, w - 28, 20, 7, metaColor)
     drawSeriesCardBorder(x, y, w, h, focused)
 
     m.focusItems.push({
@@ -325,7 +340,7 @@ sub drawSeriesCardBorder(x as Integer, y as Integer, w as Integer, h as Integer,
     opacity = 0.9
     if focused then
         borderColor = m.colors.greenFocus
-        thickness = 2
+        thickness = 1
         opacity = 1.0
     end if
     uiRectBorder(m.canvas, x, y, w, h, borderColor, thickness, opacity)
@@ -446,7 +461,7 @@ end sub
 
 sub drawResumeScrollbar(total as Integer, x as Integer, y as Integer, h as Integer)
     if total <= m.resumeWindowSize then return
-    uiRect(m.canvas, x, y, 3, h, "0xFFFFFF18", 0.72)
+    uiVerticalPill(m.canvas, x, y, 4, h, "0xFFFFFF18", "pkg:/images/ui/scroll_cap_4_whiteLine.png", 0.56)
     maxStart = total - m.resumeWindowSize
     if maxStart < 1 then maxStart = 1
     thumbH = Int(h * m.resumeWindowSize / total)
@@ -454,12 +469,12 @@ sub drawResumeScrollbar(total as Integer, x as Integer, y as Integer, h as Integ
     if thumbH > h then thumbH = h
     thumbY = y
     if h > thumbH then thumbY = y + Int((h - thumbH) * m.resumeWindowStart / maxStart)
-    uiRect(m.canvas, x - 2, thumbY, 7, thumbH, m.colors.greenFocus, 0.9)
+    uiVerticalPill(m.canvas, x - 1, thumbY, 6, thumbH, m.colors.greenFocus, "pkg:/images/ui/scroll_cap_6_greenFocus.png", 0.92)
 end sub
 
 sub drawSeriesScrollbar(total as Integer, x as Integer, y as Integer, h as Integer)
     if total <= m.seriesWindowSize then return
-    uiRect(m.canvas, x, y, 4, h, "0xFFFFFF18", 0.72)
+    uiVerticalPill(m.canvas, x, y, 4, h, "0xFFFFFF18", "pkg:/images/ui/scroll_cap_4_whiteLine.png", 0.56)
     maxStart = total - m.seriesWindowSize
     if maxStart < 1 then maxStart = 1
     thumbH = Int(h * m.seriesWindowSize / total)
@@ -467,7 +482,7 @@ sub drawSeriesScrollbar(total as Integer, x as Integer, y as Integer, h as Integ
     if thumbH > h then thumbH = h
     thumbY = y
     if h > thumbH then thumbY = y + Int((h - thumbH) * m.seriesWindowStart / maxStart)
-    uiRect(m.canvas, x - 2, thumbY, 8, thumbH, m.colors.greenFocus, 0.9)
+    uiVerticalPill(m.canvas, x - 1, thumbY, 6, thumbH, m.colors.greenFocus, "pkg:/images/ui/scroll_cap_6_greenFocus.png", 0.92)
 end sub
 
 sub resetSeriesWindow()

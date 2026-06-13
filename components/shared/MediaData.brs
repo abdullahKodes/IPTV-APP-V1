@@ -1,3 +1,19 @@
+function demoPlaybackUrl() as String
+    return "https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8"
+end function
+
+function mediaPlaybackUrl(item as Dynamic) as String
+    if item <> invalid and item.doesExist("streamUrl") and item.streamUrl <> invalid and item.streamUrl <> "" then return item.streamUrl
+    if item <> invalid and item.doesExist("videoUrl") and item.videoUrl <> invalid and item.videoUrl <> "" then return item.videoUrl
+    if item <> invalid and item.doesExist("playbackUrl") and item.playbackUrl <> invalid and item.playbackUrl <> "" then return item.playbackUrl
+    return demoPlaybackUrl()
+end function
+
+function mediaPlaybackFormat(item as Dynamic) as String
+    if item <> invalid and item.doesExist("streamFormat") and item.streamFormat <> invalid and item.streamFormat <> "" then return item.streamFormat
+    return "hls"
+end function
+
 function mockMovieCatalog() as Object
     return [
         {
@@ -11,7 +27,8 @@ function mockMovieCatalog() as Object
             posterUrl: "pkg:/images/demo/posters/inception.jpg",
             cardUrl: "pkg:/images/demo/card_fill/inception.jpg",
             backdropUrl: "pkg:/images/demo/backdrops/inception.jpg",
-            streamUrl: "",
+            streamUrl: demoPlaybackUrl(),
+            streamFormat: "hls",
             resumePercent: 0,
             featured: false,
             accent: "green"
@@ -27,7 +44,8 @@ function mockMovieCatalog() as Object
             posterUrl: "pkg:/images/demo/posters/dark_knight.jpg",
             cardUrl: "pkg:/images/demo/card_fill/dark_knight.jpg",
             backdropUrl: "pkg:/images/demo/backdrops/dark_knight.jpg",
-            streamUrl: "",
+            streamUrl: demoPlaybackUrl(),
+            streamFormat: "hls",
             resumePercent: 0,
             featured: false,
             accent: "purple"
@@ -43,7 +61,8 @@ function mockMovieCatalog() as Object
             posterUrl: "pkg:/images/demo/posters/get_out.jpg",
             cardUrl: "pkg:/images/demo/card_fill/get_out.jpg",
             backdropUrl: "pkg:/images/demo/backdrops/get_out.jpg",
-            streamUrl: "",
+            streamUrl: demoPlaybackUrl(),
+            streamFormat: "hls",
             resumePercent: 38,
             featured: false,
             accent: "green"
@@ -59,7 +78,8 @@ function mockMovieCatalog() as Object
             posterUrl: "pkg:/images/demo/posters/dune_part_two.jpg",
             cardUrl: "pkg:/images/demo/card_fill/dune_part_two.jpg",
             backdropUrl: "pkg:/images/demo/backdrops/dune_part_two.jpg",
-            streamUrl: "",
+            streamUrl: demoPlaybackUrl(),
+            streamFormat: "hls",
             resumePercent: 0,
             featured: true,
             accent: "purple"
@@ -75,7 +95,8 @@ function mockMovieCatalog() as Object
             posterUrl: "pkg:/images/demo/posters/inside_out_two.jpg",
             cardUrl: "pkg:/images/demo/card_fill/inside_out_two.jpg",
             backdropUrl: "pkg:/images/demo/backdrops/inside_out_two.jpg",
-            streamUrl: "",
+            streamUrl: demoPlaybackUrl(),
+            streamFormat: "hls",
             resumePercent: 0,
             featured: false,
             accent: "green"
@@ -91,7 +112,8 @@ function mockMovieCatalog() as Object
             posterUrl: "pkg:/images/demo/posters/fall_guy.jpg",
             cardUrl: "pkg:/images/demo/card_fill/fall_guy.jpg",
             backdropUrl: "pkg:/images/demo/backdrops/fall_guy.jpg",
-            streamUrl: "",
+            streamUrl: demoPlaybackUrl(),
+            streamFormat: "hls",
             resumePercent: 14,
             featured: false,
             accent: "purple"
@@ -107,7 +129,8 @@ function mockMovieCatalog() as Object
             posterUrl: "pkg:/images/demo/posters/arrival.jpg",
             cardUrl: "pkg:/images/demo/card_fill/arrival.jpg",
             backdropUrl: "pkg:/images/demo/backdrops/arrival.jpg",
-            streamUrl: "",
+            streamUrl: demoPlaybackUrl(),
+            streamFormat: "hls",
             resumePercent: 0,
             featured: false,
             accent: "green"
@@ -123,7 +146,8 @@ function mockMovieCatalog() as Object
             posterUrl: "pkg:/images/demo/posters/mad_max_fury_road.jpg",
             cardUrl: "pkg:/images/demo/card_fill/mad_max_fury_road.jpg",
             backdropUrl: "pkg:/images/demo/backdrops/mad_max_fury_road.jpg",
-            streamUrl: "",
+            streamUrl: demoPlaybackUrl(),
+            streamFormat: "hls",
             resumePercent: 66,
             featured: false,
             accent: "purple"
@@ -139,7 +163,8 @@ function mockMovieCatalog() as Object
             posterUrl: "pkg:/images/demo/posters/spiderverse.jpg",
             cardUrl: "pkg:/images/demo/card_fill/spiderverse.jpg",
             backdropUrl: "pkg:/images/demo/backdrops/spiderverse.jpg",
-            streamUrl: "",
+            streamUrl: demoPlaybackUrl(),
+            streamFormat: "hls",
             resumePercent: 0,
             featured: false,
             accent: "green"
@@ -155,7 +180,8 @@ function mockMovieCatalog() as Object
             posterUrl: "pkg:/images/demo/posters/knives_out.jpg",
             cardUrl: "pkg:/images/demo/card_fill/knives_out.jpg",
             backdropUrl: "pkg:/images/demo/backdrops/knives_out.jpg",
-            streamUrl: "",
+            streamUrl: demoPlaybackUrl(),
+            streamFormat: "hls",
             resumePercent: 0,
             featured: false,
             accent: "purple"
@@ -177,7 +203,8 @@ function mockSeriesCatalog() as Object
             posterUrl: "pkg:/images/demo/posters/get_out.jpg",
             cardUrl: "pkg:/images/demo/card_fill/get_out.jpg",
             backdropUrl: "pkg:/images/demo/backdrops/get_out.jpg",
-            streamUrl: "",
+            streamUrl: demoPlaybackUrl(),
+            streamFormat: "hls",
             activeEpisodeTitle: "S3 - E7",
             progressText: "22 min left",
             resumePercent: 70,
@@ -196,7 +223,8 @@ function mockSeriesCatalog() as Object
             posterUrl: "pkg:/images/demo/posters/inception.jpg",
             cardUrl: "pkg:/images/demo/card_fill/inception.jpg",
             backdropUrl: "pkg:/images/demo/backdrops/inception.jpg",
-            streamUrl: "",
+            streamUrl: demoPlaybackUrl(),
+            streamFormat: "hls",
             activeEpisodeTitle: "S4 - E2",
             progressText: "31 min left",
             resumePercent: 52,
@@ -215,7 +243,8 @@ function mockSeriesCatalog() as Object
             posterUrl: "pkg:/images/demo/posters/arrival.jpg",
             cardUrl: "pkg:/images/demo/card_fill/arrival.jpg",
             backdropUrl: "pkg:/images/demo/backdrops/arrival.jpg",
-            streamUrl: "",
+            streamUrl: demoPlaybackUrl(),
+            streamFormat: "hls",
             activeEpisodeTitle: "",
             progressText: "",
             resumePercent: 0,
@@ -234,7 +263,8 @@ function mockSeriesCatalog() as Object
             posterUrl: "pkg:/images/demo/posters/dune_part_two.jpg",
             cardUrl: "pkg:/images/demo/card_fill/dune_part_two.jpg",
             backdropUrl: "pkg:/images/demo/backdrops/dune_part_two.jpg",
-            streamUrl: "",
+            streamUrl: demoPlaybackUrl(),
+            streamFormat: "hls",
             activeEpisodeTitle: "S2 - E3",
             progressText: "44 min left",
             resumePercent: 30,
@@ -253,7 +283,8 @@ function mockSeriesCatalog() as Object
             posterUrl: "pkg:/images/demo/posters/dark_knight.jpg",
             cardUrl: "pkg:/images/demo/card_fill/dark_knight.jpg",
             backdropUrl: "pkg:/images/demo/backdrops/dark_knight.jpg",
-            streamUrl: "",
+            streamUrl: demoPlaybackUrl(),
+            streamFormat: "hls",
             activeEpisodeTitle: "",
             progressText: "",
             resumePercent: 0,
@@ -272,7 +303,8 @@ function mockSeriesCatalog() as Object
             posterUrl: "pkg:/images/demo/posters/inside_out_two.jpg",
             cardUrl: "pkg:/images/demo/card_fill/inside_out_two.jpg",
             backdropUrl: "pkg:/images/demo/backdrops/inside_out_two.jpg",
-            streamUrl: "",
+            streamUrl: demoPlaybackUrl(),
+            streamFormat: "hls",
             activeEpisodeTitle: "",
             progressText: "",
             resumePercent: 0,
@@ -291,7 +323,8 @@ function mockSeriesCatalog() as Object
             posterUrl: "pkg:/images/demo/posters/mad_max_fury_road.jpg",
             cardUrl: "pkg:/images/demo/card_fill/mad_max_fury_road.jpg",
             backdropUrl: "pkg:/images/demo/backdrops/mad_max_fury_road.jpg",
-            streamUrl: "",
+            streamUrl: demoPlaybackUrl(),
+            streamFormat: "hls",
             activeEpisodeTitle: "",
             progressText: "",
             resumePercent: 0,
@@ -310,7 +343,8 @@ function mockSeriesCatalog() as Object
             posterUrl: "pkg:/images/demo/posters/knives_out.jpg",
             cardUrl: "pkg:/images/demo/card_fill/knives_out.jpg",
             backdropUrl: "pkg:/images/demo/backdrops/knives_out.jpg",
-            streamUrl: "",
+            streamUrl: demoPlaybackUrl(),
+            streamFormat: "hls",
             activeEpisodeTitle: "",
             progressText: "",
             resumePercent: 0,

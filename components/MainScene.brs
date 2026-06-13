@@ -2,6 +2,7 @@ sub init()
     m.colors = appColors()
     m.currentPage = invalid
     m.currentPageName = ""
+    m.pendingPlayback = invalid
     m.pageHost = m.top.findNode("pageHost")
     m.top.backgroundColor = m.colors.bg
     m.top.setFocus(true)
@@ -26,6 +27,14 @@ sub showPage(componentName as String)
     m.currentPageName = componentName
     m.currentPage = CreateObject("roSGNode", componentName)
     m.currentPage.observeField("navigateTo", "onPageNavigation")
+    if componentName = "PlayerPage" and m.pendingPlayback <> invalid then
+        m.currentPage.playbackTitle = m.pendingPlayback.title
+        m.currentPage.playbackSubtitle = m.pendingPlayback.subtitle
+        m.currentPage.playbackUrl = m.pendingPlayback.url
+        m.currentPage.playbackFormat = m.pendingPlayback.streamFormat
+        m.currentPage.playbackPosterUrl = m.pendingPlayback.posterUrl
+        m.currentPage.returnPage = m.pendingPlayback.returnPage
+    end if
     m.pageHost.appendChild(m.currentPage)
     m.currentPage.setFocus(true)
 end sub
@@ -33,6 +42,16 @@ end sub
 sub onPageNavigation()
     target = m.currentPage.navigateTo
     if target <> invalid and target <> "" then
+        if target = "PlayerPage" and m.currentPage.hasField("playbackUrl") then
+            m.pendingPlayback = {
+                title: m.currentPage.playbackTitle,
+                subtitle: m.currentPage.playbackSubtitle,
+                url: m.currentPage.playbackUrl,
+                streamFormat: m.currentPage.playbackFormat,
+                posterUrl: m.currentPage.playbackPosterUrl,
+                returnPage: m.currentPage.returnPage
+            }
+        end if
         showPage(target)
     end if
 end sub

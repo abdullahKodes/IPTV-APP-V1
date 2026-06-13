@@ -6,6 +6,12 @@
   </children>
   <interface>
     <field id="navigateTo" type="string" alwaysNotify="true" />
+    <field id="playbackTitle" type="string" />
+    <field id="playbackSubtitle" type="string" />
+    <field id="playbackUrl" type="string" />
+    <field id="playbackFormat" type="string" />
+    <field id="playbackPosterUrl" type="string" />
+    <field id="returnPage" type="string" />
     <function name="handleKey" />
     <function name="refreshClock" />
   </interface>

@@ -44,7 +44,19 @@ sub activate()
     if item.page <> invalid and item.page <> "" then m.top.navigateTo = item.page : return
     if item.action = "search" then openSearchKeyboard() : return
     if item.action = "genre" then m.selectedGenre = item.label : resetMovieWindow() : render() : return
-    if item.action = "movie" then m.featuredMovieIndex = item.sourceIndex : m.selectedMovieIndex = item.mediaIndex : render() : return
+    if item.action = "watch" then playMovie(featuredMovie(filteredMovies())) : return
+    if item.action = "movie" then playMovie(m.movies[item.sourceIndex]) : return
+end sub
+
+sub playMovie(movie as Object)
+    if movie = invalid then return
+    m.top.playbackTitle = movieText(movie, "title", "Demo Video")
+    m.top.playbackSubtitle = movieText(movie, "year") + " - " + movieText(movie, "duration") + " - " + movieText(movie, "genre")
+    m.top.playbackUrl = mediaPlaybackUrl(movie)
+    m.top.playbackFormat = mediaPlaybackFormat(movie)
+    m.top.playbackPosterUrl = movieCardUrl(movie)
+    m.top.returnPage = "MoviesPage"
+    m.top.navigateTo = "PlayerPage"
 end sub
 
 sub render()
@@ -77,10 +89,10 @@ sub render()
         slot = 0
         for i = m.movieWindowStart to endIndex
             rowData = visible[i]
-            drawMovieCard(rowData.movie, i, rowData.index, 244 + slot * 222, 444, 200, 190, 4, slot + 1)
+            drawMovieCard(rowData.movie, i, rowData.index, 244 + slot * 222, 444, 200, 202, 4, slot + 1)
             slot += 1
         end for
-        drawMovieScrollbar(visible.count(), 1130, 444, 190)
+        drawMovieScrollbar(visible.count(), 1130, 444, 202)
     end if
     if visible.count() = 0 then
         uiLabel(m.canvas, "No movies found", 244, 478, 746, 28, 15, m.colors.textDim, "center")
@@ -260,8 +272,8 @@ sub drawMovieCard(movie as Object, mediaIndex as Integer, sourceIndex as Integer
     if focused then uiRect(m.canvas, x, y, w, h, m.colors.greenSoft, 0.24)
     drawMoviePoster(movie, x, y, w, 136)
     uiRect(m.canvas, x + 12, y + 136, w - 24, 1, "0xFFFFFF12", 0.72)
-    uiLabel(m.canvas, title, x + 14, y + 142, w - 28, 20, 9, titleColor)
-    uiLabel(m.canvas, meta, x + 14, y + 162, w - 28, 18, 6, metaColor)
+    uiLabel(m.canvas, title, x + 14, y + 143, w - 28, 22, 10, titleColor)
+    uiLabel(m.canvas, meta, x + 14, y + 167, w - 28, 20, 7, metaColor)
     drawMovieCardBorder(x, y, w, h, focused)
 
     m.focusItems.push({
@@ -294,7 +306,7 @@ sub drawMovieCardBorder(x as Integer, y as Integer, w as Integer, h as Integer, 
     opacity = 0.9
     if focused then
         borderColor = m.colors.greenFocus
-        thickness = 2
+        thickness = 1
         opacity = 1.0
     end if
     uiRectBorder(m.canvas, x, y, w, h, borderColor, thickness, opacity)
@@ -367,7 +379,8 @@ function featuredMovie(visible = invalid as Dynamic) as Object
         rating: "",
         posterUrl: "",
         backdropUrl: "",
-        streamUrl: "",
+        streamUrl: demoPlaybackUrl(),
+        streamFormat: "hls",
         resumePercent: 0,
         accent: "purple"
     }
@@ -381,7 +394,7 @@ end function
 
 sub drawMovieScrollbar(total as Integer, x as Integer, y as Integer, h as Integer)
     if total <= m.movieWindowSize then return
-    uiRect(m.canvas, x, y, 4, h, "0xFFFFFF18", 0.72)
+    uiVerticalPill(m.canvas, x, y, 4, h, "0xFFFFFF18", "pkg:/images/ui/scroll_cap_4_whiteLine.png", 0.56)
     maxStart = total - m.movieWindowSize
     if maxStart < 1 then maxStart = 1
     thumbH = Int(h * m.movieWindowSize / total)
@@ -389,7 +402,7 @@ sub drawMovieScrollbar(total as Integer, x as Integer, y as Integer, h as Intege
     if thumbH > h then thumbH = h
     thumbY = y
     if h > thumbH then thumbY = y + Int((h - thumbH) * m.movieWindowStart / maxStart)
-    uiRect(m.canvas, x - 2, thumbY, 8, thumbH, m.colors.greenFocus, 0.9)
+    uiVerticalPill(m.canvas, x - 1, thumbY, 6, thumbH, m.colors.greenFocus, "pkg:/images/ui/scroll_cap_6_greenFocus.png", 0.92)
 end sub
 
 function filteredMovies() as Object

@@ -71,6 +71,17 @@ sub uiRectBorder(parent as Object, x as Integer, y as Integer, w as Integer, h a
     uiRect(parent, x + w - thickness, y, thickness, h, color, opacity)
 end sub
 
+sub uiVerticalPill(parent as Object, x as Integer, y as Integer, w as Integer, h as Integer, color as String, capUri as String, opacity = 1.0 as Float)
+    if h <= w then
+        uiPoster(parent, capUri, x, y, w, h, opacity)
+        return
+    end if
+    radius = Int(w / 2)
+    uiPoster(parent, capUri, x, y, w, w, opacity)
+    uiRect(parent, x, y + radius, w, h - w, color, opacity)
+    uiPoster(parent, capUri, x, y + h - w, w, w, opacity)
+end sub
+
 function uiPoster(parent as Object, uri as String, x as Integer, y as Integer, w as Integer, h as Integer, opacity = 1.0 as Float) as Object
     node = CreateObject("roSGNode", "Poster")
     node.uri = uri
