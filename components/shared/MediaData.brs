@@ -197,9 +197,9 @@ function mockSeriesCatalog() as Object
             cardUrl: "pkg:/images/demo/card_fill/inception.jpg",
             backdropUrl: "pkg:/images/demo/backdrops/inception.jpg",
             streamUrl: "",
-            activeEpisodeTitle: "",
-            progressText: "",
-            resumePercent: 0,
+            activeEpisodeTitle: "S4 - E2",
+            progressText: "31 min left",
+            resumePercent: 52,
             featured: false,
             accent: "purple"
         },

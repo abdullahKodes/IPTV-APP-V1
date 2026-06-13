@@ -256,10 +256,9 @@ sub drawMovieCard(movie as Object, mediaIndex as Integer, sourceIndex as Integer
     title = movieText(movie, "title", "Untitled")
     meta = movieText(movie, "genre") + " - " + movieText(movie, "duration")
 
-    bgUri = "pkg:/images/demo/frames/movie_tile_wide_normal.png"
-    if focused then bgUri = "pkg:/images/demo/frames/movie_tile_wide_focus.png"
-    uiPoster(m.canvas, bgUri, x, y, w, h)
-    drawMoviePoster(movie, x + 3, y + 3, w - 6, 128)
+    uiRect(m.canvas, x, y, w, h, m.colors.panel, 0.96)
+    if focused then uiRect(m.canvas, x, y, w, h, m.colors.greenSoft, 0.24)
+    drawMoviePoster(movie, x, y, w, 136)
     uiRect(m.canvas, x + 12, y + 136, w - 24, 1, "0xFFFFFF12", 0.72)
     uiLabel(m.canvas, title, x + 14, y + 142, w - 28, 20, 9, titleColor)
     uiLabel(m.canvas, meta, x + 14, y + 162, w - 28, 18, 6, metaColor)
@@ -278,9 +277,7 @@ end sub
 sub drawMoviePoster(movie as Object, x as Integer, y as Integer, w as Integer, h as Integer)
     cardUrl = movieCardUrl(movie)
     if cardUrl <> "" then
-        poster = uiPoster(m.canvas, cardUrl, x, y, w, h)
-        poster.loadDisplayMode = "scaleToZoom"
-        uiPoster(m.canvas, "pkg:/images/demo/frames/movie_image_top_corner_mask.png", x, y, w, h)
+        uiPosterZoom(m.canvas, cardUrl, x, y, w, h)
     else
         iconW = 36
         iconH = 36
@@ -292,9 +289,15 @@ sub drawMoviePoster(movie as Object, x as Integer, y as Integer, w as Integer, h
 end sub
 
 sub drawMovieCardBorder(x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean)
-    borderUri = "pkg:/images/demo/frames/movie_tile_wide_border_normal.png"
-    if focused then borderUri = "pkg:/images/demo/frames/movie_tile_wide_border_focus.png"
-    uiPoster(m.canvas, borderUri, x, y, w, h)
+    borderColor = "0xFFFFFF18"
+    thickness = 1
+    opacity = 0.9
+    if focused then
+        borderColor = m.colors.greenFocus
+        thickness = 2
+        opacity = 1.0
+    end if
+    uiRectBorder(m.canvas, x, y, w, h, borderColor, thickness, opacity)
 end sub
 
 sub drawFeaturedPoster(movie as Object, x as Integer, y as Integer, w as Integer, h as Integer)

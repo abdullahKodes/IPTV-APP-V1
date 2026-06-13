@@ -10,6 +10,9 @@ sub init()
     m.seriesWindowStart = 0
     m.seriesWindowSize = 4
     m.selectedSeriesIndex = 0
+    m.resumeWindowStart = 0
+    m.resumeWindowSize = 2
+    m.selectedResumeIndex = 0
     m.focusArea = "normal"
     m.searchKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "SPACE", "DEL", "CLEAR", "DONE"]
     m.series = mockSeriesCatalog()
@@ -207,16 +210,25 @@ end sub
 sub drawResumeSeriesCards()
     items = resumeSeriesRows()
     maxCards = items.count()
-    if maxCards > 2 then maxCards = 2
-    for i = 0 to maxCards - 1
+    normalizeResumeWindow(maxCards)
+    endIndex = m.resumeWindowStart + m.resumeWindowSize - 1
+    if endIndex > maxCards - 1 then endIndex = maxCards - 1
+    slot = 0
+    for i = m.resumeWindowStart to endIndex
         rowData = items[i]
-        drawContinueCard(rowData.series, rowData.index, 244 + i * 432, 194, 410, 136, 2, i + 1)
+        drawContinueCard(rowData.series, rowData.index, i, 244 + slot * 432, 194, 410, 136, 2, slot + 1)
+        slot += 1
     end for
+    drawResumeScrollbar(maxCards, 1100, 194, 136)
 end sub
 
-sub drawContinueCard(series as Object, sourceIndex as Integer, x as Integer, y as Integer, w as Integer, h as Integer, row as Integer, col as Integer)
+sub drawContinueCard(series as Object, sourceIndex as Integer, resumeIndex as Integer, x as Integer, y as Integer, w as Integer, h as Integer, row as Integer, col as Integer)
     itemIndex = m.focusItems.count()
     focused = itemIndex = m.focusIndex
+    if m.focusArea = "resume" then
+        focused = resumeIndex = m.selectedResumeIndex
+        if focused then m.focusIndex = itemIndex
+    end if
     bg = m.colors.panel
     border = "0xFFFFFF12"
     textColor = m.colors.text
@@ -237,8 +249,9 @@ sub drawContinueCard(series as Object, sourceIndex as Integer, x as Integer, y a
     end if
     if meta = "" then meta = seriesText(series, "seasons")
 
-    uiPoster(m.canvas, "pkg:/images/ui/rr_500x158_panel_panel.png", x, y, w, h)
-    if focused then uiPoster(m.canvas, "pkg:/images/ui/rr_500x158_panel_purpleLine.png", x, y, w, h)
+    cardUri = "pkg:/images/ui/continue_card_410x136_panel_whiteSoft.png"
+    if focused then cardUri = "pkg:/images/ui/continue_card_410x136_panel_greenFocus.png"
+    uiPoster(m.canvas, cardUri, x, y, w, h)
     drawContinuePoster(series, x + 20, y + 17, 76, 102)
     uiLabel(m.canvas, title, x + 116, y + 20, w - 138, 28, 17, textColor)
     uiLabel(m.canvas, meta, x + 116, y + 52, w - 138, 22, 11, subColor)
@@ -253,7 +266,7 @@ sub drawContinueCard(series as Object, sourceIndex as Integer, x as Integer, y a
         titleSize: 15, subSize: 11,
         bg: bg, border: border, textColor: textColor, subColor: subColor,
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
-        row: row, col: col, page: "", action: "play", mediaIndex: sourceIndex, sourceIndex: sourceIndex, mode: "manual"
+        row: row, col: col, page: "", action: "play", mediaIndex: sourceIndex, sourceIndex: sourceIndex, resumeIndex: resumeIndex, mode: "manual"
     })
 end sub
 
@@ -284,10 +297,9 @@ sub drawMediaCard(series as Object, mediaIndex as Integer, sourceIndex as Intege
         metaColor = m.colors.textGreen
     end if
 
-    bgUri = "pkg:/images/demo/frames/movie_tile_wide_normal.png"
-    if focused then bgUri = "pkg:/images/demo/frames/movie_tile_wide_focus.png"
-    uiPoster(m.canvas, bgUri, x, y, w, h)
-    drawSeriesPoster(series, x + 2, y + 2, w - 4, 129, focused)
+    uiRect(m.canvas, x, y, w, h, m.colors.panel, 0.96)
+    if focused then uiRect(m.canvas, x, y, w, h, m.colors.greenSoft, 0.24)
+    drawSeriesPoster(series, x, y, w, 136, focused)
     uiRect(m.canvas, x + 12, y + 136, w - 24, 1, "0xFFFFFF12", 0.72)
     title = seriesText(series, "title", "Untitled")
     meta = seriesText(series, "seasons")
@@ -308,17 +320,21 @@ sub drawMediaCard(series as Object, mediaIndex as Integer, sourceIndex as Intege
 end sub
 
 sub drawSeriesCardBorder(x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean)
-    borderUri = "pkg:/images/demo/frames/movie_tile_wide_border_normal.png"
-    if focused then borderUri = "pkg:/images/demo/frames/movie_tile_wide_border_focus.png"
-    uiPoster(m.canvas, borderUri, x, y, w, h)
+    borderColor = "0xFFFFFF18"
+    thickness = 1
+    opacity = 0.9
+    if focused then
+        borderColor = m.colors.greenFocus
+        thickness = 2
+        opacity = 1.0
+    end if
+    uiRectBorder(m.canvas, x, y, w, h, borderColor, thickness, opacity)
 end sub
 
 sub drawSeriesPoster(series as Object, x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean)
     cardUrl = seriesCardUrl(series)
     if cardUrl <> "" then
-        poster = uiPoster(m.canvas, cardUrl, x, y, w, h)
-        poster.loadDisplayMode = "scaleToZoom"
-        uiPoster(m.canvas, "pkg:/images/demo/frames/movie_image_top_corner_mask.png", x, y, w, h)
+        uiPosterZoom(m.canvas, cardUrl, x, y, w, h)
     else
         iconW = 36
         iconH = 36
@@ -409,6 +425,38 @@ function resumeSeriesRows() as Object
     return res
 end function
 
+sub normalizeResumeWindow(total as Integer)
+    if total <= 0 then
+        m.resumeWindowStart = 0
+        m.selectedResumeIndex = 0
+        if m.focusArea = "resume" then m.focusArea = "normal"
+        return
+    end if
+    if m.selectedResumeIndex < 0 then m.selectedResumeIndex = 0
+    if m.selectedResumeIndex > total - 1 then m.selectedResumeIndex = total - 1
+    if m.resumeWindowStart < 0 then m.resumeWindowStart = 0
+    maxStart = total - m.resumeWindowSize
+    if maxStart < 0 then maxStart = 0
+    if m.resumeWindowStart > maxStart then m.resumeWindowStart = maxStart
+    if m.selectedResumeIndex < m.resumeWindowStart then m.resumeWindowStart = m.selectedResumeIndex
+    if m.selectedResumeIndex >= m.resumeWindowStart + m.resumeWindowSize then
+        m.resumeWindowStart = m.selectedResumeIndex - m.resumeWindowSize + 1
+    end if
+end sub
+
+sub drawResumeScrollbar(total as Integer, x as Integer, y as Integer, h as Integer)
+    if total <= m.resumeWindowSize then return
+    uiRect(m.canvas, x, y, 3, h, "0xFFFFFF18", 0.72)
+    maxStart = total - m.resumeWindowSize
+    if maxStart < 1 then maxStart = 1
+    thumbH = Int(h * m.resumeWindowSize / total)
+    if thumbH < 36 then thumbH = 36
+    if thumbH > h then thumbH = h
+    thumbY = y
+    if h > thumbH then thumbY = y + Int((h - thumbH) * m.resumeWindowStart / maxStart)
+    uiRect(m.canvas, x - 2, thumbY, 7, thumbH, m.colors.greenFocus, 0.9)
+end sub
+
 sub drawSeriesScrollbar(total as Integer, x as Integer, y as Integer, h as Integer)
     if total <= m.seriesWindowSize then return
     uiRect(m.canvas, x, y, 4, h, "0xFFFFFF18", 0.72)
@@ -454,6 +502,7 @@ function routeSeriesFocus(dx as Integer, dy as Integer) as Boolean
     action = ""
     if current.doesExist("action") then action = current.action
     if action <> "series" then m.focusArea = "normal"
+    if action = "play" then m.focusArea = "resume"
 
     if action = "search" and dy > 0 then
         pIndex = findFocusByRowCol(1, 1)
@@ -470,7 +519,12 @@ function routeSeriesFocus(dx as Integer, dy as Integer) as Boolean
             targetCol = 1
             if col > 1 then targetCol = 2
             cIndex = findFocusByRowCol(2, targetCol)
-            if cIndex >= 0 then m.focusIndex = cIndex : return true
+            if cIndex >= 0 then
+                m.selectedResumeIndex = m.resumeWindowStart + targetCol - 1
+                m.focusArea = "resume"
+                m.focusIndex = cIndex
+                return true
+            end if
             sIndex = findFocusByRowCol(3, 1)
             if sIndex >= 0 then
                 m.selectedSeriesIndex = m.seriesWindowStart
@@ -482,12 +536,40 @@ function routeSeriesFocus(dx as Integer, dy as Integer) as Boolean
     end if
 
     if action = "play" then
+        resumeItems = resumeSeriesRows()
+        if current.doesExist("resumeIndex") then m.selectedResumeIndex = current.resumeIndex
+        if dx < 0 and m.selectedResumeIndex > 0 then
+            m.selectedResumeIndex -= 1
+            m.focusArea = "resume"
+            normalizeResumeWindow(resumeItems.count())
+            return true
+        end if
+        if dx < 0 and resumeItems.count() > 0 then
+            m.selectedResumeIndex = resumeItems.count() - 1
+            m.focusArea = "resume"
+            normalizeResumeWindow(resumeItems.count())
+            return true
+        end if
+        if dx > 0 and m.selectedResumeIndex < resumeItems.count() - 1 then
+            m.selectedResumeIndex += 1
+            m.focusArea = "resume"
+            normalizeResumeWindow(resumeItems.count())
+            return true
+        end if
+        if dx > 0 and resumeItems.count() > 0 then
+            m.selectedResumeIndex = 0
+            m.focusArea = "resume"
+            normalizeResumeWindow(resumeItems.count())
+            return true
+        end if
         if dy < 0 then
+            m.focusArea = "normal"
             col = current.col
             pIndex = findFocusByRowCol(1, col)
             if pIndex >= 0 then m.focusIndex = pIndex : return true
         end if
         if dy > 0 then
+            m.focusArea = "series"
             col = current.col
             sIndex = findFocusByRowCol(3, col)
             if sIndex >= 0 then
@@ -569,6 +651,9 @@ sub syncSeriesFocus()
     if action = "series" then
         if item.doesExist("mediaIndex") then m.selectedSeriesIndex = item.mediaIndex
         m.focusArea = "series"
+    else if action = "play" then
+        if item.doesExist("resumeIndex") then m.selectedResumeIndex = item.resumeIndex
+        m.focusArea = "resume"
     else
         m.focusArea = "normal"
     end if

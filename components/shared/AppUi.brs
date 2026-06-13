@@ -64,6 +64,13 @@ function uiRect(parent as Object, x as Integer, y as Integer, w as Integer, h as
     return node
 end function
 
+sub uiRectBorder(parent as Object, x as Integer, y as Integer, w as Integer, h as Integer, color as String, thickness = 1 as Integer, opacity = 1.0 as Float)
+    uiRect(parent, x, y, w, thickness, color, opacity)
+    uiRect(parent, x, y + h - thickness, w, thickness, color, opacity)
+    uiRect(parent, x, y, thickness, h, color, opacity)
+    uiRect(parent, x + w - thickness, y, thickness, h, color, opacity)
+end sub
+
 function uiPoster(parent as Object, uri as String, x as Integer, y as Integer, w as Integer, h as Integer, opacity = 1.0 as Float) as Object
     node = CreateObject("roSGNode", "Poster")
     node.uri = uri
@@ -71,6 +78,18 @@ function uiPoster(parent as Object, uri as String, x as Integer, y as Integer, w
     node.width = w
     node.height = h
     node.opacity = opacity
+    parent.appendChild(node)
+    return node
+end function
+
+function uiPosterZoom(parent as Object, uri as String, x as Integer, y as Integer, w as Integer, h as Integer, opacity = 1.0 as Float) as Object
+    node = CreateObject("roSGNode", "Poster")
+    node.translation = [x, y]
+    node.width = w
+    node.height = h
+    node.opacity = opacity
+    node.loadDisplayMode = "scaleToZoom"
+    node.uri = uri
     parent.appendChild(node)
     return node
 end function
