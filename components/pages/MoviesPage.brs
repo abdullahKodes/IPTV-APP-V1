@@ -478,8 +478,20 @@ function routeMoviesFocus(dx as Integer, dy as Integer) as Boolean
             normalizeMovieWindow(visible.count())
             return true
         end if
+        if dx < 0 and visible.count() > 0 then
+            m.selectedMovieIndex = visible.count() - 1
+            m.focusArea = "movies"
+            normalizeMovieWindow(visible.count())
+            return true
+        end if
         if dx > 0 and m.selectedMovieIndex < visible.count() - 1 then
             m.selectedMovieIndex += 1
+            m.focusArea = "movies"
+            normalizeMovieWindow(visible.count())
+            return true
+        end if
+        if dx > 0 and visible.count() > 0 then
+            m.selectedMovieIndex = 0
             m.focusArea = "movies"
             normalizeMovieWindow(visible.count())
             return true

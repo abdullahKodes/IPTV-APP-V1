@@ -4,7 +4,16 @@
     "manifest",
     "source/**/*",
     "components/**/*",
-    "images/**/*"
+    "images/logo_full_dark_modified.png",
+    "images/icon_side_hd.png",
+    "images/icon_focus_hd.png",
+    "images/splash_screen_hd.png",
+    "images/icons/**/*",
+    "images/ui/**/*",
+    "images/demo/backdrops/**/*",
+    "images/demo/card_fill/**/*",
+    "images/demo/frames/**/*",
+    "images/demo/posters/**/*"
   ],
   "stagingDir": "build/staging",
   "outFile": "build/roku-iptv-app.zip",

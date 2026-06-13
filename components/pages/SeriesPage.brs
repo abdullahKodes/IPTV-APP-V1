@@ -2,18 +2,17 @@ sub init()
     m.colors = appColors()
     m.canvas = m.top.findNode("seriesCanvas")
     m.focusItems = []
-    m.focusIndex = 7 ' Start focus on "Series" side nav item
+    m.focusIndex = 7
     m.selectedGenre = "All"
     m.searchQuery = ""
     m.searchEditing = false
     m.searchKeyboardIndex = 0
+    m.seriesWindowStart = 0
+    m.seriesWindowSize = 4
+    m.selectedSeriesIndex = 0
+    m.focusArea = "normal"
     m.searchKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "SPACE", "DEL", "CLEAR", "DONE"]
-    m.series = [
-        { title: "Ozark", meta: "4 Seasons", genre: "Drama - Thriller", icon: "OZ" },
-        { title: "Westworld", meta: "4 Seasons", genre: "Sci-Fi - Drama", icon: "AI" },
-        { title: "The Crown", meta: "6 Seasons", genre: "Drama - History", icon: "CR" },
-        { title: "Peaky Blinders", meta: "6 Seasons", genre: "Crime - Drama", icon: "PB" }
-    ]
+    m.series = mockSeriesCatalog()
     render()
 end sub
 
@@ -34,40 +33,54 @@ end function
 sub move(dx as Integer, dy as Integer)
     if routeSeriesFocus(dx, dy) then render() : return
     m.focusIndex = uiMoveFocus(m.focusItems, m.focusIndex, dx, dy)
+    syncSeriesFocus()
     render()
 end sub
 
 sub activate()
+    if m.focusIndex < 0 or m.focusIndex >= m.focusItems.count() then return
     item = m.focusItems[m.focusIndex]
     if item.page <> invalid and item.page <> "" then m.top.navigateTo = item.page : return
     if item.action = "search" then openSearchKeyboard() : return
-    if item.action = "genre" then m.selectedGenre = item.label : render() : return
+    if item.action = "genre" then m.selectedGenre = item.label : resetSeriesWindow() : render() : return
+    if item.action = "series" then m.selectedSeriesIndex = item.mediaIndex : m.focusArea = "series" : render() : return
 end sub
 
 sub render()
     uiClear(m.canvas)
     m.focusItems = []
     uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg)
+    visible = filteredSeries()
+    normalizeSeriesWindow(visible.count())
+    drawSelectedSeriesBackdrop(visible)
     clockParts = uiTopBar(m.canvas, m.colors)
     m.clock = clockParts.clock
     m.date = clockParts.date
     refreshClock()
-    
+
     row = drawSeriesSideNav()
     drawSearchBox()
-    
     drawCategoryPills(row)
 
     uiLabel(m.canvas, "CONTINUE WATCHING", 244, 158, 300, 26, 13, m.colors.textDim)
-    drawContinueCard(244, 198, 365, "Breaking Bad", "S3 - E7 - 22 min left", 70, 2, 1)
-    drawContinueCard(640, 198, 365, "House of Dragon", "S2 - E3 - 44 min left", 30, 2, 2)
-    
-    uiLabel(m.canvas, "POPULAR SERIES", 244, 362, 250, 26, 13, m.colors.textDim)
-    visible = filteredSeries()
-    for i = 0 to visible.count() - 1
-        rowData = visible[i]
-        drawMediaCard(rowData.series, 244 + i * 212, 402, 200, 190, 3, i + 1)
-    end for
+    drawResumeSeriesCards()
+
+    sectionLabel = "POPULAR SERIES"
+    if m.selectedGenre <> "All" then sectionLabel = m.selectedGenre + " series"
+    countText = visible.count().toStr() + " titles"
+    uiLabel(m.canvas, sectionLabel, 244, 362, 250, 26, 13, m.colors.textDim)
+    uiLabel(m.canvas, countText, 824, 362, 190, 26, 12, m.colors.textDim, "right")
+    if visible.count() > 0 then
+        endIndex = m.seriesWindowStart + m.seriesWindowSize - 1
+        if endIndex > visible.count() - 1 then endIndex = visible.count() - 1
+        slot = 0
+        for i = m.seriesWindowStart to endIndex
+            rowData = visible[i]
+            drawMediaCard(rowData.series, i, rowData.index, 244 + slot * 212, 402, 200, 190, 3, slot + 1)
+            slot += 1
+        end for
+        drawSeriesScrollbar(visible.count(), 1130, 402, 190)
+    end if
     if visible.count() = 0 then
         uiLabel(m.canvas, "No series found", 244, 430, 746, 28, 15, m.colors.textDim, "center")
     end if
@@ -160,9 +173,9 @@ sub drawCategoryPills(row as Integer)
     ]
     for i = 0 to categories.count() - 1
         cat = categories[i]
-        catLabel = cat.label
-        focused = (m.focusIndex = m.focusItems.count())
-        selected = (catLabel = m.selectedGenre)
+        itemIndex = m.focusItems.count()
+        focused = itemIndex = m.focusIndex
+        selected = cat.label = m.selectedGenre
         bg = m.colors.bg
         border = m.colors.whiteLine
         textColor = m.colors.textPurple
@@ -176,13 +189,13 @@ sub drawCategoryPills(row as Integer)
             border = m.colors.greenFocus
             textColor = m.colors.text
         end if
-        
+
         uiRoundRect(m.canvas, cat.x, cat.y, cat.w, cat.h, bg, border)
-        uiLabel(m.canvas, catLabel, cat.x, cat.y + 1, cat.w, 30, 12, textColor, "center")
+        uiLabel(m.canvas, cat.label, cat.x, cat.y + 1, cat.w, 30, 12, textColor, "center")
 
         m.focusItems.push({
             x: cat.x, y: cat.y, w: cat.w, h: cat.h,
-            icon: "", label: catLabel, subtitle: "",
+            icon: "", label: cat.label, subtitle: "",
             iconSize: 1, titleSize: 12, subSize: 10,
             bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim,
             focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
@@ -191,92 +204,193 @@ sub drawCategoryPills(row as Integer)
     end for
 end sub
 
-sub drawContinueCard(x as Integer, y as Integer, w as Integer, title as String, meta as String, progress as Integer, row as Integer, col as Integer)
-    focused = (m.focusIndex = m.focusItems.count())
+sub drawResumeSeriesCards()
+    items = resumeSeriesRows()
+    maxCards = items.count()
+    if maxCards > 2 then maxCards = 2
+    for i = 0 to maxCards - 1
+        rowData = items[i]
+        drawContinueCard(rowData.series, rowData.index, 244 + i * 432, 194, 410, 136, 2, i + 1)
+    end for
+end sub
+
+sub drawContinueCard(series as Object, sourceIndex as Integer, x as Integer, y as Integer, w as Integer, h as Integer, row as Integer, col as Integer)
+    itemIndex = m.focusItems.count()
+    focused = itemIndex = m.focusIndex
     bg = m.colors.panel
     border = "0xFFFFFF12"
     textColor = m.colors.text
     subColor = m.colors.textDim
-    iconBg = m.colors.purpleSoft
-    progFill = m.colors.green
+    buttonUri = "pkg:/images/ui/movie_watch_140x40_panel_greenFocus.png"
     if focused then
-        bg = m.colors.greenSoft
         border = m.colors.greenFocus
-        progFill = m.colors.greenFocus
+        buttonUri = "pkg:/images/ui/movie_watch_140x40_greenSoft_greenFocus.png"
     end if
 
-    uiRoundRect(m.canvas, x, y, w, 112, bg, border)
-    uiRoundRect(m.canvas, x + 20, y + 26, 36, 36, iconBg, iconBg)
-    uiDrawIcon(m.canvas, "play", x + 29, y + 35, 18, 18, focused, textColor, 10)
-    uiLabel(m.canvas, title, x + 74, y + 18, w - 96, 24, 15, textColor)
-    uiLabel(m.canvas, meta, x + 74, y + 46, w - 96, 20, 11, subColor)
+    title = seriesText(series, "title", "Untitled")
+    episode = seriesText(series, "activeEpisodeTitle")
+    progress = seriesText(series, "progressText")
+    meta = episode
+    if progress <> "" then
+        if meta <> "" then meta += " - "
+        meta += progress
+    end if
+    if meta = "" then meta = seriesText(series, "seasons")
 
-    progBg = "0x7F77DD44"
-    uiRect(m.canvas, x + 74, y + 82, w - 96, 4, progBg)
-    uiRect(m.canvas, x + 74, y + 82, Int((w - 96) * progress / 100), 4, progFill)
+    uiPoster(m.canvas, "pkg:/images/ui/rr_500x158_panel_panel.png", x, y, w, h)
+    if focused then uiPoster(m.canvas, "pkg:/images/ui/rr_500x158_panel_purpleLine.png", x, y, w, h)
+    drawContinuePoster(series, x + 20, y + 17, 76, 102)
+    uiLabel(m.canvas, title, x + 116, y + 20, w - 138, 28, 17, textColor)
+    uiLabel(m.canvas, meta, x + 116, y + 52, w - 138, 22, 11, subColor)
+    uiPoster(m.canvas, buttonUri, x + 116, y + 84, 126, 34)
+    uiLabel(m.canvas, "Watch now", x + 123, y + 88, 112, 24, 11, "0xFFFFFFFF", "center")
 
     m.focusItems.push({
-        x: x, y: y, w: w, h: 112,
+        x: x, y: y, w: w, h: h,
         icon: "play", label: title, subtitle: meta,
         iconSize: 13, iconW: 36, iconH: 36, iconX: 20,
         labelX: 74, labelW: w - 96, labelAlign: "left",
         titleSize: 15, subSize: 11,
         bg: bg, border: border, textColor: textColor, subColor: subColor,
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
-        row: 2, col: col, page: "", action: "play", mode: "manual"
+        row: row, col: col, page: "", action: "play", mediaIndex: sourceIndex, sourceIndex: sourceIndex, mode: "manual"
     })
 end sub
 
-sub drawMediaCard(media as Object, x as Integer, y as Integer, w as Integer, h as Integer, row as Integer, col as Integer)
-    focused = (m.focusIndex = m.focusItems.count())
+sub drawContinuePoster(series as Object, x as Integer, y as Integer, w as Integer, h as Integer)
+    posterUrl = seriesText(series, "posterUrl")
+    if posterUrl = "" then posterUrl = seriesCardUrl(series)
+    if posterUrl <> "" then
+        poster = uiPoster(m.canvas, posterUrl, x, y, w, h)
+        poster.loadDisplayMode = "scaleToZoom"
+        uiPoster(m.canvas, "pkg:/images/demo/frames/featured_poster_corner_mask.png", x, y, w, h)
+        uiPoster(m.canvas, "pkg:/images/demo/frames/featured_poster_frame_neutral.png", x, y, w, h)
+    else
+        uiRoundRect(m.canvas, x, y, w, h, m.colors.purpleSoft, m.colors.greenFocus)
+        uiDrawIcon(m.canvas, "cards_badge", x + 16, y + 28, 36, 36, false, "0xFFFFFFFF", 12)
+    end if
+end sub
+
+sub drawMediaCard(series as Object, mediaIndex as Integer, sourceIndex as Integer, x as Integer, y as Integer, w as Integer, h as Integer, row as Integer, col as Integer)
+    itemIndex = m.focusItems.count()
+    focused = itemIndex = m.focusIndex
+    if m.focusArea = "series" then
+        focused = mediaIndex = m.selectedSeriesIndex
+        if focused then m.focusIndex = itemIndex
+    end if
     textColor = m.colors.textGreen
-    subColor = m.colors.textDim
-
-    cardKey = "purple"
-    badgeBg = m.colors.purpleSoft
-    seasonColor = m.colors.textPurple
-    categoryColor = m.colors.textDim
-    if media.icon = "AI" or media.icon = "PB" then
-        cardKey = "green"
-        badgeBg = m.colors.greenSoft
-    end if
-    if media.icon = "OZ" or media.icon = "CR" then
-        badgeBg = m.colors.greenSoft
-    end if
-    stateKey = "normal"
+    metaColor = m.colors.textDim
     if focused then
-        stateKey = "focus"
-        seasonColor = m.colors.textGreen
-        categoryColor = m.colors.textGreen
+        metaColor = m.colors.textGreen
     end if
 
-    uiPoster(m.canvas, "pkg:/images/ui/series_card_poster_" + cardKey + "_" + stateKey + ".png", x, y, w, h)
-    iconW = 36
-    iconH = 36
-    iconX = x + Int((w - iconW) / 2)
-    iconY = y + 36
-    uiDrawIcon(m.canvas, "cards_badge", iconX, iconY, iconW, iconH, focused, "0xFFFFFFFF", 12)
-    uiLabel(m.canvas, media.title, x + 16, y + 112, w - 32, 24, 12, textColor)
-    uiLabel(m.canvas, media.meta, x + 16, y + 137, w - 32, 20, 8, seasonColor)
-    uiLabel(m.canvas, media.genre, x + 16, y + 160, w - 32, 22, 5, categoryColor)
+    bgUri = "pkg:/images/demo/frames/movie_tile_wide_normal.png"
+    if focused then bgUri = "pkg:/images/demo/frames/movie_tile_wide_focus.png"
+    uiPoster(m.canvas, bgUri, x, y, w, h)
+    drawSeriesPoster(series, x + 2, y + 2, w - 4, 129, focused)
+    uiRect(m.canvas, x + 12, y + 136, w - 24, 1, "0xFFFFFF12", 0.72)
+    title = seriesText(series, "title", "Untitled")
+    meta = seriesText(series, "seasons")
+    if meta = "" then meta = seriesText(series, "episodeCount")
+    uiLabel(m.canvas, title, x + 14, y + 142, w - 28, 20, 9, textColor)
+    uiLabel(m.canvas, meta, x + 14, y + 162, w - 28, 18, 6, metaColor)
+    drawSeriesCardBorder(x, y, w, h, focused)
 
     m.focusItems.push({
         x: x, y: y, w: w, h: h,
-        icon: media.icon, label: media.title, subtitle: media.meta + " - " + media.genre,
+        icon: "", label: title, subtitle: meta,
         iconSize: 17, iconW: 64, iconH: 64, iconX: Int((w - 64) / 2),
         titleSize: 14, subSize: 10,
-        bg: m.colors.panel, border: "0xFFFFFF12", textColor: textColor, subColor: categoryColor,
+        bg: m.colors.panel, border: "0xFFFFFF12", textColor: textColor, subColor: metaColor,
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
-        row: 3, col: col, page: "", action: "series", mode: "manual"
+        row: row, col: col, page: "", action: "series", mediaIndex: mediaIndex, sourceIndex: sourceIndex, mode: "manual"
     })
 end sub
 
+sub drawSeriesCardBorder(x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean)
+    borderUri = "pkg:/images/demo/frames/movie_tile_wide_border_normal.png"
+    if focused then borderUri = "pkg:/images/demo/frames/movie_tile_wide_border_focus.png"
+    uiPoster(m.canvas, borderUri, x, y, w, h)
+end sub
+
+sub drawSeriesPoster(series as Object, x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean)
+    cardUrl = seriesCardUrl(series)
+    if cardUrl <> "" then
+        poster = uiPoster(m.canvas, cardUrl, x, y, w, h)
+        poster.loadDisplayMode = "scaleToZoom"
+        uiPoster(m.canvas, "pkg:/images/demo/frames/movie_image_top_corner_mask.png", x, y, w, h)
+    else
+        iconW = 36
+        iconH = 36
+        iconX = x + Int((w - iconW) / 2)
+        iconY = y + Int((h - iconH) / 2)
+        uiDrawIcon(m.canvas, "cards_badge", iconX, iconY, iconW, iconH, focused, "0xFFFFFFFF", 12)
+        uiLabel(m.canvas, seriesText(series, "year"), x + 16, y + h - 24, w - 32, 18, 8, m.colors.textMuted, "center")
+    end if
+end sub
+
+sub drawSelectedSeriesBackdrop(visible as Object)
+    series = selectedSeriesForBackdrop(visible)
+    if series = invalid then return
+
+    bgUrl = seriesCardUrl(series)
+    if bgUrl <> "" then
+        backdrop = uiPoster(m.canvas, bgUrl, 226, 86, 1054, 634, 0.28)
+        backdrop.loadDisplayMode = "scaleToZoom"
+    end if
+    uiRect(m.canvas, 226, 86, 1054, 634, m.colors.bg, 0.68)
+end sub
+
+function selectedSeriesForBackdrop(visible as Object) as Dynamic
+    if visible.count() > 0 and m.focusArea = "series" then
+        if m.selectedSeriesIndex >= 0 and m.selectedSeriesIndex < visible.count() then return visible[m.selectedSeriesIndex].series
+    end if
+    if visible.count() > 0 then return visible[0].series
+    if m.series.count() > 0 then return m.series[0]
+    return invalid
+end function
+
+function seriesCardUrl(series as Object) as String
+    cardUrl = seriesText(series, "cardUrl")
+    if cardUrl <> "" then return cardUrl
+    posterUrl = seriesText(series, "posterUrl")
+    if posterUrl <> "" then return posterUrl
+    backdropUrl = seriesText(series, "backdropUrl")
+    if backdropUrl <> "" then return backdropUrl
+    return ""
+end function
+
+function seriesText(series as Dynamic, key as String, fallback = "" as String) as String
+    if series = invalid then return fallback
+    if not series.doesExist(key) then return fallback
+    value = series[key]
+    if value = invalid then return fallback
+    valueType = type(value)
+    if valueType = "String" or valueType = "roString" then return value
+    if valueType = "Integer" or valueType = "roInt" or valueType = "LongInteger" or valueType = "roLongInteger" or valueType = "Float" or valueType = "roFloat" or valueType = "Double" or valueType = "roDouble" then return value.toStr()
+    return fallback
+end function
+
+function seriesProgress(series as Dynamic) as Integer
+    if series = invalid then return 0
+    if not series.doesExist("resumePercent") then return 0
+    value = series.resumePercent
+    valueType = type(value)
+    if valueType <> "Integer" and valueType <> "roInteger" and valueType <> "roInt" and valueType <> "LongInteger" and valueType <> "roLongInteger" and valueType <> "roLongInt" and valueType <> "Float" and valueType <> "roFloat" and valueType <> "Double" and valueType <> "roDouble" then return 0
+    percent = Int(value)
+    if percent < 0 then percent = 0
+    if percent > 100 then percent = 100
+    return percent
+end function
+
 function filteredSeries() as Object
     res = []
+    query = LCase(m.searchQuery)
     for i = 0 to m.series.count() - 1
         s = m.series[i]
-        matchSearch = (m.searchQuery = "") or (Instr(1, LCase(s.title), LCase(m.searchQuery)) > 0)
-        matchGenre = (m.selectedGenre = "All") or (Instr(1, LCase(s.genre), LCase(m.selectedGenre)) > 0)
+        searchable = LCase(seriesText(s, "title") + " " + seriesText(s, "genre") + " " + seriesText(s, "year") + " " + seriesText(s, "rating") + " " + seriesText(s, "seasons"))
+        matchSearch = (query = "") or (Instr(1, searchable, query) > 0)
+        matchGenre = (m.selectedGenre = "All") or (Instr(1, LCase(seriesText(s, "genre")), LCase(m.selectedGenre)) > 0)
         if matchSearch and matchGenre then
             res.push({ series: s, index: i })
         end if
@@ -284,17 +398,66 @@ function filteredSeries() as Object
     return res
 end function
 
+function resumeSeriesRows() as Object
+    res = []
+    for i = 0 to m.series.count() - 1
+        s = m.series[i]
+        if seriesProgress(s) > 0 then
+            res.push({ series: s, index: i })
+        end if
+    end for
+    return res
+end function
+
+sub drawSeriesScrollbar(total as Integer, x as Integer, y as Integer, h as Integer)
+    if total <= m.seriesWindowSize then return
+    uiRect(m.canvas, x, y, 4, h, "0xFFFFFF18", 0.72)
+    maxStart = total - m.seriesWindowSize
+    if maxStart < 1 then maxStart = 1
+    thumbH = Int(h * m.seriesWindowSize / total)
+    if thumbH < 42 then thumbH = 42
+    if thumbH > h then thumbH = h
+    thumbY = y
+    if h > thumbH then thumbY = y + Int((h - thumbH) * m.seriesWindowStart / maxStart)
+    uiRect(m.canvas, x - 2, thumbY, 8, thumbH, m.colors.greenFocus, 0.9)
+end sub
+
+sub resetSeriesWindow()
+    m.seriesWindowStart = 0
+    m.selectedSeriesIndex = 0
+    m.focusArea = "normal"
+end sub
+
+sub normalizeSeriesWindow(total as Integer)
+    if total <= 0 then
+        m.seriesWindowStart = 0
+        m.selectedSeriesIndex = 0
+        if m.focusArea = "series" then m.focusArea = "normal"
+        return
+    end if
+    if m.selectedSeriesIndex < 0 then m.selectedSeriesIndex = 0
+    if m.selectedSeriesIndex > total - 1 then m.selectedSeriesIndex = total - 1
+    if m.seriesWindowStart < 0 then m.seriesWindowStart = 0
+    maxStart = total - m.seriesWindowSize
+    if maxStart < 0 then maxStart = 0
+    if m.seriesWindowStart > maxStart then m.seriesWindowStart = maxStart
+    if m.selectedSeriesIndex < m.seriesWindowStart then m.seriesWindowStart = m.selectedSeriesIndex
+    if m.selectedSeriesIndex >= m.seriesWindowStart + m.seriesWindowSize then
+        m.seriesWindowStart = m.selectedSeriesIndex - m.seriesWindowSize + 1
+    end if
+end sub
+
 function routeSeriesFocus(dx as Integer, dy as Integer) as Boolean
     if m.focusItems.count() = 0 then return false
+    if m.focusIndex < 0 or m.focusIndex >= m.focusItems.count() then m.focusIndex = 0
     current = m.focusItems[m.focusIndex]
     action = ""
     if current.doesExist("action") then action = current.action
+    if action <> "series" then m.focusArea = "normal"
 
-    if action = "search" then
-        if dy > 0 then
-            pIndex = findFocusByRowCol(1, 1)
-            if pIndex >= 0 then m.focusIndex = pIndex : return true
-        end if
+    if action = "search" and dy > 0 then
+        pIndex = findFocusByRowCol(1, 1)
+        if pIndex >= 0 then m.focusIndex = pIndex : return true
     end if
 
     if action = "genre" then
@@ -308,6 +471,13 @@ function routeSeriesFocus(dx as Integer, dy as Integer) as Boolean
             if col > 1 then targetCol = 2
             cIndex = findFocusByRowCol(2, targetCol)
             if cIndex >= 0 then m.focusIndex = cIndex : return true
+            sIndex = findFocusByRowCol(3, 1)
+            if sIndex >= 0 then
+                m.selectedSeriesIndex = m.seriesWindowStart
+                m.focusArea = "series"
+                m.focusIndex = sIndex
+                return true
+            end if
         end if
     end if
 
@@ -319,18 +489,56 @@ function routeSeriesFocus(dx as Integer, dy as Integer) as Boolean
         end if
         if dy > 0 then
             col = current.col
-            mIndex = findFocusByRowCol(3, col)
-            if mIndex >= 0 then m.focusIndex = mIndex : return true
+            sIndex = findFocusByRowCol(3, col)
+            if sIndex >= 0 then
+                m.selectedSeriesIndex = m.seriesWindowStart + col - 1
+                m.focusArea = "series"
+                m.focusIndex = sIndex
+                return true
+            end if
         end if
     end if
 
     if action = "series" then
+        visible = filteredSeries()
+        if current.doesExist("mediaIndex") then m.selectedSeriesIndex = current.mediaIndex
+        if dx < 0 and m.selectedSeriesIndex > 0 then
+            m.selectedSeriesIndex -= 1
+            m.focusArea = "series"
+            normalizeSeriesWindow(visible.count())
+            return true
+        end if
+        if dx < 0 and visible.count() > 0 then
+            m.selectedSeriesIndex = visible.count() - 1
+            m.focusArea = "series"
+            normalizeSeriesWindow(visible.count())
+            return true
+        end if
+        if dx > 0 and m.selectedSeriesIndex < visible.count() - 1 then
+            m.selectedSeriesIndex += 1
+            m.focusArea = "series"
+            normalizeSeriesWindow(visible.count())
+            return true
+        end if
+        if dx > 0 and visible.count() > 0 then
+            m.selectedSeriesIndex = 0
+            m.focusArea = "series"
+            normalizeSeriesWindow(visible.count())
+            return true
+        end if
+        if dx <> 0 then
+            m.focusArea = "normal"
+            return false
+        end if
         if dy < 0 then
+            m.focusArea = "normal"
             col = current.col
             targetCol = 1
             if col > 2 then targetCol = 2
             cIndex = findFocusByRowCol(2, targetCol)
             if cIndex >= 0 then m.focusIndex = cIndex : return true
+            pIndex = findFocusByRowCol(1, targetCol)
+            if pIndex >= 0 then m.focusIndex = pIndex : return true
         end if
     end if
 
@@ -352,6 +560,19 @@ function findFocusAction(action as String) as Integer
     end for
     return -1
 end function
+
+sub syncSeriesFocus()
+    if m.focusIndex < 0 or m.focusIndex >= m.focusItems.count() then return
+    item = m.focusItems[m.focusIndex]
+    action = ""
+    if item.doesExist("action") then action = item.action
+    if action = "series" then
+        if item.doesExist("mediaIndex") then m.selectedSeriesIndex = item.mediaIndex
+        m.focusArea = "series"
+    else
+        m.focusArea = "normal"
+    end if
+end sub
 
 sub openSearchKeyboard()
     m.searchEditing = true
@@ -383,11 +604,16 @@ sub pressSearchKey()
     else if selected = "DEL" then
         if current.len() > 0 then current = current.left(current.len() - 1)
     else if selected = "SPACE" then
+        if current.len() >= 64 then return
         current += " "
     else
+        if current.len() >= 64 then return
         current += selected
     end if
     m.searchQuery = current
+    m.seriesWindowStart = 0
+    m.selectedSeriesIndex = 0
+    m.focusArea = "normal"
     render()
 end sub
 
@@ -416,7 +642,6 @@ sub drawSearchKeyboardOverlay()
         x = startX + col * (keyW + gap)
         y = startY + row * (keyH + gap)
         keyLabel = m.searchKeys[i]
-        w = keyW
         if keyLabel = "SPACE" then keyLabel = "Space"
         if keyLabel = "DEL" then keyLabel = "Del"
         if keyLabel = "CLEAR" then keyLabel = "Clear"
@@ -428,11 +653,11 @@ sub drawSearchKeyboardOverlay()
             bg = m.colors.purpleSoft
             border = m.colors.greenFocus
         end if
-        uiRect(m.canvas, x, y, w, keyH, bg)
-        uiRect(m.canvas, x, y, w, 2, border)
-        uiRect(m.canvas, x, y + keyH - 2, w, 2, border)
+        uiRect(m.canvas, x, y, keyW, keyH, bg)
+        uiRect(m.canvas, x, y, keyW, 2, border)
+        uiRect(m.canvas, x, y + keyH - 2, keyW, 2, border)
         uiRect(m.canvas, x, y, 2, keyH, border)
-        uiRect(m.canvas, x + w - 2, y, 2, keyH, border)
-        uiLabel(m.canvas, keyLabel, x, y + 5, w, 28, 14, text, "center")
+        uiRect(m.canvas, x + keyW - 2, y, 2, keyH, border)
+        uiLabel(m.canvas, keyLabel, x, y + 5, keyW, 28, 12, text, "center")
     end for
 end sub
