@@ -5,23 +5,24 @@ sub init()
     m.overlay = m.top.findNode("liveTvOverlay")
     m.focusItems = []
     m.focusIndex = 1
+    m.focusArea = "normal"
     m.categoryIndex = 0
+    m.focusedCategoryIndex = 0
+    m.categoryWindowStart = 0
+    m.categoryWindowSize = 6
+    m.categoryColumns = 3
     m.channelIndex = 0
+    m.selectedChannelIndex = 0
+    m.channelWindowStart = 0
+    m.channelWindowSize = 6
     m.playing = true
     m.fullscreen = false
     m.searchQuery = ""
     m.searchEditing = false
     m.searchKeyboardIndex = 0
     m.searchKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "SPACE", "DEL", "CLEAR", "DONE"]
-    demoUrl = "https://roku.s.cpl.delvenetworks.com/media/59021fabe3b645968e382ac726cd6c7b/60b4a471ffb74809beb2f7d5a15b3193/roku_ep_111_segment_1_final-cc_mix_033015-a7ec8a288c4bcec001c118181c668de321108861.m3u8"
-    m.channels = [
-        { name: "ESPN HD", now: "Premier League Live", icon: "sport", live: true, category: "Sports", videoUrl: demoUrl },
-        { name: "BBC World", now: "Evening News", icon: "NW", live: false, category: "News", videoUrl: demoUrl },
-        { name: "CNN Intl", now: "Breaking News", icon: "CNN", live: false, category: "News", videoUrl: demoUrl },
-        { name: "beIN Sports", now: "La Liga Live", icon: "sport", live: true, category: "Sports", videoUrl: demoUrl },
-        { name: "MTV Hits", now: "Top 40 Charts", icon: "MTV", live: false, category: "Music", videoUrl: demoUrl },
-        { name: "Cartoon Net.", now: "Kids Shows", icon: "KD", live: false, category: "Kids", videoUrl: demoUrl }
-    ]
+    m.channels = mockLiveTvCatalog()
+    m.categories = liveCategoriesFromChannels(m.channels)
     setupVideo()
     render()
 end sub
@@ -44,16 +45,119 @@ end function
 sub move(dx as Integer, dy as Integer)
     if routeLiveFocus(dx, dy) then render() : return
     m.focusIndex = uiMoveFocus(m.focusItems, m.focusIndex, dx, dy)
+    syncLiveFocus()
     render()
 end sub
 
 function routeLiveFocus(dx as Integer, dy as Integer) as Boolean
     if m.focusItems.count() = 0 then return false
+    if m.focusIndex < 0 or m.focusIndex >= m.focusItems.count() then m.focusIndex = 0
     current = m.focusItems[m.focusIndex]
-    searchIndex = findFocusAction("search")
-    if searchIndex < 0 then return false
     action = ""
     if current.doesExist("action") then action = current.action
+
+    if action <> "channel" and action <> "cat" then m.focusArea = "normal"
+    searchIndex = findFocusAction("search")
+
+    if dx > 0 and liveItemCol(current) = 0 then
+        m.focusedCategoryIndex = m.categoryIndex
+        m.focusArea = "categories"
+        normalizeCategoryWindow()
+        categoryFocus = findCategoryFocus(m.focusedCategoryIndex)
+        if categoryFocus >= 0 then m.focusIndex = categoryFocus
+        return true
+    end if
+
+    if action = "search" then
+        if dy > 0 then
+            m.focusedCategoryIndex = m.categoryIndex
+            m.focusArea = "categories"
+            normalizeCategoryWindow()
+            return true
+        end if
+        if dx < 0 then
+            m.focusedCategoryIndex = m.categoryIndex
+            m.focusArea = "categories"
+            normalizeCategoryWindow()
+            return true
+        end if
+    end if
+
+    if action = "cat" then
+        if current.doesExist("catIndex") then m.focusedCategoryIndex = current.catIndex
+        nextCat = m.focusedCategoryIndex
+        if dx < 0 then nextCat = m.focusedCategoryIndex - 1
+        if dx > 0 then nextCat = m.focusedCategoryIndex + 1
+        if dy < 0 then nextCat = m.focusedCategoryIndex - m.categoryColumns
+        if dy > 0 then nextCat = m.focusedCategoryIndex + m.categoryColumns
+        if dx < 0 and nextCat < 0 then
+            m.focusArea = "normal"
+            m.focusIndex = 1
+            return true
+        end if
+        if dx > 0 and nextCat > m.categories.count() - 1 then
+            return true
+        end if
+        if dy > 0 and nextCat > m.categories.count() - 1 then
+            firstChannel = findChannelFocus(0)
+            if firstChannel >= 0 then
+                m.focusArea = "channels"
+                m.selectedChannelIndex = m.channelWindowStart
+                m.focusIndex = firstChannel
+                return true
+            end if
+        end if
+        if dy < 0 and nextCat < 0 then
+            if searchIndex >= 0 then
+                m.focusArea = "normal"
+                m.focusIndex = searchIndex
+                return true
+            end if
+        end if
+        if nextCat >= 0 and nextCat <= m.categories.count() - 1 then
+            m.focusedCategoryIndex = nextCat
+            m.focusArea = "categories"
+            normalizeCategoryWindow()
+            return true
+        end if
+    end if
+
+    if action = "channel" then
+        visible = filteredChannels()
+        if current.doesExist("visibleIndex") then m.selectedChannelIndex = current.visibleIndex
+        if dy < 0 and m.selectedChannelIndex > 0 then
+            m.selectedChannelIndex -= 1
+            m.focusArea = "channels"
+            normalizeChannelWindow(visible.count())
+            return true
+        end if
+        if dy > 0 and m.selectedChannelIndex < visible.count() - 1 then
+            m.selectedChannelIndex += 1
+            m.focusArea = "channels"
+            normalizeChannelWindow(visible.count())
+            return true
+        end if
+        if dy < 0 then
+            m.focusedCategoryIndex = m.categoryIndex
+            m.focusArea = "categories"
+            normalizeCategoryWindow()
+            return true
+        end if
+        if dx > 0 then
+            playIndex = findPlayerControl("playpause")
+            if playIndex >= 0 then
+                m.focusArea = "normal"
+                m.focusIndex = playIndex
+                return true
+            end if
+        end if
+        if dx < 0 then
+            m.focusedCategoryIndex = m.categoryIndex
+            m.focusArea = "categories"
+            normalizeCategoryWindow()
+            return true
+        end if
+    end if
 
     if dy < 0 and action = "playerControl" then
         control = ""
@@ -62,35 +166,32 @@ function routeLiveFocus(dx as Integer, dy as Integer) as Boolean
             playIndex = findPlayerControl("playpause")
             if playIndex >= 0 then m.focusIndex = playIndex : return true
         end if
-        m.focusIndex = searchIndex
-        return true
+        if searchIndex >= 0 then m.focusIndex = searchIndex : return true
     end if
-    if dy < 0 and action = "cat" then
-        aboveIndex = findCategoryInRow(current.row - 1, current.col)
-        if aboveIndex >= 0 then m.focusIndex = aboveIndex : return true
-        m.focusIndex = searchIndex
-        return true
+
+    if dx < 0 and action = "playerControl" then
+        visible = filteredChannels()
+        if visible.count() > 0 then
+            m.focusArea = "channels"
+            normalizeChannelWindow(visible.count())
+            channelFocus = findChannelFocus(m.selectedChannelIndex)
+            if channelFocus >= 0 then m.focusIndex = channelFocus
+            return true
+        end if
     end if
-    if dx > 0 and action = "cat" then
-        rightIndex = findCategoryInRow(current.row, current.col + 1)
-        if rightIndex >= 0 then m.focusIndex = rightIndex : return true
-        m.focusIndex = searchIndex
-        return true
-    end if
-    if action = "search" and dy > 0 then
-        categoryIndex = findCategoryFocus(m.categoryIndex)
-        if categoryIndex >= 0 then m.focusIndex = categoryIndex : return true
-    end if
-    if action = "search" and dx < 0 then
-        categoryIndex = findCategoryFocus(2)
-        if categoryIndex >= 0 then m.focusIndex = categoryIndex : return true
-    end if
+
     return false
+end function
+
+function liveItemCol(item as Object) as Integer
+    if item <> invalid and item.doesExist("col") then return item.col
+    return -1
 end function
 
 function findFocusAction(action as String) as Integer
     for i = 0 to m.focusItems.count() - 1
-        if m.focusItems[i].action = action then return i
+        item = m.focusItems[i]
+        if item.doesExist("action") and item.action = action then return i
     end for
     return -1
 end function
@@ -98,46 +199,43 @@ end function
 function findCategoryFocus(catIndex as Integer) as Integer
     for i = 0 to m.focusItems.count() - 1
         item = m.focusItems[i]
-        if item.action = "cat" and item.catIndex = catIndex then return i
+        if item.doesExist("action") and item.action = "cat" and item.catIndex = catIndex then return i
     end for
     return -1
 end function
 
-function findCategoryInRow(row as Integer, col as Integer) as Integer
-    best = -1
-    bestScore = 999999
+function findChannelFocus(visibleIndex as Integer) as Integer
     for i = 0 to m.focusItems.count() - 1
         item = m.focusItems[i]
-        if item.action = "cat" and item.row = row then
-            score = Abs(item.col - col)
-            if score < bestScore then
-                bestScore = score
-                best = i
-            end if
-        end if
+        if item.doesExist("action") and item.action = "channel" and item.visibleIndex = visibleIndex then return i
     end for
-    return best
+    return -1
 end function
 
 function findPlayerControl(control as String) as Integer
     for i = 0 to m.focusItems.count() - 1
         item = m.focusItems[i]
-        if item.action = "playerControl" and item.control = control then return i
+        if item.doesExist("action") and item.action = "playerControl" and item.control = control then return i
     end for
     return -1
 end function
 
 sub activate()
+    if m.focusIndex < 0 or m.focusIndex >= m.focusItems.count() then return
     item = m.focusItems[m.focusIndex]
-    if item.page <> invalid and item.page <> "" then m.top.navigateTo = item.page
+    if item.page <> invalid and item.page <> "" then m.top.navigateTo = item.page : return
     if item.action = "cat" then selectLiveCategory(item.catIndex) : return
-    if item.action = "channel" then m.channelIndex = item.channelIndex : playSelectedChannel() : render() : return
+    if item.action = "channel" then m.selectedChannelIndex = item.visibleIndex : m.channelIndex = item.channelIndex : playSelectedChannel() : render() : return
     if item.action = "playerControl" then handlePlayerControl(item.control) : render() : return
     if item.action = "search" then openSearchKeyboard() : return
 end sub
 
 sub selectLiveCategory(categoryIndex as Integer)
+    if categoryIndex < 0 or categoryIndex >= m.categories.count() then return
     m.categoryIndex = categoryIndex
+    m.focusedCategoryIndex = categoryIndex
+    m.channelWindowStart = 0
+    m.selectedChannelIndex = 0
     visible = filteredChannels()
     if visible.count() > 0 then
         m.channelIndex = visible[0].index
@@ -158,16 +256,25 @@ sub render()
     row = drawLiveSideNav()
 
     drawSearchBox()
-    uiRect(m.canvas, 534, 86, 1, 634, "0xFFFFFF12")
+    uiRect(m.canvas, 550, 86, 1, 634, "0xFFFFFF12")
     channelRow = drawCategoryPills(row)
     drawChannelDivider()
     visible = filteredChannels()
-    for i = 0 to visible.count() - 1
-        rowData = visible[i]
-        drawChannel(rowData.channel, rowData.index, 244, 250 + i * 68, channelRow + i, 1)
-    end for
-    if visible.count() = 0 then
-        uiLabel(m.canvas, "No channels found", 244, 262, 276, 28, 15, m.colors.textDim, "center")
+    syncSelectedChannelFromVisible(visible)
+    normalizeChannelWindow(visible.count())
+    drawRightSectionBackdrop(displayChannel(visible))
+    if visible.count() > 0 then
+        endIndex = m.channelWindowStart + m.channelWindowSize - 1
+        if endIndex > visible.count() - 1 then endIndex = visible.count() - 1
+        slot = 0
+        for i = m.channelWindowStart to endIndex
+            rowData = visible[i]
+            drawChannel(rowData.channel, rowData.index, i, 246, 234 + slot * 68, channelRow + slot, 1)
+            slot += 1
+        end for
+        drawChannelScrollbar(visible.count(), 534, 234, 400)
+    else
+        uiLabel(m.canvas, "No channels found", 246, 262, 276, 28, 15, m.colors.textDim, "center")
     end if
     drawPlayer()
     updateVideoLayout()
@@ -186,11 +293,12 @@ end sub
 
 sub playSelectedChannel()
     if m.video = invalid then return
-    channel = m.channels[m.channelIndex]
+    channel = selectedChannel()
+    if channel = invalid then return
     content = CreateObject("roSGNode", "ContentNode")
-    content.url = channel.videoUrl
-    content.streamformat = "hls"
-    content.title = channel.name
+    content.url = mediaPlaybackUrl(channel)
+    content.streamformat = mediaPlaybackFormat(channel)
+    content.title = liveText(channel, "name", liveText(channel, "title", "Live TV"))
     content.HttpCertificatesFile = "common:/certs/ca-bundle.crt"
     m.video.content = content
     m.playing = true
@@ -323,7 +431,7 @@ sub drawSearchBox()
         iconSize: 11, titleSize: 13, subSize: 10,
         bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim,
         focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
-        row: 6, col: 5, page: "", action: "search", mode: "manual"
+        row: 0, col: 1, page: "", action: "search", mode: "manual"
     })
 end sub
 
@@ -357,11 +465,16 @@ sub pressSearchKey()
     else if selected = "DEL" then
         if current.len() > 0 then current = current.left(current.len() - 1)
     else if selected = "SPACE" then
+        if current.len() >= 64 then return
         current += " "
     else
+        if current.len() >= 64 then return
         current += selected
     end if
     m.searchQuery = current
+    m.channelWindowStart = 0
+    m.selectedChannelIndex = 0
+    m.focusArea = "normal"
     render()
 end sub
 
@@ -416,9 +529,10 @@ function filteredChannels() as Object
     category = liveCategoryLabel(m.categoryIndex)
     for i = 0 to m.channels.count() - 1
         ch = m.channels[i]
-        searchable = LCase(ch.name + " " + ch.now + " " + ch.category)
+        channelCategory = liveChannelCategory(ch)
+        searchable = LCase(liveText(ch, "name") + " " + liveText(ch, "title") + " " + liveText(ch, "now") + " " + channelCategory + " " + liveText(ch, "channelNumber"))
         matchSearch = (query = "") or (Instr(1, searchable, query) > 0)
-        matchCategory = (category = "All") or (ch.category = category)
+        matchCategory = (category = "All") or (LCase(channelCategory) = LCase(category))
         if matchSearch and matchCategory then
             results.push({ channel: ch, index: i })
         end if
@@ -427,23 +541,32 @@ function filteredChannels() as Object
 end function
 
 function liveCategoryLabel(index as Integer) as String
-    labels = ["All", "Sports", "News", "Kids", "Music"]
-    if index >= 0 and index < labels.count() then return labels[index]
+    if index >= 0 and index < m.categories.count() then return m.categories[index]
     return "All"
 end function
 
 function drawCategoryPills(row as Integer) as Integer
-    cats = [
-        { label: "All", x: 244, y: 106, w: 62, row: row, col: 1 },
-        { label: "Sports", x: 316, y: 106, w: 82, row: row, col: 2 },
-        { label: "News", x: 244, y: 150, w: 76, row: row + 1, col: 1 },
-        { label: "Kids", x: 330, y: 150, w: 70, row: row + 1, col: 2 },
-        { label: "Music", x: 244, y: 194, w: 82, row: row + 2, col: 1 }
+    slots = [
+        { x: 246, y: 104, w: 62, row: row, col: 1 },
+        { x: 320, y: 104, w: 82, row: row, col: 2 },
+        { x: 414, y: 104, w: 76, row: row, col: 3 },
+        { x: 246, y: 150, w: 82, row: row + 1, col: 1 },
+        { x: 340, y: 150, w: 70, row: row + 1, col: 2 },
+        { x: 422, y: 150, w: 70, row: row + 1, col: 3 }
     ]
-    for i = 0 to cats.count() - 1
-        cat = cats[i]
+    m.categoryWindowSize = slots.count()
+    normalizeCategoryWindow()
+    endIndex = m.categoryWindowStart + m.categoryWindowSize - 1
+    if endIndex > m.categories.count() - 1 then endIndex = m.categories.count() - 1
+    slot = 0
+    for i = m.categoryWindowStart to endIndex
+        cat = slots[slot]
         itemIndex = m.focusItems.count()
         focused = itemIndex = m.focusIndex
+        if m.focusArea = "categories" then
+            focused = i = m.focusedCategoryIndex
+            if focused then m.focusIndex = itemIndex
+        end if
         selected = i = m.categoryIndex
         bg = m.colors.bg
         border = m.colors.whiteLine
@@ -458,72 +581,116 @@ function drawCategoryPills(row as Integer) as Integer
             border = m.colors.greenFocus
             textColor = m.colors.text
         end if
+        label = liveCategoryDisplayLabel(m.categories[i])
         uiRoundRect(m.canvas, cat.x, cat.y, cat.w, 34, bg, border)
-        uiLabel(m.canvas, cat.label, cat.x, cat.y + 1, cat.w, 30, 12, textColor, "center")
+        uiLabel(m.canvas, label, cat.x, cat.y + 1, cat.w, 30, 12, textColor, "center")
         item = {
             x: cat.x, y: cat.y, w: cat.w, h: 34,
-            icon: "", label: cat.label, subtitle: "",
+            icon: "", label: label, subtitle: "",
             iconSize: 1, titleSize: 12, subSize: 10,
             bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim,
-            focusBg: m.colors.purpleSoft, focusBorder: m.colors.purpleLine, focusTextColor: m.colors.text,
+            focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
             row: cat.row, col: cat.col, page: "", action: "cat", catIndex: i, mode: "manual"
         }
         m.focusItems.push(item)
+        slot += 1
     end for
-    return row + 3
+    drawCategoryWindowIndicator()
+    return row + 2
 end function
 
-sub drawChannelDivider()
-    uiRect(m.canvas, 244, 238, 276, 1, "0xFFFFFF18")
-    uiRect(m.canvas, 244, 238, 72, 1, m.colors.greenFocus, 0.72)
+sub drawCategoryWindowIndicator()
+    if m.categories.count() <= m.categoryWindowSize then return
+    trackX = 246
+    trackY = 196
+    trackW = 246
+    uiRect(m.canvas, trackX, trackY, trackW, 2, "0xFFFFFF18", 0.70)
+    maxStart = m.categories.count() - m.categoryWindowSize
+    if maxStart < 1 then maxStart = 1
+    thumbW = Int(trackW * m.categoryWindowSize / m.categories.count())
+    if thumbW < 42 then thumbW = 42
+    if thumbW > trackW then thumbW = trackW
+    thumbX = trackX
+    if trackW > thumbW then thumbX = trackX + Int((trackW - thumbW) * m.categoryWindowStart / maxStart)
+    uiRect(m.canvas, thumbX, trackY, thumbW, 2, m.colors.greenFocus, 0.86)
 end sub
 
-sub drawChannel(ch as Object, channelIndex as Integer, x as Integer, y as Integer, row as Integer, col as Integer)
+sub drawChannelDivider()
+    uiRect(m.canvas, 246, 218, 280, 1, "0xFFFFFF18")
+    uiRect(m.canvas, 246, 218, 72, 1, m.colors.greenFocus, 0.72)
+end sub
+
+sub drawChannel(ch as Object, channelIndex as Integer, visibleIndex as Integer, x as Integer, y as Integer, row as Integer, col as Integer)
     itemIndex = m.focusItems.count()
     focused = itemIndex = m.focusIndex
+    if m.focusArea = "channels" then
+        focused = visibleIndex = m.selectedChannelIndex
+        if focused then m.focusIndex = itemIndex
+    end if
     selected = channelIndex = m.channelIndex
     w = 276
     h = 60
     bg = m.colors.panel
     border = m.colors.whiteLine
-    iconBg = m.colors.purpleSoft
     titleColor = m.colors.text
     subColor = m.colors.textMuted
-    if ch.live then iconBg = m.colors.greenSoft
+    logoOpacity = 0.96
     if selected then
         bg = m.colors.purpleSoft
         border = m.colors.greenFocus
-        iconBg = m.colors.greenSoft
         subColor = m.colors.text
+        logoOpacity = 1.0
     end if
     if focused then
         bg = m.colors.greenSoft
         border = m.colors.greenFocus
-        iconBg = m.colors.greenSoft
         subColor = m.colors.text
+        logoOpacity = 1.0
     end if
 
-    textW = 200
-    if ch.live then textW = 146
+    title = liveText(ch, "name", liveText(ch, "title", "Untitled"))
+    nowText = liveText(ch, "now", liveText(ch, "programTitle"))
+    badgeUrl = liveArtUrl(ch, false)
+    hasBadge = badgeUrl <> ""
+    textX = x + 74
+    textW = 174
+    if hasBadge then
+        textX = x + 18
+        textW = 170
+    end if
+    if liveFlag(ch, "live") then textW = 120
 
-    uiRoundRect(m.canvas, x, y, w, h, bg, border)
-    uiRoundRect(m.canvas, x + 10, y + 11, 36, 36, iconBg, iconBg)
-    uiDrawIcon(m.canvas, ch.icon, x + 19, y + 20, 18, 18, focused, titleColor, 8)
-    uiLabel(m.canvas, ch.name, x + 58, y + 10, textW, 16, 6, titleColor)
-    uiLabel(m.canvas, ch.now, x + 58, y + 32, textW, 14, 5, subColor)
-    if ch.live then
-        drawLiveBadge(x + 204, y + 19)
+    if hasBadge then
+        uiPoster(m.canvas, badgeUrl, x, y, w, h, 1.0)
+        if selected then uiRoundRect(m.canvas, x, y, w, h, m.colors.purpleSoft, m.colors.greenFocus, 0.28)
+        if focused then uiRoundRect(m.canvas, x, y, w, h, m.colors.greenSoft, m.colors.greenFocus, 0.46)
+    else
+        uiRoundRect(m.canvas, x, y, w, h, bg, border)
+        brandColor = liveText(ch, "brandColor", m.colors.greenFocus)
+        uiRect(m.canvas, x + 1, y + 9, 3, h - 18, brandColor, 0.86)
+    end if
+    logoUrl = liveText(ch, "logoUrl")
+    if logoUrl <> "" and not hasBadge then
+        uiPoster(m.canvas, logoUrl, x + 12, y + 15, 48, 30, logoOpacity)
+    else if not hasBadge then
+        uiRect(m.canvas, x + 12, y + 12, 42, 36, m.colors.purpleSoft, 0.9)
+        uiDrawIcon(m.canvas, liveText(ch, "icon", "tv"), x + 19, y + 20, 18, 18, focused, titleColor, 8)
+    end if
+    uiLabel(m.canvas, title, textX, y + 9, textW, 18, 7, titleColor)
+    uiLabel(m.canvas, nowText, textX, y + 31, textW, 16, 5, subColor)
+    if liveFlag(ch, "live") then
+        drawLiveBadge(x + 202, y + 19)
     end if
 
     item = {
         x: x, y: y, w: w, h: h,
-        icon: ch.icon, label: ch.name, subtitle: ch.now,
-        iconSize: 8, iconW: 36, iconH: 36, iconX: 10,
-        labelX: 58, labelW: textW, labelAlign: "left",
+        icon: liveText(ch, "icon", "tv"), label: title, subtitle: nowText,
+        iconSize: 8, iconW: 36, iconH: 36, iconX: 12,
+        labelX: 74, labelW: textW, labelAlign: "left",
         titleSize: 6, subSize: 5,
         bg: bg, border: border, textColor: titleColor, subColor: subColor,
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
-        row: row, col: col, page: "", action: "channel", channelIndex: channelIndex, mode: "manual"
+        row: row, col: col, page: "", action: "channel", channelIndex: channelIndex, visibleIndex: visibleIndex, mode: "manual"
     }
     m.focusItems.push(item)
 end sub
@@ -537,30 +704,33 @@ sub drawPlayer()
     panelY = 108
     panelW = 600
     panelH = 390
-    ch = m.channels[m.channelIndex]
-    uiRoundRect(m.canvas, panelX, panelY, panelW, panelH, m.colors.purpleActive, m.colors.greenFocus)
+    ch = displayChannel(invalid)
+    channelTitle = liveText(ch, "name", liveText(ch, "title", "Live TV"))
+    nowText = liveText(ch, "now", liveText(ch, "programTitle", "Select a channel"))
+    uiRoundRect(m.canvas, panelX, panelY, panelW, panelH, m.colors.purpleActive, m.colors.greenFocus, 0.32)
 
-    if ch.live then drawLiveBadge(panelX + 24, panelY + 22)
+    if liveFlag(ch, "live") then drawLiveBadge(panelX + 24, panelY + 22)
     titleX = panelX + 24
-    if ch.live then titleX = panelX + 94
-    uiLabel(m.canvas, ch.name, titleX, panelY + 18, 170, 24, 13, m.colors.text)
-    uiLabel(m.canvas, ch.now, panelX + 24, panelY + 50, 380, 26, 14, m.colors.text)
+    if liveFlag(ch, "live") then titleX = panelX + 94
+    uiLabel(m.canvas, channelTitle, titleX, panelY + 18, 170, 24, 13, m.colors.text)
+    uiLabel(m.canvas, nowText, panelX + 24, panelY + 50, 380, 26, 14, m.colors.text)
     addPlayerControl(panelX + panelW - 76, panelY + 28, 50, "player_heart", "Favorite", "favorite", 8, 6, 32)
 
-
-    uiRoundRect(m.canvas, panelX + 24, panelY + 112, panelW - 48, 190, m.colors.black, m.colors.black)
+    uiRoundRect(m.canvas, panelX + 24, panelY + 112, panelW - 48, 190, m.colors.black, m.colors.black, 0.94)
     addPlayerControl(panelX + 268, panelY + 176, 64, "player_play", "Play", "playpause", 9, 5, 64, m.overlay)
-    if ch.live then drawLiveBadge(panelX + 38, panelY + 274)
-    uiLabel(m.canvas, "22:15 / LIVE", panelX + panelW - 164, panelY + 274, 126, 22, 10, m.colors.textDim, "right")
+    if liveFlag(ch, "live") then drawLiveBadge(panelX + 38, panelY + 274)
+    uiLabel(m.canvas, liveStatusText(ch), panelX + panelW - 164, panelY + 274, 126, 22, 10, m.colors.textDim, "right")
 
     drawPlayerControls(panelX + 24, panelY + 320)
     uiRect(m.canvas, panelX + 82, panelY + 337, 330, 3, "0xFFFFFF18")
     uiRect(m.canvas, panelX + 82, panelY + 337, 220, 3, m.colors.greenFocus, 0.72)
 
-    uiLabel(m.canvas, "UP NEXT ON " + ch.name, panelX, 526, 300, 22, 10, m.colors.textDim)
-    drawEpg("21:00", "NFL Highlights", 568)
-    drawEpg("23:00", "SportsCenter", 764)
-    drawEpg("01:00", "NBA Pre-game", 960)
+    uiLabel(m.canvas, "UP NEXT ON " + channelTitle, panelX, 526, 300, 22, 10, m.colors.textDim)
+    epg = currentEpgRows(ch)
+    for i = 0 to epg.count() - 1
+        item = epg[i]
+        drawEpg(liveText(item, "time"), liveText(item, "title", "Upcoming"), 568 + i * 196)
+    end for
 end sub
 
 sub drawPlayerControls(x as Integer, y as Integer)
@@ -601,10 +771,254 @@ sub addPlayerControl(x as Integer, y as Integer, w as Integer, icon as String, l
 end sub
 
 sub drawEpg(time as String, title as String, x as Integer)
-    uiRoundRect(m.canvas, x, 562, 190, 54, m.colors.panel, m.colors.whiteLine)
+    uiRoundRect(m.canvas, x, 562, 190, 54, m.colors.panel, m.colors.whiteLine, 0.88)
     uiLabel(m.canvas, time, x + 12, 566, 80, 18, 8, m.colors.greenFocus)
     uiLabel(m.canvas, title, x + 12, 590, 158, 20, 8, m.colors.text)
 end sub
+
+sub drawChannelScrollbar(total as Integer, x as Integer, y as Integer, h as Integer)
+    if total <= m.channelWindowSize then return
+    uiVerticalPill(m.canvas, x, y, 3, h, "0xFFFFFF18", "pkg:/images/ui/scroll_cap_4_whiteLine.png", 0.56)
+    maxStart = total - m.channelWindowSize
+    if maxStart < 1 then maxStart = 1
+    thumbH = Int(h * m.channelWindowSize / total)
+    if thumbH < 42 then thumbH = 42
+    if thumbH > h then thumbH = h
+    thumbY = y
+    if h > thumbH then thumbY = y + Int((h - thumbH) * m.channelWindowStart / maxStart)
+    uiVerticalPill(m.canvas, x - 1, thumbY, 5, thumbH, m.colors.greenFocus, "pkg:/images/ui/scroll_cap_6_greenFocus.png", 0.92)
+end sub
+
+sub drawRightSectionBackdrop(channel as Dynamic)
+    x = 552
+    y = 86
+    w = 728
+    h = 634
+    backdropUrl = liveArtUrl(channel, true)
+    if backdropUrl <> "" then
+        uiPosterZoom(m.canvas, backdropUrl, x, y, w, h, 1.0)
+        uiRect(m.canvas, x, y, w, h, m.colors.bg, 0.38)
+        uiRect(m.canvas, x, y, w, h, "0x000000FF", 0.10)
+    else
+        drawChannelBrandBackground(channel, x, y, w, h, 0.42, true)
+        uiRect(m.canvas, x, y, w, h, m.colors.bg, 0.58)
+    end if
+    uiRect(m.canvas, x, y, 1, h, "0xFFFFFF12")
+end sub
+
+sub drawChannelBrandBackground(channel as Dynamic, x as Integer, y as Integer, w as Integer, h as Integer, opacity as Float, large as Boolean)
+    bg1 = liveText(channel, "brandColor", m.colors.purpleActive)
+    bg2 = liveText(channel, "brandColor2", m.colors.bg2)
+    uiRect(m.canvas, x, y, w, h, bg2, opacity)
+    if large then
+        uiRect(m.canvas, x, y, 92, h, bg1, opacity * 0.22)
+        uiRect(m.canvas, x + 92, y, 2, h, m.colors.greenFocus, 0.16)
+        uiRect(m.canvas, x, y + h - 124, w, 124, bg1, opacity * 0.10)
+    else
+        uiRect(m.canvas, x, y, w, h, bg2, opacity)
+        uiRect(m.canvas, x, y, 58, h, bg1, opacity * 0.24)
+    end if
+
+    logoUrl = liveText(channel, "logoUrl")
+    if logoUrl <> "" then
+        logoW = Int(w * 0.28)
+        logoH = Int(h * 0.28)
+        logoOpacity = 0.12
+        if not large then
+            logoW = Int(w * 0.38)
+            logoH = h - 12
+            logoOpacity = 0.24
+        end if
+        uiPoster(m.canvas, logoUrl, x + w - logoW - 34, y + Int((h - logoH) / 2), logoW, logoH, logoOpacity)
+        return
+    end if
+
+    logoText = liveText(channel, "logoText", liveText(channel, "name", "TV"))
+    fontSize = 28
+    logoX = x + Int(w * 0.48)
+    logoY = y + Int((h - 42) / 2)
+    logoW = Int(w * 0.46)
+    logoH = 50
+    logoColor = "0xFFFFFF16"
+    if large then
+        fontSize = 54
+        logoX = x + Int(w * 0.56)
+        logoY = y + Int((h - 78) / 2)
+        logoW = Int(w * 0.36)
+        logoH = 78
+        logoColor = "0xFFFFFF12"
+    end if
+    uiLabel(m.canvas, logoText, logoX, logoY, logoW, logoH, fontSize, logoColor, "right")
+end sub
+
+sub syncLiveFocus()
+    if m.focusIndex < 0 or m.focusIndex >= m.focusItems.count() then return
+    item = m.focusItems[m.focusIndex]
+    action = ""
+    if item.doesExist("action") then action = item.action
+    if action = "channel" then
+        if item.doesExist("visibleIndex") then m.selectedChannelIndex = item.visibleIndex
+        m.focusArea = "channels"
+    else if action = "cat" then
+        if item.doesExist("catIndex") then m.focusedCategoryIndex = item.catIndex
+        m.focusArea = "categories"
+    else
+        m.focusArea = "normal"
+    end if
+end sub
+
+sub normalizeCategoryWindow()
+    if m.categories.count() <= 0 then
+        m.categoryWindowStart = 0
+        m.focusedCategoryIndex = 0
+        return
+    end if
+    if m.focusedCategoryIndex < 0 then m.focusedCategoryIndex = 0
+    if m.focusedCategoryIndex > m.categories.count() - 1 then m.focusedCategoryIndex = m.categories.count() - 1
+    if m.categoryWindowStart < 0 then m.categoryWindowStart = 0
+    maxStart = m.categories.count() - m.categoryWindowSize
+    if maxStart < 0 then maxStart = 0
+    if m.categoryWindowStart > maxStart then m.categoryWindowStart = maxStart
+    if m.focusedCategoryIndex < m.categoryWindowStart then m.categoryWindowStart = m.focusedCategoryIndex
+    if m.focusedCategoryIndex >= m.categoryWindowStart + m.categoryWindowSize then
+        m.categoryWindowStart = m.focusedCategoryIndex - m.categoryWindowSize + 1
+    end if
+end sub
+
+sub normalizeChannelWindow(total as Integer)
+    if total <= 0 then
+        m.channelWindowStart = 0
+        m.selectedChannelIndex = 0
+        if m.focusArea = "channels" then m.focusArea = "normal"
+        return
+    end if
+    if m.selectedChannelIndex < 0 then m.selectedChannelIndex = 0
+    if m.selectedChannelIndex > total - 1 then m.selectedChannelIndex = total - 1
+    if m.channelWindowStart < 0 then m.channelWindowStart = 0
+    maxStart = total - m.channelWindowSize
+    if maxStart < 0 then maxStart = 0
+    if m.channelWindowStart > maxStart then m.channelWindowStart = maxStart
+    if m.selectedChannelIndex < m.channelWindowStart then m.channelWindowStart = m.selectedChannelIndex
+    if m.selectedChannelIndex >= m.channelWindowStart + m.channelWindowSize then
+        m.channelWindowStart = m.selectedChannelIndex - m.channelWindowSize + 1
+    end if
+end sub
+
+sub syncSelectedChannelFromVisible(visible as Object)
+    if visible.count() <= 0 then return
+    for i = 0 to visible.count() - 1
+        if visible[i].index = m.channelIndex then
+            if m.focusArea <> "channels" then m.selectedChannelIndex = i
+            return
+        end if
+    end for
+    if m.focusArea <> "channels" then m.selectedChannelIndex = 0
+end sub
+
+function selectedChannel() as Dynamic
+    if m.channels = invalid or m.channels.count() = 0 then return invalid
+    if m.channelIndex < 0 or m.channelIndex >= m.channels.count() then m.channelIndex = 0
+    return m.channels[m.channelIndex]
+end function
+
+function displayChannel(visible = invalid as Dynamic) as Dynamic
+    if visible = invalid then visible = filteredChannels()
+    if m.focusArea = "channels" and visible.count() > 0 then
+        if m.selectedChannelIndex >= 0 and m.selectedChannelIndex < visible.count() then return visible[m.selectedChannelIndex].channel
+    end if
+    return selectedChannel()
+end function
+
+function currentEpgRows(channel as Dynamic) as Object
+    if channel <> invalid and channel.doesExist("epg") and channel.epg <> invalid and type(channel.epg) = "roArray" then
+        rows = []
+        for i = 0 to channel.epg.count() - 1
+            if rows.count() < 3 then rows.push(channel.epg[i])
+        end for
+        if rows.count() > 0 then return rows
+    end if
+    return [
+        { time: "Now", title: liveText(channel, "now", "Live Program") },
+        { time: "Next", title: "Up next" },
+        { time: "Later", title: "Schedule unavailable" }
+    ]
+end function
+
+function liveText(item as Dynamic, key as String, fallback = "" as String) as String
+    if item = invalid then return fallback
+    if not item.doesExist(key) then return fallback
+    value = item[key]
+    if value = invalid then return fallback
+    valueType = type(value)
+    if valueType = "String" or valueType = "roString" then return value
+    if valueType = "Integer" or valueType = "roInt" or valueType = "LongInteger" or valueType = "roLongInteger" or valueType = "Float" or valueType = "roFloat" or valueType = "Double" or valueType = "roDouble" then return value.toStr()
+    return fallback
+end function
+
+function liveFlag(item as Dynamic, key as String) as Boolean
+    if item = invalid then return false
+    if not item.doesExist(key) then return false
+    return item[key] = true
+end function
+
+function liveChannelCategory(channel as Dynamic) as String
+    category = liveText(channel, "category")
+    if category <> "" then return category
+    category = liveText(channel, "groupTitle")
+    if category <> "" then return category
+    return "Uncategorized"
+end function
+
+function liveCategoryDisplayLabel(category as String) as String
+    if category = "Documentary" then return "Docs"
+    if category = "Entertainment" then return "Ent."
+    return category
+end function
+
+function liveStatusText(channel as Dynamic) as String
+    statusText = liveText(channel, "statusText")
+    if statusText <> "" then return statusText
+    numberText = liveText(channel, "channelNumber")
+    if liveFlag(channel, "live") then
+        if numberText <> "" then return "CH " + numberText + " / LIVE"
+        return "LIVE"
+    end if
+    if numberText <> "" then return "CH " + numberText
+    return "ON AIR"
+end function
+
+function liveArtUrl(channel as Dynamic, preferBackdrop as Boolean) as String
+    if preferBackdrop then
+        backdropUrl = liveText(channel, "backdropUrl")
+        if backdropUrl <> "" then return backdropUrl
+    end if
+    badgeUrl = liveText(channel, "badgeUrl")
+    if badgeUrl <> "" then return badgeUrl
+    cardUrl = liveText(channel, "cardUrl")
+    if cardUrl <> "" then return cardUrl
+    backdropUrl = liveText(channel, "backdropUrl")
+    if backdropUrl <> "" then return backdropUrl
+    logoUrl = liveText(channel, "logoUrl")
+    if logoUrl <> "" then return logoUrl
+    return ""
+end function
+
+function liveCategoriesFromChannels(channels as Object) as Object
+    categories = ["All"]
+    for i = 0 to channels.count() - 1
+        category = liveChannelCategory(channels[i])
+        if category <> "" and not liveCategoryExists(categories, category) then categories.push(category)
+    end for
+    return categories
+end function
+
+function liveCategoryExists(categories as Object, category as String) as Boolean
+    needle = LCase(category)
+    for i = 0 to categories.count() - 1
+        if LCase(categories[i]) = needle then return true
+    end for
+    return false
+end function
 
 sub drawBorderRect(x as Integer, y as Integer, w as Integer, h as Integer, fill as String, border as String, opacity = 1.0 as Float)
     uiRect(m.canvas, x, y, w, h, fill, opacity)

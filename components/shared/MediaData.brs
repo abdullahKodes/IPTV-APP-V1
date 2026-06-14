@@ -14,6 +14,228 @@ function mediaPlaybackFormat(item as Dynamic) as String
     return "hls"
 end function
 
+function mockLiveTvCatalog() as Object
+    demoUrl = "https://roku.s.cpl.delvenetworks.com/media/59021fabe3b645968e382ac726cd6c7b/60b4a471ffb74809beb2f7d5a15b3193/roku_ep_111_segment_1_final-cc_mix_033015-a7ec8a288c4bcec001c118181c668de321108861.m3u8"
+    return [
+        {
+            id: "live_espn_hd",
+            playlistId: "demo_live",
+            name: "ESPN HD",
+            title: "ESPN HD",
+            now: "Premier League Live",
+            category: "Sports",
+            groupTitle: "Sports",
+            icon: "sport",
+            logoUrl: "pkg:/images/logos/live/espn.png",
+            badgeUrl: "pkg:/images/logos/live/badges/espn_badge.png",
+            logoText: "ESPN",
+            brandColor: "0xC2182BFF",
+            brandColor2: "0x111111FF",
+            cardUrl: "",
+            backdropUrl: "pkg:/images/logos/live/backdrops/espn_backdrop.jpg",
+            streamUrl: demoUrl,
+            streamFormat: "hls",
+            live: true,
+            favorite: true,
+            channelNumber: "101",
+            epg: [
+                { time: "21:00", title: "NFL Highlights" },
+                { time: "23:00", title: "SportsCenter" },
+                { time: "01:00", title: "NBA Pre-game" }
+            ]
+        },
+        {
+            id: "live_bbc_world",
+            playlistId: "demo_live",
+            name: "BBC World",
+            title: "BBC World",
+            now: "Evening News",
+            category: "News",
+            groupTitle: "News",
+            icon: "NW",
+            logoUrl: "pkg:/images/logos/live/bbc_news.png",
+            badgeUrl: "pkg:/images/logos/live/badges/bbc_news_badge.png",
+            logoText: "BBC",
+            brandColor: "0x111111FF",
+            brandColor2: "0x2A3446FF",
+            cardUrl: "",
+            backdropUrl: "pkg:/images/logos/live/backdrops/bbc_news_backdrop.jpg",
+            streamUrl: demoUrl,
+            streamFormat: "hls",
+            live: false,
+            favorite: false,
+            channelNumber: "201",
+            epg: [
+                { time: "20:30", title: "Global Business" },
+                { time: "21:00", title: "Evening News" },
+                { time: "22:00", title: "World Report" }
+            ]
+        },
+        {
+            id: "live_cnn_intl",
+            playlistId: "demo_live",
+            name: "CNN Intl",
+            title: "CNN Intl",
+            now: "Breaking News",
+            category: "News",
+            groupTitle: "News",
+            icon: "CNN",
+            logoUrl: "pkg:/images/logos/live/cnn.png",
+            badgeUrl: "pkg:/images/logos/live/badges/cnn_badge.png",
+            logoText: "CNN",
+            brandColor: "0xB5101BFF",
+            brandColor2: "0x251118FF",
+            cardUrl: "",
+            backdropUrl: "pkg:/images/logos/live/backdrops/cnn_backdrop.jpg",
+            streamUrl: demoUrl,
+            streamFormat: "hls",
+            live: false,
+            favorite: false,
+            channelNumber: "202",
+            epg: [
+                { time: "20:00", title: "The Lead" },
+                { time: "21:00", title: "Breaking News" },
+                { time: "22:00", title: "World Brief" }
+            ]
+        },
+        {
+            id: "live_bein_sports",
+            playlistId: "demo_live",
+            name: "beIN Sports",
+            title: "beIN Sports",
+            now: "La Liga Live",
+            category: "Sports",
+            groupTitle: "Sports",
+            icon: "sport",
+            logoUrl: "pkg:/images/logos/live/bein_sports.png",
+            badgeUrl: "pkg:/images/logos/live/badges/bein_sports_badge.png",
+            logoText: "beIN",
+            brandColor: "0x6D3BEFFF",
+            brandColor2: "0x23133DFF",
+            cardUrl: "",
+            backdropUrl: "pkg:/images/logos/live/backdrops/bein_sports_backdrop.jpg",
+            streamUrl: demoUrl,
+            streamFormat: "hls",
+            live: true,
+            favorite: false,
+            channelNumber: "102",
+            epg: [
+                { time: "20:45", title: "La Liga Live" },
+                { time: "22:45", title: "Match Review" },
+                { time: "23:30", title: "Football Tonight" }
+            ]
+        },
+        {
+            id: "live_mtv_hits",
+            playlistId: "demo_live",
+            name: "MTV Hits",
+            title: "MTV Hits",
+            now: "Top 40 Charts",
+            category: "Music",
+            groupTitle: "Music",
+            icon: "MTV",
+            logoUrl: "pkg:/images/logos/live/mtv_hits.png",
+            badgeUrl: "pkg:/images/logos/live/badges/mtv_hits_badge.png",
+            logoText: "MTV",
+            brandColor: "0x2D63E6FF",
+            brandColor2: "0x151A39FF",
+            cardUrl: "",
+            backdropUrl: "pkg:/images/logos/live/backdrops/mtv_hits_backdrop.jpg",
+            streamUrl: demoUrl,
+            streamFormat: "hls",
+            live: false,
+            favorite: false,
+            channelNumber: "301",
+            epg: [
+                { time: "19:00", title: "Top 40 Charts" },
+                { time: "21:00", title: "Fresh Videos" },
+                { time: "22:00", title: "Late Mix" }
+            ]
+        },
+        {
+            id: "live_cartoon_net",
+            playlistId: "demo_live",
+            name: "Cartoon Net.",
+            title: "Cartoon Net.",
+            now: "Kids Shows",
+            category: "Kids",
+            groupTitle: "Kids",
+            icon: "KD",
+            logoUrl: "pkg:/images/logos/live/cartoon_network.png",
+            badgeUrl: "pkg:/images/logos/live/badges/cartoon_network_badge.png",
+            logoText: "CN",
+            brandColor: "0x24A8D8FF",
+            brandColor2: "0x101F2CFF",
+            cardUrl: "",
+            backdropUrl: "pkg:/images/logos/live/backdrops/cartoon_network_backdrop.jpg",
+            streamUrl: demoUrl,
+            streamFormat: "hls",
+            live: false,
+            favorite: false,
+            channelNumber: "401",
+            epg: [
+                { time: "18:30", title: "Adventure Hour" },
+                { time: "19:30", title: "Kids Shows" },
+                { time: "21:00", title: "Family Cartoons" }
+            ]
+        },
+        {
+            id: "live_discovery",
+            playlistId: "demo_live",
+            name: "Discovery",
+            title: "Discovery",
+            now: "Expedition Unknown",
+            category: "Documentary",
+            groupTitle: "Documentary",
+            icon: "WORLD",
+            logoUrl: "pkg:/images/logos/live/discovery.png",
+            badgeUrl: "pkg:/images/logos/live/badges/discovery_badge.png",
+            logoText: "DISC",
+            brandColor: "0x16775DFF",
+            brandColor2: "0x102921FF",
+            cardUrl: "",
+            backdropUrl: "pkg:/images/logos/live/backdrops/discovery_backdrop.jpg",
+            streamUrl: demoUrl,
+            streamFormat: "hls",
+            live: false,
+            favorite: false,
+            channelNumber: "501",
+            epg: [
+                { time: "20:00", title: "Expedition Unknown" },
+                { time: "21:00", title: "Planet Stories" },
+                { time: "22:00", title: "Deep Ocean" }
+            ]
+        },
+        {
+            id: "live_movie_mix",
+            playlistId: "demo_live",
+            name: "Movie Mix",
+            title: "Movie Mix",
+            now: "Action Classics",
+            category: "Entertainment",
+            groupTitle: "Entertainment",
+            icon: "movies",
+            logoUrl: "pkg:/images/logos/live/movie_channel.png",
+            badgeUrl: "pkg:/images/logos/live/badges/movie_channel_badge.png",
+            logoText: "MIX",
+            brandColor: "0x6B48D7FF",
+            brandColor2: "0x19112EFF",
+            cardUrl: "",
+            backdropUrl: "pkg:/images/logos/live/backdrops/movie_channel_backdrop.jpg",
+            streamUrl: demoUrl,
+            streamFormat: "hls",
+            live: false,
+            favorite: false,
+            channelNumber: "601",
+            epg: [
+                { time: "19:00", title: "Action Classics" },
+                { time: "21:15", title: "Late Feature" },
+                { time: "23:30", title: "Director's Cut" }
+            ]
+        }
+    ]
+end function
+
 function mockMovieCatalog() as Object
     return [
         {
