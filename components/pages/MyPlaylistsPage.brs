@@ -94,7 +94,21 @@ function routePlaylistFocus(dx as Integer, dy as Integer) as Boolean
     if current.doesExist("col") then currentCol = current.col
     action = ""
     if current.doesExist("action") then action = current.action
+    page = ""
+    if current.doesExist("page") then page = current.page
     visible = filteredPlaylists()
+
+    if dy < 0 and page = "AddPlaylistPage" then
+        searchTarget = findPlaylistActionFocus("search")
+        if searchTarget >= 0 then m.focusIndex = searchTarget
+        return true
+    end if
+
+    if dy > 0 and action = "search" then
+        addTarget = findPlaylistPageFocus("AddPlaylistPage")
+        if addTarget >= 0 then m.focusIndex = addTarget
+        return true
+    end if
 
     if dx < 0 and action = "delete" then
         target = findPlaylistCardFocus(current.playlistId)
@@ -170,8 +184,13 @@ function routePlaylistFocus(dx as Integer, dy as Integer) as Boolean
             return true
         end if
         if dy < 0 then
-            searchTarget = findPlaylistActionFocus("search")
-            if searchTarget >= 0 then m.focusIndex = searchTarget
+            addTarget = findPlaylistPageFocus("AddPlaylistPage")
+            if addTarget >= 0 then
+                m.focusIndex = addTarget
+            else
+                searchTarget = findPlaylistActionFocus("search")
+                if searchTarget >= 0 then m.focusIndex = searchTarget
+            end if
             return true
         end if
         return true
@@ -205,6 +224,14 @@ function findPlaylistActionFocus(action as String) as Integer
     for i = 0 to m.focusItems.count() - 1
         item = m.focusItems[i]
         if item.doesExist("action") and item.action = action then return i
+    end for
+    return -1
+end function
+
+function findPlaylistPageFocus(page as String) as Integer
+    for i = 0 to m.focusItems.count() - 1
+        item = m.focusItems[i]
+        if item.doesExist("page") and item.page = page then return i
     end for
     return -1
 end function
@@ -351,6 +378,7 @@ sub addSearchAction(x as Integer, y as Integer, w as Integer, h as Integer, row 
     itemIndex = m.focusItems.count()
     focused = itemIndex = m.focusIndex
     label = "Search"
+    label = "Search Playlist"
     if m.searchQuery <> "" then label = m.searchQuery
     bg = m.colors.panel
     border = m.colors.whiteLine
@@ -399,6 +427,7 @@ sub drawPlaylistCard(p as Object, x as Integer, y as Integer, w as Integer, h as
         border = m.colors.green
     end if
     if cardFocused then
+        fill = m.colors.greenSoft
         border = m.colors.greenFocus
     end if
 
@@ -406,8 +435,8 @@ sub drawPlaylistCard(p as Object, x as Integer, y as Integer, w as Integer, h as
     overlayOpacity = 0.18
     shellOpacity = 0.46
     if cardFocused then
-        overlayOpacity = 0.28
-        shellOpacity = 1.0
+        overlayOpacity = 0.36
+        shellOpacity = 0.52
     end if
     uiRect(m.canvas, x, y, w, h, fill, overlayOpacity)
     uiRect(m.canvas, x + 1, y + h - 58, w - 2, 54, m.colors.bg, 0.66)
@@ -420,7 +449,7 @@ sub drawPlaylistCard(p as Object, x as Integer, y as Integer, w as Integer, h as
 
     m.focusItems.push({ x: x, y: y, w: w, h: h, icon: playlistStoreText(p, "icon", "list"), label: playlistStoreText(p, "title", "Playlist"), subtitle: playlistStoreText(p, "meta"), iconSize: 13, titleSize: 16, subSize: 12, bg: fill, border: border, textColor: titleColor, subColor: m.colors.textDim, focusBg: fill, focusBorder: border, focusTextColor: titleColor, row: row, col: col, page: "", action: "playlist", playlistId: playlistStoreText(p, "id"), visibleIndex: visibleIndex, mode: "manual" })
 
-    drawCardAction("Delete", "delete", playlistStoreText(p, "id"), playlistStoreText(p, "title", "Playlist"), x + w - 106, y + h - 35, row + 1, col + 1, visibleIndex)
+    drawCardAction("Delete", "delete", playlistStoreText(p, "id"), playlistStoreText(p, "title", "Playlist"), x + w - 104, y + h - 43, row + 1, col + 1, visibleIndex)
 end sub
 
 sub drawPlaylistCardShell(x as Integer, y as Integer, w as Integer, h as Integer, fill as String, border as String, opacity = 1.0 as Float)
@@ -474,8 +503,8 @@ sub drawStatusPill(p as Object, x as Integer, y as Integer, focused as Boolean)
         label = "Expires"
         textColor = m.colors.amber
     end if
-    uiPoster(m.canvas, uri, x, y, 100, 34)
-    uiLabel(m.canvas, label, x + 5, y, 90, 34, 10, textColor, "center")
+    uiPoster(m.canvas, uri, x, y, 88, 30)
+    uiLabel(m.canvas, label, x + 4, y - 1, 80, 30, 9, textColor, "center")
 end sub
 
 sub drawCardAction(label as String, action as String, playlistId as String, playlistTitle as String, x as Integer, y as Integer, row as Integer, col as Integer, visibleIndex as Integer)
@@ -484,12 +513,11 @@ sub drawCardAction(label as String, action as String, playlistId as String, play
     buttonUri = "pkg:/images/ui/movie_watch_140x40_panel_greenFocus.png"
     textColor = "0xFFFFFFFF"
     if focused then
-        uiPoster(m.canvas, buttonUri, x - 2, y - 2, 98, 34)
-    else
-        uiPoster(m.canvas, buttonUri, x, y, 94, 30)
+        buttonUri = "pkg:/images/ui/movie_watch_140x40_greenSoft_greenFocus.png"
     end if
-    uiLabel(m.canvas, label, x + 5, y, 84, 30, 8, textColor, "center")
-    m.focusItems.push({ x: x, y: y, w: 94, h: 30, icon: "", label: label, subtitle: "", iconSize: 1, titleSize: 8, subSize: 8, bg: m.colors.panel, border: m.colors.greenFocus, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.panel, focusBorder: m.colors.greenFocus, focusTextColor: textColor, row: row, col: col, page: "", action: action, playlistId: playlistId, playlistTitle: playlistTitle, visibleIndex: visibleIndex, mode: "manual", noFocusShift: true })
+    uiPoster(m.canvas, buttonUri, x, y, 90, 28)
+    uiLabel(m.canvas, label, x + 4, y - 1, 82, 28, 7, textColor, "center")
+    m.focusItems.push({ x: x, y: y, w: 90, h: 28, icon: "", label: label, subtitle: "", iconSize: 1, titleSize: 7, subSize: 7, bg: m.colors.panel, border: m.colors.greenFocus, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: textColor, row: row, col: col, page: "", action: action, playlistId: playlistId, playlistTitle: playlistTitle, visibleIndex: visibleIndex, mode: "manual", noFocusShift: true })
 end sub
 
 sub drawFooterSummary()
@@ -503,14 +531,14 @@ sub drawPlaylistScrollbar(totalCount as Integer)
     trackX = 1172
     trackY = 186
     trackH = 374
-    uiVerticalPill(m.canvas, trackX, trackY, 4, trackH, "0xFFFFFF18", "pkg:/images/ui/scroll_cap_4_whiteLine.png", 0.42)
+    uiVerticalPill(m.canvas, trackX, trackY, 3, trackH, "0xFFFFFF18", "pkg:/images/ui/scroll_cap_4_whiteLine.png", 0.42)
     maxStart = totalCount - m.playlistWindowSize
     thumbH = Int(trackH * m.playlistWindowSize / totalCount)
     if thumbH < 64 then thumbH = 64
     thumbTravel = trackH - thumbH
     thumbY = trackY
     if maxStart > 0 then thumbY = trackY + Int(thumbTravel * m.playlistWindowStart / maxStart)
-    uiVerticalPill(m.canvas, trackX - 1, thumbY, 6, thumbH, m.colors.greenFocus, "pkg:/images/ui/scroll_cap_6_greenFocus.png", 0.86)
+    uiVerticalPill(m.canvas, trackX - 1, thumbY, 5, thumbH, m.colors.greenFocus, "pkg:/images/ui/scroll_cap_6_greenFocus.png", 0.86)
 end sub
 
 sub openDeleteConfirm(playlistId as String, playlistTitle as String)

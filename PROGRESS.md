@@ -207,6 +207,9 @@ Completed:
 - Tuned My Playlists card layering after Roku screenshot review: artwork now fills the card background, status pills share one rounded `100x40` shape with distinct colors, Delete keeps a stable rounded fill while only the border changes on focus, and manifest build version is now `00056`.
 - Restored stronger My Playlists card artwork after Roku screenshot review, switched status pills to the Movies featured-badge styling, changed playlist title color only, moved a smaller Watch Now-style Delete button fully inside the card, and bumped manifest build version to `00057`.
 - Tightened My Playlists remote/focus behavior after Roku review: centered status text inside badges, reduced Delete button size/text with its own stable focus state, strengthened focused-card contrast, fixed left/right card-grid navigation, and bumped manifest build version to `00058`.
+- Final small My Playlists polish pass: reduced status badge size, moved Delete upward with smaller text and Watch Now-style focus asset swap, matched focused-card overlay opacity to Live TV channel-list focus, thinned the scrollbar, and bumped manifest build version to `00059`.
+- Fixed My Playlists top-row focus routing so Up from playlist cards reaches Add Playlist instead of skipping to Search, softened the focused-card shell overlay while keeping the Live TV channel-list tint value, and bumped manifest build version to `00060`.
+- Fixed My Playlists header focus routing so Add Playlist can move Up to Search and Search can move Down to Add Playlist, changed the search placeholder to `Search My Playlist`, reduced focused-card overlay opacity, and bumped manifest build version to `00061`.
 
 Needs future review:
 - Test My Playlists on actual Roku for card text scale, action focus movement, and search keyboard behavior.
