@@ -1,11 +1,15 @@
 function playlistStoreDefaultItems() as Object
     return [
-        { id: "demo_sports", title: "Sports HD Pack", meta: "4,280 channels - M3U", itemCount: 4280, type: "M3U", status: "Active", time: "Updated 2h ago", icon: "tv", accent: "purple", sourceUrl: "", serverUrl: "", username: "", password: "", lastSync: "2 hours ago" },
-        { id: "demo_movies", title: "Movies & Cinema", meta: "2,100 titles - Xtreme", itemCount: 2100, type: "Xtreme", status: "Active", time: "Updated 1d ago", icon: "movies", accent: "green", sourceUrl: "", serverUrl: "", username: "", password: "", lastSync: "1 day ago" },
-        { id: "demo_series", title: "Series Vault", meta: "890 series - M3U", itemCount: 890, type: "M3U", status: "Expires soon", time: "Expires in 3 days", icon: "series", accent: "purple", sourceUrl: "", serverUrl: "", username: "", password: "", lastSync: "3 days ago" },
-        { id: "demo_international", title: "International Live", meta: "3,600 channels - M3U", itemCount: 3600, type: "M3U", status: "Active", time: "Updated 4h ago", icon: "world", accent: "green", sourceUrl: "", serverUrl: "", username: "", password: "", lastSync: "4 hours ago" },
-        { id: "demo_music", title: "Music TV Channels", meta: "420 channels - Xtreme", itemCount: 420, type: "Xtreme", status: "Offline", time: "Last seen 3d ago", icon: "note", accent: "purple", sourceUrl: "", serverUrl: "", username: "", password: "", lastSync: "3 days ago" },
-        { id: "demo_kids", title: "Kids & Family", meta: "1,160 channels - M3U", itemCount: 1160, type: "M3U", status: "Active", time: "Updated 6h ago", icon: "kids", accent: "green", sourceUrl: "", serverUrl: "", username: "", password: "", lastSync: "6 hours ago" }
+        { id: "demo_live_tv", title: "Live TV", meta: "4,280 channels - M3U", itemCount: 4280, type: "M3U", status: "Active", time: "Updated 2h ago", icon: "tv", accent: "purple", sourceUrl: "", serverUrl: "", username: "", password: "", lastSync: "2 hours ago" },
+        { id: "demo_movies", title: "Movies", meta: "2,100 titles - Xtreme", itemCount: 2100, type: "Xtreme", status: "Active", time: "Updated 1d ago", icon: "movies", accent: "green", sourceUrl: "", serverUrl: "", username: "", password: "", lastSync: "1 day ago" },
+        { id: "demo_series", title: "Series", meta: "890 series - M3U", itemCount: 890, type: "M3U", status: "Expires soon", time: "Expires in 3 days", icon: "series", accent: "purple", sourceUrl: "", serverUrl: "", username: "", password: "", lastSync: "3 days ago" },
+        { id: "demo_sports", title: "Sports", meta: "1,640 channels - M3U", itemCount: 1640, type: "M3U", status: "Active", time: "Updated 4h ago", icon: "sport", accent: "green", sourceUrl: "", serverUrl: "", username: "", password: "", lastSync: "4 hours ago" },
+        { id: "demo_news", title: "News", meta: "520 channels - Xtreme", itemCount: 520, type: "Xtreme", status: "Offline", time: "Last seen 3d ago", icon: "news", accent: "purple", sourceUrl: "", serverUrl: "", username: "", password: "", lastSync: "3 days ago" },
+        { id: "demo_kids", title: "Kids & Family", meta: "1,160 channels - M3U", itemCount: 1160, type: "M3U", status: "Active", time: "Updated 6h ago", icon: "kids", accent: "green", sourceUrl: "", serverUrl: "", username: "", password: "", lastSync: "6 hours ago" },
+        { id: "demo_documentary", title: "Documentary", meta: "740 channels - M3U", itemCount: 740, type: "M3U", status: "Active", time: "Updated 8h ago", icon: "world", accent: "purple", sourceUrl: "", serverUrl: "", username: "", password: "", lastSync: "8 hours ago" },
+        { id: "demo_music", title: "Music", meta: "420 channels - Xtreme", itemCount: 420, type: "Xtreme", status: "Active", time: "Updated 12h ago", icon: "note", accent: "green", sourceUrl: "", serverUrl: "", username: "", password: "", lastSync: "12 hours ago" },
+        { id: "demo_favourites", title: "Favourites", meta: "180 saved - M3U", itemCount: 180, type: "M3U", status: "Active", time: "Updated 1d ago", icon: "heart", accent: "purple", sourceUrl: "", serverUrl: "", username: "", password: "", lastSync: "1 day ago" },
+        { id: "demo_family", title: "Family Movies", meta: "960 titles - Xtreme", itemCount: 960, type: "Xtreme", status: "Active", time: "Updated 2d ago", icon: "movies", accent: "green", sourceUrl: "", serverUrl: "", username: "", password: "", lastSync: "2 days ago" }
     ]
 end function
 
@@ -14,7 +18,7 @@ function playlistStoreList() as Object
     raw = section.Read("items")
     if raw <> invalid and raw <> "" then
         parsed = ParseJson(raw)
-        if parsed <> invalid and Type(parsed) = "roArray" then return playlistStoreNormalize(parsed)
+        if parsed <> invalid and Type(parsed) = "roArray" then return playlistStoreMergeDemoDefaults(playlistStoreNormalize(parsed))
     end if
     return playlistStoreDefaultItems()
 end function
@@ -85,6 +89,7 @@ function playlistStoreDelete(id as String) as Boolean
     for each item in items
         if playlistStoreText(item, "id") <> id then remaining.push(item)
     end for
+    if Left(id, 5) = "demo_" then playlistStoreRememberDeletedDemo(id)
     return playlistStoreSave(remaining)
 end function
 
@@ -125,6 +130,46 @@ function playlistStoreNormalize(items as Object) as Object
     end for
     return normalized
 end function
+
+function playlistStoreMergeDemoDefaults(items as Object) as Object
+    out = []
+    for each item in items
+        if Left(playlistStoreText(item, "id"), 5) <> "demo_" then out.push(item)
+    end for
+    deleted = playlistStoreDeletedDemos()
+    defaults = playlistStoreDefaultItems()
+    for each item in defaults
+        if not deleted.doesExist(playlistStoreText(item, "id")) then out.push(item)
+    end for
+    return out
+end function
+
+function playlistStoreDeletedDemos() as Object
+    section = CreateObject("roRegistrySection", "iptv_max_playlists")
+    raw = section.Read("deletedDemoIds")
+    deleted = {}
+    if raw <> invalid and raw <> "" then
+        parsed = ParseJson(raw)
+        if parsed <> invalid and Type(parsed) = "roArray" then
+            for each id in parsed
+                deleted[id] = true
+            end for
+        end if
+    end if
+    return deleted
+end function
+
+sub playlistStoreRememberDeletedDemo(id as String)
+    deleted = playlistStoreDeletedDemos()
+    deleted[id] = true
+    ids = []
+    for each key in deleted
+        ids.push(key)
+    end for
+    section = CreateObject("roRegistrySection", "iptv_max_playlists")
+    section.Write("deletedDemoIds", FormatJson(ids))
+    section.Flush()
+end sub
 
 function playlistStoreText(item as Object, key as String, fallback = "" as String) as String
     if item = invalid then return fallback

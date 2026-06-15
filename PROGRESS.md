@@ -200,6 +200,13 @@ Completed:
 - Confirmed `npm.cmd run check` passes.
 - Confirmed `npm.cmd run build` creates `build\roku-iptv-app.zip`.
 - Verified the packaged zip contains `components/MainScene.*`, `components/pages/MyPlaylistsPage.*`, `components/shared/PlaylistStore.brs`, and the updated manifest.
+- Fixed first Roku review issues on My Playlists: moved Search into the top bar, made cards taller with supported thin rounded card assets, moved Live TV artwork into each card instead of the page background, reduced border weight, and bumped manifest build version to `00052`.
+- Simplified My Playlists cards after Roku review: compact `260x152` cards, status moved to top-left, removed card icons/channel counts/REF action, showed playlist type only, reduced update text size, matched sidebar behavior to other pages, and bumped manifest build version to `00053`.
+- Added My Playlists scrolling/dynamic behavior after Roku review: larger scaled cards, 10 demo playlists aligned with app sections, sleek scrollbar, full Delete pill, delete confirmation overlay, corrected Delete/right focus routing, removed the card-left artifact, and bumped manifest build version to `00054`.
+- Refined My Playlists cards after Roku review: slightly larger cards, stronger card artwork, purple Active pills, rounded Delete button with cleaner color/focus shape, and native Roku delete confirmation dialog; manifest build version is now `00055`.
+- Tuned My Playlists card layering after Roku screenshot review: artwork now fills the card background, status pills share one rounded `100x40` shape with distinct colors, Delete keeps a stable rounded fill while only the border changes on focus, and manifest build version is now `00056`.
+- Restored stronger My Playlists card artwork after Roku screenshot review, switched status pills to the Movies featured-badge styling, changed playlist title color only, moved a smaller Watch Now-style Delete button fully inside the card, and bumped manifest build version to `00057`.
+- Tightened My Playlists remote/focus behavior after Roku review: centered status text inside badges, reduced Delete button size/text with its own stable focus state, strengthened focused-card contrast, fixed left/right card-grid navigation, and bumped manifest build version to `00058`.
 
 Needs future review:
 - Test My Playlists on actual Roku for card text scale, action focus movement, and search keyboard behavior.
