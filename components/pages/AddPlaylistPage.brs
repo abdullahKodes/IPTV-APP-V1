@@ -49,7 +49,12 @@ sub activate()
     if item.page <> invalid and item.page <> "" then m.top.navigateTo = item.page : return
     if item.action = "m3u" or item.action = "xtreme" then m.mode = item.action : render() : return
     if item.action = "field" then openKeyboard(item.fieldKey, item.fieldLabel) : return
-    if item.action = "submit" then m.added = true : render() : return
+    if item.action = "submit" then
+        playlistStoreAdd(m.inputs, m.mode)
+        m.added = true
+        m.top.navigateTo = "MyPlaylistsPage"
+        return
+    end if
 end sub
 
 sub render()

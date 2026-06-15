@@ -1,6 +1,6 @@
 # IPTV App Progress
 
-Last updated: 2026-06-12
+Last updated: 2026-06-15
 
 Read this file before starting a new session. Update it only after a meaningful milestone is completed, such as finishing a screen, fixing a major workflow, committing/pushing, or changing project structure. Do not update it for every tiny visual tweak.
 
@@ -50,6 +50,7 @@ Completed:
 - Add Playlist button no longer changes text to `Playlist Added`.
 - Xtreme Account fields were made more compact and less crowded.
 - Focused borders were regenerated slimmer.
+- Add Playlist submit now saves M3U/Xtreme entries into the shared playlist store and returns to My Playlists.
 
 Needs future review:
 - Visually test the on-screen keyboard on Roku.
@@ -74,7 +75,7 @@ Needs future review:
 
 ### Other Pages
 
-Status: Live TV, Series, and Movies have received polish passes; remaining pages still need page-by-page design work.
+Status: Live TV, Series, Movies, and My Playlists have received polish passes; Settings still needs page-by-page design work.
 
 ### Live TV Page
 
@@ -184,13 +185,34 @@ Needs future review:
 - Confirm movie card text sizing and featured panel spacing from couch distance.
 - Confirm search keyboard behavior on Roku.
 
+### My Playlists Page
+
+Status: first polish pass completed; ready for Roku visual review.
+
+Completed:
+- Compared the current Roku screenshot with the supplied target My Playlists design reference.
+- Rebuilt My Playlists into the target-inspired structure: shared app shell, title/summary header, add/search actions, three-column playlist cards, status pills, card refresh/delete actions, and footer sync summary.
+- Kept the app's existing purple/green contrast and added a subtle live-channel badge backdrop from the Live TV assets.
+- Added `components/shared/PlaylistStore.brs` as a local persistence layer for backend-shaped playlist records.
+- My Playlists now loads dynamically from the shared playlist store, supports search with the custom Roku keyboard, refreshes playlist sync state, deletes playlists, and opens playlists into Live TV.
+- Add Playlist now writes new M3U/Xtreme accounts into the same store so user-added playlists appear on My Playlists.
+- Bumped manifest build version to `00051`.
+- Confirmed `npm.cmd run check` passes.
+- Confirmed `npm.cmd run build` creates `build\roku-iptv-app.zip`.
+- Verified the packaged zip contains `components/MainScene.*`, `components/pages/MyPlaylistsPage.*`, `components/shared/PlaylistStore.brs`, and the updated manifest.
+
+Needs future review:
+- Test My Playlists on actual Roku for card text scale, action focus movement, and search keyboard behavior.
+- Confirm local registry persistence is enough until the real backend/API integration is selected.
+
 Screens still expected to need design pass:
-- My Playlists
 - Settings
 
 ## Current Implementation Notes
 
 - `components/pages/AddPlaylistPage.brs` owns Add Playlist layout and local sidebar rendering.
+- `components/pages/MyPlaylistsPage.brs` owns the polished playlist manager layout, search keyboard, and card actions.
+- `components/shared/PlaylistStore.brs` owns local playlist persistence and demo playlist fallbacks until a real backend or playlist parser replaces it.
 - `components/pages/SeriesPage.brs` owns the current Series page layout, genre filtering, and search keyboard.
 - `components/shared/MediaData.brs` owns backend-shaped mock movie data for the dynamic Movies page until real backend or playlist parsing replaces it.
 - `components/shared/AppUi.brs` owns the shared top bar and now uses `pkg:/images/logo_full_dark_modified.png`.
