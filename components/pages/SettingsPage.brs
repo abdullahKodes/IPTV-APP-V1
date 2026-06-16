@@ -205,9 +205,9 @@ sub drawAccountPanel()
     y = 176
     w = 330
     drawPanel(x, y, w, 206, "ACCOUNT", m.colors.amber)
-    drawAccountRow(x, y + 48, w, "sync_account", "Sync playlists", "sync", 1)
-    drawAccountRow(x, y + 100, w, "cache_account", "Clear cache", "clearcache", 2)
-    drawAccountRow(x, y + 152, w, "logout_account", "Sign out", "signout", 3)
+    drawAccountRow(x, y + 46, w, "sync_account", "Sync playlists", "sync", 1)
+    drawAccountRow(x, y + 98, w, "cache_account", "Clear cache", "clearcache", 2)
+    drawAccountRow(x, y + 150, w, "logout_account", "Sign out", "signout", 3)
 end sub
 
 sub drawDropdown()
@@ -243,7 +243,7 @@ sub drawSettingRow(x as Integer, y as Integer, w as Integer, title as String, su
     if y > 0 then uiRect(m.canvas, x + 22, y - 8, w - 44, 1, "0xFFFFFF0C")
     drawRowText(x + 24, y, 300, title, subtitle)
     if kind = "toggle" then
-        drawCompactToggle(x + w - 78, y + 10, enabled, action, row, col)
+        drawCompactToggle(x + w - 84, y + 8, enabled, action, row, col)
     else
         drawCompactSelect(x + w - 210, y + 4, 178, value, action, row, col)
     end if
@@ -266,7 +266,9 @@ sub drawCompactSelect(x as Integer, y as Integer, w as Integer, value as String,
     end if
     uiRoundRect(m.canvas, x, y, w, 34, bg, border, 1.0)
     uiLabel(m.canvas, value, x + 12, y + 2, w - 44, 28, 12, textColor, "center")
-    uiLabel(m.canvas, "v", x + w - 30, y + 2, 20, 28, 12, textColor, "center")
+    chevronUri = "pkg:/images/ui/select_chevron_down.png"
+    if focused then chevronUri = "pkg:/images/ui/select_chevron_down_focus.png"
+    uiPoster(m.canvas, chevronUri, x + w - 31, y + 8, 18, 18)
     m.focusItems.push({ x: x, y: y, w: w, h: 34, icon: "", label: value, subtitle: "", iconSize: 1, titleSize: 12, subSize: 10, bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim, focusBg: bg, focusBorder: border, focusTextColor: textColor, row: row, col: col, page: "", action: action, mode: "manual", noFocusShift: true })
 end sub
 
@@ -276,34 +278,34 @@ sub drawCompactToggle(x as Integer, y as Integer, enabled as Boolean, action as 
     track = m.colors.bg2
     border = m.colors.whiteLine
     knob = m.colors.text
-    knobX = x + 3
+    knobX = x + 1
     if enabled then
         track = m.colors.greenSoft
         border = m.colors.green
         knobX = x + 25
     end if
     if focused then border = m.colors.greenFocus
-    uiRoundRect(m.canvas, x, y, 44, 22, track, border, 1.0)
-    uiRoundRect(m.canvas, knobX, y + 3, 16, 16, knob, knob, 1.0)
-    m.focusItems.push({ x: x, y: y, w: 44, h: 22, icon: "", label: boolText(enabled), subtitle: "", iconSize: 1, titleSize: 10, subSize: 10, bg: track, border: border, textColor: m.colors.text, subColor: m.colors.textDim, focusBg: track, focusBorder: border, focusTextColor: m.colors.text, row: row, col: col, page: "", action: action, mode: "manual", noFocusShift: true })
+    uiRoundRect(m.canvas, x, y, 50, 26, track, border, 1.0)
+    uiRoundRect(m.canvas, knobX, y + 1, 24, 24, knob, knob, 1.0)
+    m.focusItems.push({ x: x, y: y, w: 50, h: 26, icon: "", label: boolText(enabled), subtitle: "", iconSize: 1, titleSize: 10, subSize: 10, bg: track, border: border, textColor: m.colors.text, subColor: m.colors.textDim, focusBg: track, focusBorder: border, focusTextColor: m.colors.text, row: row, col: col, page: "", action: action, mode: "manual", noFocusShift: true })
 end sub
 
 sub drawAccountRow(x as Integer, y as Integer, w as Integer, icon as String, label as String, action as String, row as Integer)
     index = m.focusItems.count()
     focused = index = m.focusIndex
-    bg = m.colors.panelSoft
-    border = m.colors.panelSoft
+    bg = m.colors.bg2
+    border = m.colors.bg2
     textColor = m.colors.textPurple
     if action = "signout" then textColor = "0xFFB2A8FF"
     if focused then
-        bg = m.colors.purpleSoft
+        bg = m.colors.panelSoft
         border = m.colors.greenFocus
         textColor = m.colors.text
     end if
-    uiRoundRect(m.canvas, x + 16, y - 2, w - 32, 42, bg, border, 1.0)
-    uiDrawIcon(m.canvas, icon, x + 34, y + 10, 18, 18, focused, textColor, 11)
-    uiLabel(m.canvas, label, x + 66, y + 2, 205, 30, 13, textColor)
-    m.focusItems.push({ x: x + 16, y: y - 2, w: w - 32, h: 42, icon: icon, label: label, subtitle: "", iconSize: 11, titleSize: 13, subSize: 8, bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: 4, page: "", action: action, mode: "manual", noFocusShift: true })
+    uiRoundRect(m.canvas, x + 16, y - 2, w - 32, 46, bg, border, 1.0)
+    uiDrawIcon(m.canvas, icon, x + 34, y + 12, 18, 18, focused, textColor, 11)
+    uiLabel(m.canvas, label, x + 66, y + 4, 205, 30, 13, textColor)
+    m.focusItems.push({ x: x + 16, y: y - 2, w: w - 32, h: 46, icon: icon, label: label, subtitle: "", iconSize: 11, titleSize: 13, subSize: 8, bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: 4, page: "", action: action, mode: "manual", noFocusShift: true })
 end sub
 
 sub drawHeaderAction(x as Integer, y as Integer, w as Integer, h as Integer, icon as String, label as String, page as String, action as String, row as Integer, col as Integer)

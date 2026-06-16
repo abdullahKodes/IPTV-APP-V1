@@ -39,7 +39,7 @@ sub render()
     uiClear(m.canvas)
     m.focusItems = []
     uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg)
-    uiRect(m.canvas, 0, 86, 1280, 634, m.colors.bg, 0.96)
+    drawHomeArtwork()
     clockParts = uiTopBar(m.canvas, m.colors)
     m.clock = clockParts.clock
     m.date = clockParts.date
@@ -54,6 +54,12 @@ sub render()
     addTile(780, 412, 260, 152, "card_movies", "Movies", "", m.colors.greenSoft, m.colors.greenFocus, m.colors.text, nextRow + 1, 2, "MoviesPage")
 
     drawFocus()
+end sub
+
+sub drawHomeArtwork()
+    uiPosterZoom(m.canvas, "pkg:/images/home/home_background.jpg", 226, 86, 1054, 634, 0.62)
+    uiRect(m.canvas, 226, 86, 1054, 634, m.colors.bg, 0.36)
+    uiRect(m.canvas, 226, 86, 1054, 634, "0x000000FF", 0.08)
 end sub
 
 function drawHomeSideNav() as Integer

@@ -90,11 +90,14 @@ Completed:
 - Corrected the fifth Settings Roku review issue: moved panels back to the earlier positions, made Playback/App section colors match, reduced row subtitle size further, vertically centered selector text, strengthened Account row pill opacity, added a local cache icon, and slimmed the Back button padding/border.
 - Corrected the sixth Settings Roku review issue: Account rows now have centered titles with no subtitles, no visible inner-row borders, stronger non-purple row fills, improved bottom spacing, and dedicated local sync/cache/logout account icons.
 - Corrected the seventh Settings Roku review issue: restored visible Account row pills without normal borders by adding the missing `panelSoft/panelSoft` asset, removed Playback/App row subtitles, vertically centered setting titles, and restored the Back button to a dark normal background.
+- Corrected the eighth Settings Roku review issue: fixed the actual Account-row asset-size mismatch by adding the exact `298x46` and `298x42` row assets so the Account pills render on Roku, with slightly taller rows and better vertical centering.
+- Corrected the ninth Settings Roku review issue: changed Account row pills to a darker `bg2` tone with no normal border and green focus, replaced switches with larger mobile-style pill tracks and circular thumbs, and downloaded Google Material Symbols source SVGs for the account icon set before rasterizing local PNGs.
+- Corrected the tenth Settings Roku review issue: reduced the mobile-style switch size to a smaller `50x26` track with a `20x20` thumb and regenerated Account icons from the downloaded Google Material Symbols SVG path data.
 - Added persistent settings storage in `components/shared/SettingsStore.brs` using Roku registry-backed values for default quality, caption mode, autoplay, notifications, app language, parental lock, sync status, sign-in state, and profile identity metadata.
 - Added a Roku certification-informed caption mode selector with system default, on, off, instant replay, and on-mute options.
 - Made Account actions functional: Sync all playlists reads the shared playlist store and updates persisted sync status, App version reads `roAppInfo`, and Sign out uses a native confirmation dialog.
 - Added a separate `ProfilePage` and changed all `My Profile` sidebar entries to navigate there instead of Settings.
-- Bumped manifest build version to `00069`.
+- Bumped manifest build version to `00072`.
 - Confirmed `npm.cmd run check` passes.
 - Confirmed `npm.cmd run build` creates `build\roku-iptv-app.zip`.
 - Verified the packaged zip contains `components/MainScene.*`, `components/pages/SettingsPage.*`, `components/pages/ProfilePage.*`, and `components/shared/SettingsStore.brs`.
