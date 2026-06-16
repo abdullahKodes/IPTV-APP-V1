@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<component name="SettingsPage" extends="Group">
+<component name="ProfilePage" extends="Group">
   <children>
-    <!-- Settings renders persistent playback, app, and account preferences. -->
-    <Group id="settingsCanvas" />
+    <Group id="profileCanvas" />
   </children>
   <interface>
     <field id="navigateTo" type="string" alwaysNotify="true" />
@@ -10,7 +9,6 @@
     <function name="refreshClock" />
   </interface>
   <script type="text/brightscript" uri="pkg:/components/shared/AppUi.brs" />
-  <script type="text/brightscript" uri="pkg:/components/shared/PlaylistStore.brs" />
   <script type="text/brightscript" uri="pkg:/components/shared/SettingsStore.brs" />
-  <script type="text/brightscript" uri="pkg:/components/pages/SettingsPage.brs" />
+  <script type="text/brightscript" uri="pkg:/components/pages/ProfilePage.brs" />
 </component>

@@ -93,7 +93,7 @@ sub addHomeProfileItem()
         iconSize: 14, iconW: 32, iconH: 32, iconX: 18, titleSize: 11, subSize: 7,
         bg: "0xFFFFFF10", border: m.colors.panel, textColor: m.colors.text, subColor: m.colors.textDim,
         focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
-        row: 4, col: 0, page: "SettingsPage", mode: "row"
+        row: 4, col: 0, page: "ProfilePage", mode: "row"
     }
     m.focusItems.push(item)
 end sub

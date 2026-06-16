@@ -3,18 +3,35 @@ sub init()
     m.canvas = m.top.findNode("settingsCanvas")
     m.focusItems = []
     m.focusIndex = 1
-    m.autoplay = true
-    m.subtitles = false
-    m.notifications = true
-    m.parental = false
-    m.versionStatus = "v2.4.1"
+    m.settings = settingsStoreLoad()
+    m.qualityOptions = ["Auto", "1080p", "720p", "480p"]
+    m.captionOptions = ["System", "On", "Off", "Replay", "Mute"]
+    m.languageOptions = ["English", "Spanish", "French", "Arabic"]
+    m.versionText = settingsAppVersionText()
+    m.signOutDialog = invalid
+    m.dropdownOpen = false
+    m.dropdownKey = ""
+    m.dropdownOptions = []
+    m.dropdownIndex = 0
+    m.dropdownX = 0
+    m.dropdownY = 0
     render()
 end sub
 
 sub refreshClock()
+    if m.clock <> invalid then
+        now = uiNowStrings()
+        m.clock.text = now.time
+        m.date.text = now.date
+    end if
 end sub
 
 function handleKey(key as String) as Boolean
+    if m.signOutDialog <> invalid then
+        if key = "back" then closeSignOutDialog() : return true
+        return false
+    end if
+    if m.dropdownOpen then return handleDropdownKey(key)
     if key = "left" then move(-1, 0) : return true
     if key = "right" then move(1, 0) : return true
     if key = "up" then move(0, -1) : return true
@@ -28,16 +45,69 @@ sub move(dx as Integer, dy as Integer)
     render()
 end sub
 
+function handleDropdownKey(key as String) as Boolean
+    if key = "back" then closeDropdown() : return true
+    if key = "up" then
+        if m.dropdownIndex > 0 then m.dropdownIndex -= 1
+        render()
+        return true
+    end if
+    if key = "down" then
+        if m.dropdownIndex < m.dropdownOptions.count() - 1 then m.dropdownIndex += 1
+        render()
+        return true
+    end if
+    if key = "OK" then
+        if m.dropdownIndex >= 0 and m.dropdownIndex < m.dropdownOptions.count() then
+            m.settings[m.dropdownKey] = m.dropdownOptions[m.dropdownIndex]
+            settingsStoreSave(m.settings)
+        end if
+        closeDropdown()
+        return true
+    end if
+    return true
+end function
+
 sub activate()
+    if m.focusIndex < 0 or m.focusIndex >= m.focusItems.count() then return
     item = m.focusItems[m.focusIndex]
     if item.page <> invalid and item.page <> "" then m.top.navigateTo = item.page : return
-    if item.action = "autoplay" then m.autoplay = not m.autoplay
-    if item.action = "subtitles" then m.subtitles = not m.subtitles
-    if item.action = "notifications" then m.notifications = not m.notifications
-    if item.action = "parental" then m.parental = not m.parental
-    if item.action = "version" then
-        if m.versionStatus = "v2.4.1" then m.versionStatus = "Up to date" else m.versionStatus = "v2.4.1"
-    end if
+    action = ""
+    if item.doesExist("action") then action = item.action
+
+    if action = "quality" then openDropdown("defaultQuality", m.qualityOptions, item.x, item.y + item.h + 4) : return
+    if action = "captions" then openDropdown("captionMode", m.captionOptions, item.x, item.y + item.h + 4) : return
+    if action = "autoplay" then m.settings.autoplay = not m.settings.autoplay
+    if action = "notifications" then m.settings.notifications = not m.settings.notifications
+    if action = "language" then openDropdown("appLanguage", m.languageOptions, item.x, item.y + item.h + 4) : return
+    if action = "parental" then m.settings.parentalLock = not m.settings.parentalLock
+    if action = "sync" then syncAllPlaylists()
+    if action = "clearcache" then m.settings.lastSync = "Cache cleared"
+    if action = "signout" then openSignOutDialog()
+
+    settingsStoreSave(m.settings)
+    render()
+end sub
+
+sub openDropdown(key as String, options as Object, x as Integer, y as Integer)
+    m.dropdownOpen = true
+    m.dropdownKey = key
+    m.dropdownOptions = options
+    m.dropdownX = x
+    m.dropdownY = y
+    current = settingsStoreText(m.settings, key, options[0])
+    m.dropdownIndex = 0
+    for i = 0 to options.count() - 1
+        if options[i] = current then m.dropdownIndex = i
+    end for
+    render()
+end sub
+
+sub closeDropdown()
+    m.dropdownOpen = false
+    m.dropdownKey = ""
+    m.dropdownOptions = []
+    m.dropdownIndex = 0
     render()
 end sub
 
@@ -45,71 +115,287 @@ sub render()
     uiClear(m.canvas)
     m.focusItems = []
     uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg)
-    uiRect(m.canvas, 0, 0, 1280, 72, m.colors.bg)
-    uiRect(m.canvas, 0, 71, 1280, 1, "0xFFFFFF14")
-    uiRect(m.canvas, 28, 18, 38, 38, m.colors.purple)
-    uiLabel(m.canvas, "PLAY", 30, 18, 34, 38, 11, m.colors.text, "center")
-    uiLabel(m.canvas, "IPTV", 78, 15, 78, 38, 24, m.colors.textPurple)
-    uiLabel(m.canvas, "Max", 142, 15, 70, 38, 24, m.colors.textGreen)
-    addBackButton()
+    uiRect(m.canvas, 0, 86, 1280, 634, m.colors.bg, 0.96)
+    clockParts = uiTopBar(m.canvas, m.colors)
+    m.clock = clockParts.clock
+    m.date = clockParts.date
+    refreshClock()
 
-    uiRect(m.canvas, 390, 112, 500, 74, m.colors.purpleSoft)
-    uiRect(m.canvas, 418, 128, 46, 46, m.colors.purple)
-    uiLabel(m.canvas, "JD", 418, 128, 46, 46, 17, m.colors.text, "center")
-    uiLabel(m.canvas, "John Doe", 486, 120, 180, 30, 17, m.colors.textPurple)
-    uiLabel(m.canvas, "john.doe@email.com", 486, 148, 220, 26, 13, m.colors.purpleLine)
-    uiLabel(m.canvas, "Premium", 772, 136, 86, 24, 12, m.colors.textGreen, "center")
-
-    drawSection(390, 208, "Playback", [
-        { title: "Default quality", sub: "Stream resolution", value: "Auto", action: "" },
-        { title: "Autoplay next", sub: "Episodes and series", value: boolText(m.autoplay), action: "autoplay" },
-        { title: "Subtitles", sub: "Show when available", value: boolText(m.subtitles), action: "subtitles" }
-    ], 1)
-
-    drawSection(390, 390, "App", [
-        { title: "Notifications", sub: "Channel alerts and updates", value: boolText(m.notifications), action: "notifications" },
-        { title: "App language", sub: "", value: "English", action: "" },
-        { title: "Parental lock", sub: "PIN protect adult content", value: boolText(m.parental), action: "parental" }
-    ], 5)
-
-    drawAccount()
+    drawPageHeader()
+    drawPlaybackPanel()
+    drawAppPanel()
+    drawAccountPanel()
     uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
+    if m.dropdownOpen then drawDropdown()
 end sub
 
-sub addBackButton()
-    item = { x: 1020, y: 20, w: 150, h: 40, icon: "BACK", label: "Back", subtitle: "", iconSize: 12, titleSize: 15, subSize: 10, bg: "0xFFFFFF10", border: "0xFFFFFF18", textColor: m.colors.textPurple, subColor: m.colors.textDim, focusBg: m.colors.purple, focusBorder: m.colors.text, focusTextColor: m.colors.text, row: 0, col: 2, page: "LiveTvPage", action: "" }
+function drawSettingsSideNav() as Integer
+    uiRect(m.canvas, 0, 86, 226, 634, m.colors.panel, 0.66)
+    uiRect(m.canvas, 225, 86, 1, 634, "0xFFFFFF14")
+
+    addSettingsNavItem(12, 112, "list", "My Playlists", "MyPlaylistsPage", 0, false)
+    addSettingsNavItem(12, 168, "tv", "Live TV", "LiveTvPage", 1, false)
+    addSettingsNavItem(12, 224, "series", "Series", "SeriesPage", 2, false)
+    addSettingsNavItem(12, 280, "movies", "Movies", "MoviesPage", 3, false)
+    addSettingsNavItem(12, 336, "settings", "Settings", "SettingsPage", 4, true)
+    addSettingsProfileItem()
+    return 6
+end function
+
+sub addSettingsNavItem(x as Integer, y as Integer, icon as String, label as String, page as String, row as Integer, active as Boolean)
+    item = {
+        x: x, y: y, w: 204, h: 52,
+        icon: icon, label: label, subtitle: "",
+        iconSize: 12, titleSize: 12, subSize: 10,
+        bg: m.colors.bg, border: m.colors.bg, textColor: m.colors.textGreen, subColor: m.colors.textDim,
+        focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        row: row, col: 0, page: page, mode: "row"
+    }
+    if active then
+        item.bg = m.colors.purpleSoft
+        item.border = m.colors.greenFocus
+        item.textColor = m.colors.text
+    end if
     m.focusItems.push(item)
 end sub
 
-sub drawSection(x as Integer, y as Integer, title as String, rows as Object, startRow as Integer)
-    uiRect(m.canvas, x, y, 500, 158, "0xFFFFFF10")
-    uiLabel(m.canvas, title, x + 20, y + 10, 200, 24, 13, m.colors.textDim)
-    for i = 0 to rows.count() - 1
-        r = rows[i]
-        yy = y + 42 + i * 42
-        uiLabel(m.canvas, r.title, x + 20, yy, 230, 24, 15, m.colors.textPurple)
-        if r.sub <> "" then uiLabel(m.canvas, r.sub, x + 20, yy + 20, 250, 20, 11, m.colors.textDim)
-        addSettingAction(x + 350, yy, r.value, startRow + i, r.action)
+sub addSettingsProfileItem()
+    item = {
+        x: 12, y: 640, w: 204, h: 52,
+        icon: "profile", label: "My Profile", subtitle: "",
+        iconSize: 14, iconW: 32, iconH: 32, iconX: 18, titleSize: 11, subSize: 7,
+        bg: "0xFFFFFF10", border: m.colors.panel, textColor: m.colors.text, subColor: m.colors.textDim,
+        focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        row: 5, col: 0, page: "ProfilePage", mode: "row"
+    }
+    m.focusItems.push(item)
+end sub
+
+sub drawPageHeader()
+    uiLabel(m.canvas, "Settings", 258, 108, 420, 46, 34, m.colors.text)
+    drawHeaderBackButton()
+end sub
+
+sub drawHeaderBackButton()
+    drawHeaderAction(1068, 120, 112, 36, "back", "Back", "HomePage", "", 0, 4)
+end sub
+
+sub drawPlaybackPanel()
+    x = 258
+    y = 176
+    w = 590
+    drawPanel(x, y, w, 206, "PLAYBACK", m.colors.textGreen)
+    drawSettingRow(x, y + 44, w, "Default quality", "", settingsStoreText(m.settings, "defaultQuality", "Auto"), "quality", "select", true, 1, 1)
+    drawSettingRow(x, y + 98, w, "Autoplay next", "", "", "autoplay", "toggle", settingsStoreBool(m.settings, "autoplay", true), 2, 1)
+    drawSettingRow(x, y + 152, w, "Caption mode", "", captionDisplayText(settingsStoreText(m.settings, "captionMode", "System")), "captions", "select", true, 3, 1)
+end sub
+
+sub drawAppPanel()
+    x = 258
+    y = 404
+    w = 590
+    drawPanel(x, y, w, 206, "APP", m.colors.textGreen)
+    drawSettingRow(x, y + 44, w, "Notifications", "", "", "notifications", "toggle", settingsStoreBool(m.settings, "notifications", true), 4, 1)
+    drawSettingRow(x, y + 98, w, "App language", "", settingsStoreText(m.settings, "appLanguage", "English"), "language", "select", true, 5, 1)
+    drawSettingRow(x, y + 152, w, "Parental lock", "", "", "parental", "toggle", settingsStoreBool(m.settings, "parentalLock", false), 6, 1)
+end sub
+
+sub drawAccountPanel()
+    x = 872
+    y = 176
+    w = 330
+    drawPanel(x, y, w, 206, "ACCOUNT", m.colors.amber)
+    drawAccountRow(x, y + 48, w, "sync_account", "Sync playlists", "sync", 1)
+    drawAccountRow(x, y + 100, w, "cache_account", "Clear cache", "clearcache", 2)
+    drawAccountRow(x, y + 152, w, "logout_account", "Sign out", "signout", 3)
+end sub
+
+sub drawDropdown()
+    if m.dropdownOptions = invalid or m.dropdownOptions.count() = 0 then return
+    rowH = 34
+    w = 178
+    x = m.dropdownX
+    y = m.dropdownY
+    totalH = rowH * m.dropdownOptions.count()
+    if y + totalH > 704 then y = 704 - totalH
+    uiRect(m.canvas, x - 4, y - 4, w + 8, totalH + 8, m.colors.bg, 0.84)
+    for i = 0 to m.dropdownOptions.count() - 1
+        optionY = y + i * rowH
+        bg = m.colors.bg2
+        border = m.colors.whiteLine
+        textColor = m.colors.textPurple
+        if i = m.dropdownIndex then
+            bg = m.colors.purpleSoft
+            border = m.colors.greenFocus
+            textColor = m.colors.text
+        end if
+        uiRoundRect(m.canvas, x, optionY, w, 34, bg, border)
+        uiLabel(m.canvas, dropdownDisplayText(m.dropdownKey, m.dropdownOptions[i]), x + 10, optionY + 1, w - 20, 26, 12, textColor, "center")
     end for
 end sub
 
-sub addSettingAction(x as Integer, y as Integer, label as String, row as Integer, action as String)
-    item = { x: x, y: y, w: 100, h: 34, icon: "", label: label, subtitle: "", iconSize: 1, titleSize: 13, subSize: 10, bg: m.colors.purpleSoft, border: m.colors.purpleLine, textColor: m.colors.textPurple, subColor: m.colors.textDim, focusBg: m.colors.greenSoft, focusBorder: m.colors.green, focusTextColor: m.colors.textGreen, row: row, col: 2, page: "", action: action }
-    m.focusItems.push(item)
+sub drawPanel(x as Integer, y as Integer, w as Integer, h as Integer, title as String, titleColor as String)
+    uiRoundRect(m.canvas, x, y, w, h, m.colors.panel, m.colors.whiteLine, 0.96)
+    uiLabel(m.canvas, title, x + 22, y + 13, w - 44, 22, 15, titleColor)
 end sub
 
-sub drawAccount()
-    uiRect(m.canvas, 920, 208, 250, 238, "0xFFFFFF10")
-    uiLabel(m.canvas, "Account", 940, 220, 180, 24, 13, m.colors.textDim)
-    drawAccountRow(940, 260, "SYNC", "Sync all playlists", "", 8, "")
-    drawAccountRow(940, 322, "INFO", "App version", m.versionStatus, 9, "version")
-    drawAccountRow(940, 384, "OUT", "Sign out", "", 10, "")
+sub drawSettingRow(x as Integer, y as Integer, w as Integer, title as String, subtitle as String, value as String, action as String, kind as String, enabled as Boolean, row as Integer, col as Integer)
+    if y > 0 then uiRect(m.canvas, x + 22, y - 8, w - 44, 1, "0xFFFFFF0C")
+    drawRowText(x + 24, y, 300, title, subtitle)
+    if kind = "toggle" then
+        drawCompactToggle(x + w - 78, y + 10, enabled, action, row, col)
+    else
+        drawCompactSelect(x + w - 210, y + 4, 178, value, action, row, col)
+    end if
 end sub
 
-sub drawAccountRow(x as Integer, y as Integer, icon as String, label as String, value as String, row as Integer, action as String)
-    item = { x: x, y: y, w: 210, h: 44, icon: icon, label: label, subtitle: value, iconSize: 12, titleSize: 13, subSize: 11, bg: m.colors.bg, border: "0xFFFFFF10", textColor: m.colors.textPurple, subColor: m.colors.textDim, focusBg: m.colors.purpleSoft, focusBorder: m.colors.purpleLine, focusTextColor: m.colors.text, row: row, col: 3, page: "", action: action }
-    m.focusItems.push(item)
+sub drawRowText(x as Integer, y as Integer, w as Integer, title as String, subtitle as String)
+    uiLabel(m.canvas, title, x, y + 3, w, 30, 14, m.colors.text)
 end sub
+
+sub drawCompactSelect(x as Integer, y as Integer, w as Integer, value as String, action as String, row as Integer, col as Integer)
+    index = m.focusItems.count()
+    focused = index = m.focusIndex
+    bg = m.colors.bg2
+    border = m.colors.whiteLine
+    textColor = m.colors.textPurple
+    if focused then
+        bg = m.colors.purpleSoft
+        border = m.colors.greenFocus
+        textColor = m.colors.text
+    end if
+    uiRoundRect(m.canvas, x, y, w, 34, bg, border, 1.0)
+    uiLabel(m.canvas, value, x + 12, y + 2, w - 44, 28, 12, textColor, "center")
+    uiLabel(m.canvas, "v", x + w - 30, y + 2, 20, 28, 12, textColor, "center")
+    m.focusItems.push({ x: x, y: y, w: w, h: 34, icon: "", label: value, subtitle: "", iconSize: 1, titleSize: 12, subSize: 10, bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim, focusBg: bg, focusBorder: border, focusTextColor: textColor, row: row, col: col, page: "", action: action, mode: "manual", noFocusShift: true })
+end sub
+
+sub drawCompactToggle(x as Integer, y as Integer, enabled as Boolean, action as String, row as Integer, col as Integer)
+    index = m.focusItems.count()
+    focused = index = m.focusIndex
+    track = m.colors.bg2
+    border = m.colors.whiteLine
+    knob = m.colors.text
+    knobX = x + 3
+    if enabled then
+        track = m.colors.greenSoft
+        border = m.colors.green
+        knobX = x + 25
+    end if
+    if focused then border = m.colors.greenFocus
+    uiRoundRect(m.canvas, x, y, 44, 22, track, border, 1.0)
+    uiRoundRect(m.canvas, knobX, y + 3, 16, 16, knob, knob, 1.0)
+    m.focusItems.push({ x: x, y: y, w: 44, h: 22, icon: "", label: boolText(enabled), subtitle: "", iconSize: 1, titleSize: 10, subSize: 10, bg: track, border: border, textColor: m.colors.text, subColor: m.colors.textDim, focusBg: track, focusBorder: border, focusTextColor: m.colors.text, row: row, col: col, page: "", action: action, mode: "manual", noFocusShift: true })
+end sub
+
+sub drawAccountRow(x as Integer, y as Integer, w as Integer, icon as String, label as String, action as String, row as Integer)
+    index = m.focusItems.count()
+    focused = index = m.focusIndex
+    bg = m.colors.panelSoft
+    border = m.colors.panelSoft
+    textColor = m.colors.textPurple
+    if action = "signout" then textColor = "0xFFB2A8FF"
+    if focused then
+        bg = m.colors.purpleSoft
+        border = m.colors.greenFocus
+        textColor = m.colors.text
+    end if
+    uiRoundRect(m.canvas, x + 16, y - 2, w - 32, 42, bg, border, 1.0)
+    uiDrawIcon(m.canvas, icon, x + 34, y + 10, 18, 18, focused, textColor, 11)
+    uiLabel(m.canvas, label, x + 66, y + 2, 205, 30, 13, textColor)
+    m.focusItems.push({ x: x + 16, y: y - 2, w: w - 32, h: 42, icon: icon, label: label, subtitle: "", iconSize: 11, titleSize: 13, subSize: 8, bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: 4, page: "", action: action, mode: "manual", noFocusShift: true })
+end sub
+
+sub drawHeaderAction(x as Integer, y as Integer, w as Integer, h as Integer, icon as String, label as String, page as String, action as String, row as Integer, col as Integer)
+    index = m.focusItems.count()
+    focused = index = m.focusIndex
+    bg = m.colors.bg2
+    border = m.colors.whiteLine
+    textColor = m.colors.textPurple
+    if focused then
+        bg = m.colors.purpleSoft
+        border = m.colors.greenFocus
+        textColor = m.colors.text
+    end if
+    uiRoundRect(m.canvas, x, y, w, h, bg, border)
+    uiDrawIcon(m.canvas, icon, x + 18, y + 9, 18, 18, focused, textColor, 12)
+    uiLabel(m.canvas, label, x + 42, y + 2, w - 54, 30, 14, textColor)
+    m.focusItems.push({ x: x, y: y, w: w, h: h, icon: icon, label: label, subtitle: "", iconSize: 12, titleSize: 15, subSize: 10, bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: col, page: page, action: action, mode: "manual", noFocusShift: true })
+end sub
+
+sub cycleSetting(key as String, options as Object, delta as Integer)
+    current = settingsStoreText(m.settings, key, options[0])
+    index = 0
+    for i = 0 to options.count() - 1
+        if options[i] = current then index = i
+    end for
+    index += delta
+    if index < 0 then index = options.count() - 1
+    if index >= options.count() then index = 0
+    m.settings[key] = options[index]
+end sub
+
+sub syncAllPlaylists()
+    count = 0
+    items = playlistStoreList()
+    if items <> invalid then count = items.count()
+    m.settings.syncCount = settingsStoreNumber(m.settings, "syncCount", 0) + 1
+    m.settings.lastSync = "Synced now - " + count.toStr() + " playlists"
+end sub
+
+sub openSignOutDialog()
+    dialog = CreateObject("roSGNode", "Dialog")
+    dialog.title = "Sign out?"
+    dialog.message = "This clears the local account session. Playlists and app settings stay on this Roku."
+    dialog.buttons = ["Cancel", "Sign out"]
+    dialog.observeField("buttonSelected", "onSignOutDialogButton")
+    m.signOutDialog = dialog
+    m.top.getScene().dialog = dialog
+end sub
+
+sub closeSignOutDialog()
+    if m.top <> invalid and m.top.getScene() <> invalid then m.top.getScene().dialog = invalid
+    m.signOutDialog = invalid
+end sub
+
+sub onSignOutDialogButton()
+    if m.signOutDialog = invalid then return
+    if m.signOutDialog.buttonSelected = 1 then
+        m.settings.signedIn = false
+        m.settings.lastSync = "Signed out locally"
+        settingsStoreSave(m.settings)
+    end if
+    closeSignOutDialog()
+    render()
+end sub
+
+function settingsAppVersionText() as String
+    appInfo = CreateObject("roAppInfo")
+    if appInfo <> invalid then
+        version = appInfo.GetVersion()
+        if version <> invalid and version <> "" then return "v" + version
+    end if
+    return "v0.1"
+end function
+
+function captionDisplayText(value as String) as String
+    if value = "System" then return "System"
+    if value = "Replay" then return "Replay"
+    if value = "Mute" then return "On mute"
+    return value
+end function
+
+function dropdownDisplayText(key as String, value as String) as String
+    if key = "captionMode" then return captionDisplayText(value)
+    return value
+end function
+
+function compactSyncText(value as String) as String
+    if value = invalid or value = "" then return "Not synced"
+    if Instr(1, value, "Synced now") > 0 then return "Synced now"
+    if Instr(1, value, "Signed out") > 0 then return "Signed out"
+    return value
+end function
 
 function boolText(v as Boolean) as String
     if v then return "On"

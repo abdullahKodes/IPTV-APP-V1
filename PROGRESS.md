@@ -1,6 +1,6 @@
 # IPTV App Progress
 
-Last updated: 2026-06-15
+Last updated: 2026-06-16
 
 Read this file before starting a new session. Update it only after a meaningful milestone is completed, such as finishing a screen, fixing a major workflow, committing/pushing, or changing project structure. Do not update it for every tiny visual tweak.
 
@@ -75,7 +75,34 @@ Needs future review:
 
 ### Other Pages
 
-Status: Live TV, Series, Movies, and My Playlists have received polish passes; Settings still needs page-by-page design work.
+Status: Live TV, Series, Movies, My Playlists, and Settings have received polish passes.
+
+### Settings Page
+
+Status: first polish and backend-readiness pass completed; redesigned after Roku screenshot review and ready for another device pass.
+
+Completed:
+- Rebuilt Settings toward the supplied dark IPTV Max reference with stacked settings panels, TV-readable typography, stable focus states, and no embedded profile card.
+- Corrected the first Settings Roku review issue: removed the fake top design tabs, restored the shared app `uiTopBar`, added the normal left app navigation, and respaced rows/controls so labels and toggles no longer collide.
+- Corrected the second Settings Roku review issue: replaced the cramped stacked form with a low-density two-column dashboard, compact square switches, shorter value selectors, and separated Playback/App/Account panels so options cannot visually mix together.
+- Corrected the third Settings Roku review issue: generated rounded panel/control assets, rounded Settings and Account sections, rounded menu boxes, reduced switch size, separated title/subtitle text hierarchy, removed My Profile from Account, and thinned focused borders.
+- Corrected the fourth Settings Roku review issue: removed the Settings page sidebar from the render path, enlarged the Settings title and removed its subtitle, gave Playback/App/Account distinct section colors, reduced row subtitle prominence, added real dropdown overlays for selectable settings, and replaced App version with Clear cache in Account.
+- Corrected the fifth Settings Roku review issue: moved panels back to the earlier positions, made Playback/App section colors match, reduced row subtitle size further, vertically centered selector text, strengthened Account row pill opacity, added a local cache icon, and slimmed the Back button padding/border.
+- Corrected the sixth Settings Roku review issue: Account rows now have centered titles with no subtitles, no visible inner-row borders, stronger non-purple row fills, improved bottom spacing, and dedicated local sync/cache/logout account icons.
+- Corrected the seventh Settings Roku review issue: restored visible Account row pills without normal borders by adding the missing `panelSoft/panelSoft` asset, removed Playback/App row subtitles, vertically centered setting titles, and restored the Back button to a dark normal background.
+- Added persistent settings storage in `components/shared/SettingsStore.brs` using Roku registry-backed values for default quality, caption mode, autoplay, notifications, app language, parental lock, sync status, sign-in state, and profile identity metadata.
+- Added a Roku certification-informed caption mode selector with system default, on, off, instant replay, and on-mute options.
+- Made Account actions functional: Sync all playlists reads the shared playlist store and updates persisted sync status, App version reads `roAppInfo`, and Sign out uses a native confirmation dialog.
+- Added a separate `ProfilePage` and changed all `My Profile` sidebar entries to navigate there instead of Settings.
+- Bumped manifest build version to `00069`.
+- Confirmed `npm.cmd run check` passes.
+- Confirmed `npm.cmd run build` creates `build\roku-iptv-app.zip`.
+- Verified the packaged zip contains `components/MainScene.*`, `components/pages/SettingsPage.*`, `components/pages/ProfilePage.*`, and `components/shared/SettingsStore.brs`.
+
+Needs future review:
+- Test Settings and Profile focus movement on actual Roku.
+- Confirm the new full-width Settings layout matches the supplied reference from couch distance.
+- Wire Profile manage-subscription and sign-in/account actions to the selected backend/payment provider.
 
 ### Live TV Page
 
@@ -216,13 +243,14 @@ Needs future review:
 - Confirm local registry persistence is enough until the real backend/API integration is selected.
 
 Screens still expected to need design pass:
-- Settings
+- None currently known; continue Roku-device visual review page by page.
 
 ## Current Implementation Notes
 
 - `components/pages/AddPlaylistPage.brs` owns Add Playlist layout and local sidebar rendering.
 - `components/pages/MyPlaylistsPage.brs` owns the polished playlist manager layout, search keyboard, and card actions.
 - `components/shared/PlaylistStore.brs` owns local playlist persistence and demo playlist fallbacks until a real backend or playlist parser replaces it.
+- `components/shared/SettingsStore.brs` owns local registry-backed settings/profile state until the real account backend replaces it.
 - `components/pages/SeriesPage.brs` owns the current Series page layout, genre filtering, and search keyboard.
 - `components/shared/MediaData.brs` owns backend-shaped mock movie data for the dynamic Movies page until real backend or playlist parsing replaces it.
 - `components/shared/AppUi.brs` owns the shared top bar and now uses `pkg:/images/logo_full_dark_modified.png`.

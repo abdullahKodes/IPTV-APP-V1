@@ -39,7 +39,8 @@ function appPageMap() as Object
         live: "LiveTvPage",
         series: "SeriesPage",
         movies: "MoviesPage",
-        settings: "SettingsPage"
+        settings: "SettingsPage",
+        profile: "ProfilePage"
     }
 end function
 
@@ -192,7 +193,8 @@ end function
 function uiKnownIcon(icon as String) as Boolean
     known = {
         list: true, tv: true, series: true, movies: true, settings: true,
-        add: true, play: true, search: true, back: true, sync: true, info: true,
+        add: true, play: true, search: true, back: true, sync: true, info: true, cache: true,
+        sync_account: true, cache_account: true, logout_account: true,
         out: true, plus: true, link: true, m3u: true, x: true, profile: true,
         world: true, note: true, kids: true, sport: true, news: true,
         heart: true, bell: true,
