@@ -1,24 +1,41 @@
 function demoPlaybackUrl() as String
-    return "https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8"
+    return "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"
+end function
+
+function demoLivePlaybackUrl(index as Integer) as String
+    urls = [
+        "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+        "https://playertest.longtailvideo.com/streams/live-vtt-countdown/live.m3u8",
+        "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8"
+    ]
+    if index < 0 then index = 0
+    return urls[index mod urls.count()]
 end function
 
 function mediaPlaybackUrl(item as Dynamic) as String
-    if item <> invalid and item.doesExist("streamUrl") and item.streamUrl <> invalid and item.streamUrl <> "" then return item.streamUrl
-    if item <> invalid and item.doesExist("videoUrl") and item.videoUrl <> invalid and item.videoUrl <> "" then return item.videoUrl
-    if item <> invalid and item.doesExist("playbackUrl") and item.playbackUrl <> invalid and item.playbackUrl <> "" then return item.playbackUrl
+    streamUrl = mediaValue(item, "streamUrl")
+    if streamUrl <> invalid and streamUrl <> "" then return streamUrl
+    videoUrl = mediaValue(item, "videoUrl")
+    if videoUrl <> invalid and videoUrl <> "" then return videoUrl
+    playbackUrl = mediaValue(item, "playbackUrl")
+    if playbackUrl <> invalid and playbackUrl <> "" then return playbackUrl
     return demoPlaybackUrl()
 end function
 
 function mediaPlaybackFormat(item as Dynamic) as String
-    if item <> invalid and item.doesExist("streamFormat") and item.streamFormat <> invalid and item.streamFormat <> "" then return item.streamFormat
+    streamFormat = mediaValue(item, "streamFormat")
+    if streamFormat <> invalid and streamFormat <> "" then return streamFormat
     return "hls"
 end function
 
 function mediaLiveCatalogForPlaylist(playlistId as String) as Object
     if playlistId = "demo_playlist" then return mediaSetPlaylistId(mockLiveTvCatalog(), playlistId)
+    if mediaPlaylistIsFakeLive(playlistId) then return mediaSetPlaylistId(playlistStoreDemoLiveItems(playlistId), playlistId)
+    stored = mediaStoredPlaylistItems(playlistId, "liveItems")
+    if stored.count() > 0 then return mediaSetPlaylistId(stored, playlistId)
     parsed = mediaM3uCatalogForPlaylist(playlistId, "live")
     if parsed.count() > 0 then return parsed
-    if mediaPlaylistProfile(playlistId) = "demo_live_m3u" or mediaPlaylistIsFakeLive(playlistId) then return mediaSetPlaylistId(mockLiveTvCatalog(), playlistId)
+    if mediaPlaylistProfile(playlistId) = "demo_live_m3u" then return mediaSetPlaylistId(playlistStoreDemoLiveItems(playlistId), playlistId)
     return parsed
 end function
 
@@ -67,6 +84,23 @@ function mediaPlaylistIsFakeLive(playlistId as String) as Boolean
     item = mediaPlaylistItem(playlistId)
     if item = invalid then return false
     return playlistStoreIsFakeLiveText(playlistStoreText(item, "sourceUrl")) or playlistStoreIsFakeLiveText(playlistStoreText(item, "title"))
+end function
+
+function mediaStoredPlaylistItems(playlistId as String, key as String) as Object
+    item = mediaPlaylistItem(playlistId)
+    if item = invalid then return []
+    value = mediaValue(item, key)
+    if value = invalid then return []
+    if Type(value) <> "roArray" then return []
+    return value
+end function
+
+function mediaValue(item as Dynamic, key as String) as Dynamic
+    if item = invalid then return invalid
+    if item.doesExist(key) then return item[key]
+    lowerKey = LCase(key)
+    if lowerKey <> key and item.doesExist(lowerKey) then return item[lowerKey]
+    return invalid
 end function
 
 function mediaM3uCatalogForPlaylist(playlistId as String, kind as String) as Object
@@ -286,12 +320,10 @@ function mediaFakeMoviesM3u() as String
 end function
 
 function mediaFakeLiveM3u() as String
-    stream = demoPlaybackUrl()
-    return "#EXTM3U" + Chr(10) + "#EXTINF:-1 tvg-logo=" + Chr(34) + "pkg:/images/logos/live/bbc_news.png" + Chr(34) + " group-title=" + Chr(34) + "News" + Chr(34) + ",IPTV Max News" + Chr(10) + stream + Chr(10) + "#EXTINF:-1 tvg-logo=" + Chr(34) + "pkg:/images/logos/live/bein_sports.png" + Chr(34) + " group-title=" + Chr(34) + "Sports" + Chr(34) + ",IPTV Max Sports" + Chr(10) + stream + Chr(10) + "#EXTINF:-1 tvg-logo=" + Chr(34) + "pkg:/images/logos/live/discovery.png" + Chr(34) + " group-title=" + Chr(34) + "Documentary" + Chr(34) + ",IPTV Max Docs" + Chr(10) + stream + Chr(10) + "#EXTINF:-1 tvg-logo=" + Chr(34) + "pkg:/images/logos/live/movie_channel.png" + Chr(34) + " group-title=" + Chr(34) + "Entertainment" + Chr(34) + ",IPTV Max Mix" + Chr(10) + stream
+    return "#EXTM3U" + Chr(10) + "#EXTINF:-1 tvg-logo=" + Chr(34) + "pkg:/images/logos/live/bbc_news.png" + Chr(34) + " group-title=" + Chr(34) + "News" + Chr(34) + ",IPTV Max News" + Chr(10) + demoLivePlaybackUrl(0) + Chr(10) + "#EXTINF:-1 tvg-logo=" + Chr(34) + "pkg:/images/logos/live/bein_sports.png" + Chr(34) + " group-title=" + Chr(34) + "Sports" + Chr(34) + ",IPTV Max Sports" + Chr(10) + demoLivePlaybackUrl(1) + Chr(10) + "#EXTINF:-1 tvg-logo=" + Chr(34) + "pkg:/images/logos/live/discovery.png" + Chr(34) + " group-title=" + Chr(34) + "Documentary" + Chr(34) + ",IPTV Max Docs" + Chr(10) + demoLivePlaybackUrl(2) + Chr(10) + "#EXTINF:-1 tvg-logo=" + Chr(34) + "pkg:/images/logos/live/movie_channel.png" + Chr(34) + " group-title=" + Chr(34) + "Entertainment" + Chr(34) + ",IPTV Max Mix" + Chr(10) + demoLivePlaybackUrl(0)
 end function
 
 function mockLiveTvCatalog() as Object
-    demoUrl = "https://roku.s.cpl.delvenetworks.com/media/59021fabe3b645968e382ac726cd6c7b/60b4a471ffb74809beb2f7d5a15b3193/roku_ep_111_segment_1_final-cc_mix_033015-a7ec8a288c4bcec001c118181c668de321108861.m3u8"
     return [
         {
             id: "live_espn_hd",
@@ -309,7 +341,7 @@ function mockLiveTvCatalog() as Object
             brandColor2: "0x111111FF",
             cardUrl: "",
             backdropUrl: "pkg:/images/logos/live/backdrops/espn_backdrop.jpg",
-            streamUrl: demoUrl,
+            streamUrl: demoLivePlaybackUrl(0),
             streamFormat: "hls",
             live: true,
             favorite: true,
@@ -336,7 +368,7 @@ function mockLiveTvCatalog() as Object
             brandColor2: "0x2A3446FF",
             cardUrl: "",
             backdropUrl: "pkg:/images/logos/live/backdrops/bbc_news_backdrop.jpg",
-            streamUrl: demoUrl,
+            streamUrl: demoLivePlaybackUrl(1),
             streamFormat: "hls",
             live: false,
             favorite: false,
@@ -363,7 +395,7 @@ function mockLiveTvCatalog() as Object
             brandColor2: "0x251118FF",
             cardUrl: "",
             backdropUrl: "pkg:/images/logos/live/backdrops/cnn_backdrop.jpg",
-            streamUrl: demoUrl,
+            streamUrl: demoLivePlaybackUrl(2),
             streamFormat: "hls",
             live: false,
             favorite: false,
@@ -390,7 +422,7 @@ function mockLiveTvCatalog() as Object
             brandColor2: "0x23133DFF",
             cardUrl: "",
             backdropUrl: "pkg:/images/logos/live/backdrops/bein_sports_backdrop.jpg",
-            streamUrl: demoUrl,
+            streamUrl: demoLivePlaybackUrl(1),
             streamFormat: "hls",
             live: true,
             favorite: false,
@@ -417,7 +449,7 @@ function mockLiveTvCatalog() as Object
             brandColor2: "0x151A39FF",
             cardUrl: "",
             backdropUrl: "pkg:/images/logos/live/backdrops/mtv_hits_backdrop.jpg",
-            streamUrl: demoUrl,
+            streamUrl: demoLivePlaybackUrl(0),
             streamFormat: "hls",
             live: false,
             favorite: false,
@@ -444,7 +476,7 @@ function mockLiveTvCatalog() as Object
             brandColor2: "0x101F2CFF",
             cardUrl: "",
             backdropUrl: "pkg:/images/logos/live/backdrops/cartoon_network_backdrop.jpg",
-            streamUrl: demoUrl,
+            streamUrl: demoLivePlaybackUrl(2),
             streamFormat: "hls",
             live: false,
             favorite: false,
@@ -471,7 +503,7 @@ function mockLiveTvCatalog() as Object
             brandColor2: "0x102921FF",
             cardUrl: "",
             backdropUrl: "pkg:/images/logos/live/backdrops/discovery_backdrop.jpg",
-            streamUrl: demoUrl,
+            streamUrl: demoLivePlaybackUrl(1),
             streamFormat: "hls",
             live: false,
             favorite: false,
@@ -498,7 +530,7 @@ function mockLiveTvCatalog() as Object
             brandColor2: "0x19112EFF",
             cardUrl: "",
             backdropUrl: "pkg:/images/logos/live/backdrops/movie_channel_backdrop.jpg",
-            streamUrl: demoUrl,
+            streamUrl: demoLivePlaybackUrl(0),
             streamFormat: "hls",
             live: false,
             favorite: false,

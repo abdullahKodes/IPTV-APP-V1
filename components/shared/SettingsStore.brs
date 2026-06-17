@@ -75,18 +75,29 @@ function settingsStoreReadInt(section as Object, key as String, fallback as Inte
 end function
 
 function settingsStoreText(settings as Object, key as String, fallback = "" as String) as String
-    if settings <> invalid and settings.doesExist(key) and settings[key] <> invalid then return settings[key]
+    value = settingsStoreValue(settings, key)
+    if value <> invalid then return value
     return fallback
 end function
 
 function settingsStoreBool(settings as Object, key as String, fallback as Boolean) as Boolean
-    if settings <> invalid and settings.doesExist(key) and settings[key] <> invalid then return settings[key]
+    value = settingsStoreValue(settings, key)
+    if value <> invalid then return value
     return fallback
 end function
 
 function settingsStoreNumber(settings as Object, key as String, fallback as Integer) as Integer
-    if settings <> invalid and settings.doesExist(key) and settings[key] <> invalid then return settings[key]
+    value = settingsStoreValue(settings, key)
+    if value <> invalid then return value
     return fallback
+end function
+
+function settingsStoreValue(settings as Object, key as String) as Dynamic
+    if settings = invalid then return invalid
+    if settings.doesExist(key) then return settings[key]
+    lowerKey = LCase(key)
+    if lowerKey <> key and settings.doesExist(lowerKey) then return settings[lowerKey]
+    return invalid
 end function
 
 function settingsStoreBoolValue(settings as Object, key as String, fallback as Boolean) as String

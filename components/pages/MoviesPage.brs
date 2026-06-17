@@ -354,9 +354,7 @@ function movieCardUrl(movie as Object) as String
 end function
 
 function movieText(movie as Dynamic, key as String, fallback = "" as String) as String
-    if movie = invalid then return fallback
-    if not movie.doesExist(key) then return fallback
-    value = movie[key]
+    value = movieValue(movie, key)
     if value = invalid then return fallback
     valueType = type(value)
     if valueType = "String" or valueType = "roString" then return value
@@ -365,9 +363,17 @@ function movieText(movie as Dynamic, key as String, fallback = "" as String) as 
 end function
 
 function movieFlag(movie as Dynamic, key as String) as Boolean
-    if movie = invalid then return false
-    if not movie.doesExist(key) then return false
-    return movie[key] = true
+    value = movieValue(movie, key)
+    if value = invalid then return false
+    return value = true
+end function
+
+function movieValue(movie as Dynamic, key as String) as Dynamic
+    if movie = invalid then return invalid
+    if movie.doesExist(key) then return movie[key]
+    lowerKey = LCase(key)
+    if lowerKey <> key and movie.doesExist(lowerKey) then return movie[lowerKey]
+    return invalid
 end function
 
 function selectedMovieForBackdrop(visible as Object) as Dynamic

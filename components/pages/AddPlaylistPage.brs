@@ -60,7 +60,15 @@ sub activate()
         end if
         normalizePlaylistInputForSave()
         addedPlaylist = playlistStoreAdd(m.inputs, m.mode)
-        if addedPlaylist <> invalid and addedPlaylist.doesExist("id") then playlistStoreSetActive(addedPlaylist.id)
+        if addedPlaylist = invalid then
+            if m.mode = "m3u" then
+                setFieldError("m3uUrl", "M3U URL was not saved. Enter it again.")
+            else
+                setFieldError("serverUrl", "Account URL was not saved. Enter it again.")
+            end if
+            render()
+            return
+        end if
         m.added = true
         m.errorMessage = ""
         m.errorField = ""

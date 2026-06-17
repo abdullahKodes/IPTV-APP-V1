@@ -57,6 +57,49 @@ Completed:
 - Made fake test URL matching more tolerant for user-added M3U playlists, including `iptvmax.test` plus the content type, and moved active-playlist selection into `playlistStoreAdd()` itself.
 - Fixed parsed Live M3U channel artwork so logo images stay inside the channel rows instead of being used as full card/backdrop art.
 - Bumped manifest build version to `00077` for the user-added playlist activation and parsed-live artwork fixes.
+- Removed the forced startup active-playlist reset from `MainScene`; first run still falls back to Empty M3U, but user-added/selected playlists now survive app relaunch.
+- User-added fake Live M3U playlists now store their own `liveItems` array on the playlist record, and Live TV reads those stored items before URL/profile inference.
+- Live TV channel-card/background artwork no longer falls back to `logoUrl`, preventing parsed logo images from stretching across channel rows or the player background.
+- Bumped manifest build version to `00078` for the per-playlist live item storage and Live TV artwork containment fixes.
+- Removed the remaining indirect Live TV lookup for fake live playlists: Live TV now recognizes the selected playlist's fake live URL/title and returns that playlist's own four live items before parser fallback.
+- My Playlists now opens focused on the currently active playlist, so after Add Playlist saves a fresh M3U URL the remote focus lands on the new playlist instead of the startup Empty M3U card.
+- Bumped manifest build version to `00080` and confirmed `npm.cmd run check` plus `npm.cmd run build` pass for the fresh-playlist Live TV fix.
+- Added a registry repair for blank user-added test M3U records: saved M3U playlists with no URL/profile but test/live markers are normalized back to `https://iptvmax.test/demo-live.m3u`, preventing the active playlist from rendering empty after earlier broken saves.
+- Add Playlist now rejects a save if an M3U record reaches the store without a URL, and the Live TV debug line includes playlist title plus URL/profile while this flow is being tested.
+- Bumped manifest build version to `00081` and confirmed `npm.cmd run check` plus `npm.cmd run build` pass for the blank-source repair.
+- Fixed the actual blank URL/profile root cause: shared field readers now handle BrightScript object-literal lowercase keys such as `sourceurl`, `contentprofile`, `streamurl`, and `itemcount` when code asks for camelCase names like `sourceUrl`.
+- Extended the same case-safe field reader pattern to MediaData, Live TV, Movies, Series, My Playlists protected-card checks, and Settings state helpers.
+- Bumped manifest build version to `00082`, confirmed `npm.cmd run check` and `npm.cmd run build` pass, and verified the packaged zip manifest contains `build_version=00082`.
+- Reworked Live TV channel artwork treatment: channel rows now keep a stable dark card, use the channel name as the main title, place the logo in a contained mark, and reuse the logo only as a subtle row watermark.
+- Reworked the Live TV player/background brand treatment so logo-only channels use restrained brand bands and faint logo marks instead of stretched full-section artwork.
+- Bumped manifest build version to `00083`, confirmed `npm.cmd run check` and `npm.cmd run build` pass, and verified the packaged zip manifest contains `build_version=00083`.
+- Removed logo images from all large Live TV background/watermark uses after Roku review; provider logos are now used only inside the small channel-row mark.
+- Live TV large/player artwork now uses dynamic demo-style brand colors plus generated initials via `liveBrandText()`, so real playlist logos cannot spread across the whole page.
+- Bumped manifest build version to `00084`, confirmed `npm.cmd run check` and `npm.cmd run build` pass, and verified the packaged zip manifest contains `build_version=00084`.
+- My Playlists now sorts the active playlist to the first visible card and focuses it once when the page opens, so the currently active playlist is not buried at the end of the list.
+- Live TV large background art now maps real playlist channels to the app's local demo backdrop artwork by category/title instead of using provider logo/card art as the page background.
+- Bumped manifest build version to `00085`, confirmed `npm.cmd run check` and `npm.cmd run build` pass, and verified the packaged zip manifest contains `build_version=00085`.
+- Removed the protected built-in `Demo Live M3U` playlist card from the default playlist list while keeping the fake live URL support available for manual test playlists.
+- Bumped manifest build version to `00086`, confirmed `npm.cmd run check` and `npm.cmd run build` pass, and verified the packaged zip no longer contains the `Demo Live M3U` default card.
+- Replaced the old demo playback URL with reachable public HLS samples and added `demoLivePlaybackUrl()` so Demo Playlist live channels cycle through different sample streams.
+- Updated fake live M3U/demo-live playlist records to refresh their stored `liveItems` on load with the new sample stream URLs.
+- Live TV and PlayerPage stop/reload the Video node before assigning new content.
+- Movies and Series continue to route to `PlayerPage`, now backed by the new demo HLS URL for all demo movie/series items until real provider media is wired.
+- Bumped manifest build version to `00087`, confirmed `npm.cmd run check` and `npm.cmd run build` pass, and verified the packaged zip manifest contains `build_version=00087`.
+- Reworked full-screen PlayerPage controls into a cleaner overlay with stronger focused actions and a 10-second inactivity auto-hide timer.
+- Changed Live TV browsing so moving through the channel list only moves focus; the inline video now changes only after pressing OK/select on a channel.
+- Reshaped the Live TV mini-player viewport from the old ultra-wide frame to a 16:9 frame so sample/live streams fill the intended playback area better.
+- Removed the temporary Live TV empty-state debug line from the user-facing screen.
+- Bumped manifest build version to `00088`, confirmed `npm.cmd run check` and `npm.cmd run build` pass, and verified the packaged zip manifest contains `build_version=00088`.
+- Corrected the `00088` playback visual regression: full-screen PlayerPage controls now use a cleaner round icon-strip treatment instead of boxy rectangular buttons.
+- Live TV now hides the large center play button while video is playing; the lower play/pause control remains the active remote target.
+- Demo Playlist Live TV uses the original compact artwork/backdrop layout, while non-demo/user playlists keep the safer real-playlist video layout.
+- Bumped manifest build version to `00089`, confirmed `npm.cmd run check` and `npm.cmd run build` pass, and verified the packaged zip manifest contains `build_version=00089`.
+- Reverted full-screen PlayerPage controls back toward the original text-only control strip while preserving the 10-second auto-hide behavior.
+- Restored Demo Playlist Live TV channel cards to the previous artwork-card rendering path instead of the contained-logo real-playlist cards.
+- Adjusted the Demo Playlist Live TV mini-player video slot to a 16:9 frame inside the existing compact panel to reduce side empty space without changing the page composition.
+- Tightened Live TV player remote routing so left/right stays within the player controls except left from the first control, which returns to the channel list; up/down now moves between favorite and play controls predictably.
+- Bumped manifest build version to `00090`, confirmed `npm.cmd run check` and `npm.cmd run build` pass, and verified the packaged zip manifest contains `build_version=00090`.
 - Fixed a Movies-page crash on empty/test playlists by clamping the focus index before remote key handling.
 - Removed render-time remote M3U fetching from content pages; real provider fetches should run through a background Roku Task in the next parser step.
 - Improved Movies remote behavior so sidebar up/down stays in the sidebar, right enters content, and left from search/filters/featured/movie cards returns to the Movies sidebar item instead of wrapping awkwardly.

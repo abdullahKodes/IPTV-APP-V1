@@ -397,9 +397,7 @@ function seriesCardUrl(series as Object) as String
 end function
 
 function seriesText(series as Dynamic, key as String, fallback = "" as String) as String
-    if series = invalid then return fallback
-    if not series.doesExist(key) then return fallback
-    value = series[key]
+    value = seriesValue(series, key)
     if value = invalid then return fallback
     valueType = type(value)
     if valueType = "String" or valueType = "roString" then return value
@@ -408,15 +406,22 @@ function seriesText(series as Dynamic, key as String, fallback = "" as String) a
 end function
 
 function seriesProgress(series as Dynamic) as Integer
-    if series = invalid then return 0
-    if not series.doesExist("resumePercent") then return 0
-    value = series.resumePercent
+    value = seriesValue(series, "resumePercent")
+    if value = invalid then return 0
     valueType = type(value)
     if valueType <> "Integer" and valueType <> "roInteger" and valueType <> "roInt" and valueType <> "LongInteger" and valueType <> "roLongInteger" and valueType <> "roLongInt" and valueType <> "Float" and valueType <> "roFloat" and valueType <> "Double" and valueType <> "roDouble" then return 0
     percent = Int(value)
     if percent < 0 then percent = 0
     if percent > 100 then percent = 100
     return percent
+end function
+
+function seriesValue(series as Dynamic, key as String) as Dynamic
+    if series = invalid then return invalid
+    if series.doesExist(key) then return series[key]
+    lowerKey = LCase(key)
+    if lowerKey <> key and series.doesExist(lowerKey) then return series[lowerKey]
+    return invalid
 end function
 
 function filteredSeries() as Object

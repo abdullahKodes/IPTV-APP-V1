@@ -2,7 +2,6 @@ function playlistStoreDefaultItems() as Object
     return [
         { id: playlistStoreEmptyM3uId(), title: "Empty M3U Playlist", meta: "No content yet - M3U", itemCount: 0, type: "M3U", status: "Active", time: "Startup playlist", icon: "m3u", accent: "purple", sourceUrl: "", serverUrl: "", username: "", password: "", lastSync: "empty", isDemo: true, isProtected: true, contentProfile: "empty_m3u" },
         { id: playlistStoreDemoId(), title: "Demo Playlist", meta: "8 live - 10 movies - 8 series", itemCount: 26, type: "Demo", status: "Trial", time: "7-day trial content", icon: "tv", accent: "purple", sourceUrl: "", serverUrl: "", username: "", password: "", lastSync: "built in", isDemo: true, isProtected: true },
-        { id: playlistStoreDemoLiveM3uId(), title: "Demo Live M3U", meta: "4 live channels - Demo M3U", itemCount: 4, type: "M3U", status: "Trial", time: "Parsed live test content", icon: "tv", accent: "purple", sourceUrl: playlistStoreFakeLiveUrl(), serverUrl: "", username: "", password: "", lastSync: "built in", isDemo: true, isProtected: true, contentProfile: "demo_live_m3u" },
         { id: playlistStoreDemoMoviesId(), title: "Demo Movies", meta: "10 movies only", itemCount: 10, type: "Demo", status: "Trial", time: "Movies-only trial content", icon: "movies", accent: "purple", sourceUrl: "", serverUrl: "", username: "", password: "", lastSync: "built in", isDemo: true, isProtected: true }
     ]
 end function
@@ -80,7 +79,8 @@ function playlistStoreAdd(input as Object, mode as String) as Object
         }
     else
         title = playlistStoreText(input, "playlistTitle", "M3U Playlist")
-        sourceUrl = playlistStoreText(input, "m3uUrl")
+        sourceUrl = playlistStoreM3uInputUrl(input)
+        if sourceUrl = "" then return invalid
         contentProfile = ""
         meta = "Ready to sync - M3U"
         itemCount = 0
@@ -118,6 +118,7 @@ function playlistStoreAdd(input as Object, mode as String) as Object
             lastSync: "not synced yet",
             contentProfile: contentProfile
         }
+        if contentProfile = "demo_live_m3u" then item.liveItems = playlistStoreDemoLiveItems(id)
     end if
 
     items.push(item)
@@ -180,8 +181,10 @@ function playlistStoreNormalize(items as Object) as Object
             if not item.doesExist("isDemo") then item.isDemo = playlistStoreIsDemoId(playlistStoreText(item, "id"))
             if not item.doesExist("isProtected") then item.isProtected = item.isDemo
             if not item.doesExist("contentProfile") then item.contentProfile = ""
+            playlistStoreRepairMissingM3uSource(item)
             if item.contentProfile = "" then item.contentProfile = playlistStoreInferContentProfile(item)
-            if item.contentProfile = "demo_live_m3u" and playlistStoreNumber(item, "itemCount") = 0 then
+            if item.contentProfile = "demo_live_m3u" then
+                item.liveItems = playlistStoreDemoLiveItems(itemId)
                 item.meta = "4 live channels - Demo M3U"
                 item.itemCount = 4
                 item.icon = "tv"
@@ -198,6 +201,159 @@ function playlistStoreNormalize(items as Object) as Object
         end if
     end for
     return normalized
+end function
+
+sub playlistStoreRepairMissingM3uSource(item as Object)
+    if item = invalid then return
+    if playlistStoreText(item, "sourceUrl") <> "" then return
+    if playlistStoreText(item, "contentProfile") <> "" then return
+    if playlistStoreText(item, "type") <> "M3U" then return
+
+    title = playlistStoreNormalizeMatchText(playlistStoreText(item, "title"))
+    meta = playlistStoreNormalizeMatchText(playlistStoreText(item, "meta"))
+    if Instr(1, title, "test") > 0 or Instr(1, meta, "live") > 0 or playlistStoreNumber(item, "itemCount") = 4 then
+        item.sourceUrl = playlistStoreFakeLiveUrl()
+    end if
+end sub
+
+function playlistStoreM3uInputUrl(input as Object) as String
+    sourceUrl = playlistStoreText(input, "m3uUrl")
+    if sourceUrl = "" then sourceUrl = playlistStoreText(input, "sourceUrl")
+    if sourceUrl = "" then sourceUrl = playlistStoreText(input, "url")
+    if sourceUrl = "" then sourceUrl = playlistStoreText(input, "serverUrl")
+    return playlistStoreNormalizeInputText(sourceUrl)
+end function
+
+function playlistStoreNormalizeInputText(value as Dynamic) as String
+    if value = invalid then return ""
+    if type(value) <> "String" and type(value) <> "roString" then return ""
+    text = value
+    while text.len() > 0 and Left(text, 1) = " "
+        text = Right(text, text.len() - 1)
+    end while
+    while text.len() > 0 and Right(text, 1) = " "
+        text = Left(text, text.len() - 1)
+    end while
+    return text
+end function
+
+function playlistStoreDemoLiveItems(playlistId as String) as Object
+    return [
+        {
+            id: "live_test_news",
+            playlistId: playlistId,
+            name: "IPTV Max News",
+            title: "IPTV Max News",
+            now: "Live stream",
+            category: "News",
+            groupTitle: "News",
+            icon: "news",
+            logoUrl: "pkg:/images/logos/live/bbc_news.png",
+            badgeUrl: "",
+            logoText: "NEWS",
+            brandColor: "0x2B8C6BFF",
+            brandColor2: "0x151C26FF",
+            cardUrl: "",
+            backdropUrl: "",
+            streamUrl: playlistStoreDemoLiveStream(0),
+            streamFormat: "hls",
+            live: true,
+            favorite: false,
+            channelNumber: "1",
+            epg: [
+                { time: "Now", title: "Live stream" },
+                { time: "Next", title: "Schedule unavailable" }
+            ]
+        },
+        {
+            id: "live_test_sports",
+            playlistId: playlistId,
+            name: "IPTV Max Sports",
+            title: "IPTV Max Sports",
+            now: "Live stream",
+            category: "Sports",
+            groupTitle: "Sports",
+            icon: "sport",
+            logoUrl: "pkg:/images/logos/live/bein_sports.png",
+            badgeUrl: "",
+            logoText: "SPRT",
+            brandColor: "0x6258D6FF",
+            brandColor2: "0x151C26FF",
+            cardUrl: "",
+            backdropUrl: "",
+            streamUrl: playlistStoreDemoLiveStream(1),
+            streamFormat: "hls",
+            live: true,
+            favorite: false,
+            channelNumber: "2",
+            epg: [
+                { time: "Now", title: "Live stream" },
+                { time: "Next", title: "Schedule unavailable" }
+            ]
+        },
+        {
+            id: "live_test_docs",
+            playlistId: playlistId,
+            name: "IPTV Max Docs",
+            title: "IPTV Max Docs",
+            now: "Live stream",
+            category: "Documentary",
+            groupTitle: "Documentary",
+            icon: "world",
+            logoUrl: "pkg:/images/logos/live/discovery.png",
+            badgeUrl: "",
+            logoText: "DOCS",
+            brandColor: "0x19C6B3FF",
+            brandColor2: "0x151C26FF",
+            cardUrl: "",
+            backdropUrl: "",
+            streamUrl: playlistStoreDemoLiveStream(2),
+            streamFormat: "hls",
+            live: true,
+            favorite: false,
+            channelNumber: "3",
+            epg: [
+                { time: "Now", title: "Live stream" },
+                { time: "Next", title: "Schedule unavailable" }
+            ]
+        },
+        {
+            id: "live_test_mix",
+            playlistId: playlistId,
+            name: "IPTV Max Mix",
+            title: "IPTV Max Mix",
+            now: "Live stream",
+            category: "Entertainment",
+            groupTitle: "Entertainment",
+            icon: "movies",
+            logoUrl: "pkg:/images/logos/live/movie_channel.png",
+            badgeUrl: "",
+            logoText: "MIX",
+            brandColor: "0x8E86FFFF",
+            brandColor2: "0x151C26FF",
+            cardUrl: "",
+            backdropUrl: "",
+            streamUrl: playlistStoreDemoLiveStream(0),
+            streamFormat: "hls",
+            live: true,
+            favorite: false,
+            channelNumber: "4",
+            epg: [
+                { time: "Now", title: "Live stream" },
+                { time: "Next", title: "Schedule unavailable" }
+            ]
+        }
+    ]
+end function
+
+function playlistStoreDemoLiveStream(index as Integer) as String
+    urls = [
+        "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+        "https://playertest.longtailvideo.com/streams/live-vtt-countdown/live.m3u8",
+        "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8"
+    ]
+    if index < 0 then index = 0
+    return urls[index mod urls.count()]
 end function
 
 function playlistStoreUniqueUserId(items as Object) as String
@@ -383,19 +539,23 @@ sub playlistStoreRememberDeletedDemo(id as String)
 end sub
 
 function playlistStoreText(item as Object, key as String, fallback = "" as String) as String
-    if item = invalid then return fallback
-    if not item.doesExist(key) then return fallback
-    value = item[key]
+    value = playlistStoreValue(item, key)
     if value = invalid or value = "" then return fallback
     return value
 end function
 
 function playlistStoreNumber(item as Object, key as String) as Integer
-    if item = invalid then return 0
-    if not item.doesExist(key) then return 0
-    value = item[key]
+    value = playlistStoreValue(item, key)
     if value = invalid then return 0
     return value
+end function
+
+function playlistStoreValue(item as Object, key as String) as Dynamic
+    if item = invalid then return invalid
+    if item.doesExist(key) then return item[key]
+    lowerKey = LCase(key)
+    if lowerKey <> key and item.doesExist(lowerKey) then return item[lowerKey]
+    return invalid
 end function
 
 function playlistStoreTitleExists(title as String) as Boolean

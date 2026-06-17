@@ -165,14 +165,26 @@ function routeLiveFocus(dx as Integer, dy as Integer) as Boolean
     if dy < 0 and action = "playerControl" then
         control = ""
         if current.doesExist("control") then control = current.control
-        if control = "volume" or control = "restart" or control = "fullscreen" then
-            playIndex = findPlayerControl("playpause")
-            if playIndex >= 0 then m.focusIndex = playIndex : return true
+        if control <> "favorite" then
+            favoriteIndex = findPlayerControl("favorite")
+            if favoriteIndex >= 0 then m.focusIndex = favoriteIndex : return true
         end if
         if searchIndex >= 0 then m.focusIndex = searchIndex : return true
     end if
 
+    if dy > 0 and action = "playerControl" then
+        control = ""
+        if current.doesExist("control") then control = current.control
+        if control = "favorite" then
+            playIndex = findPlayerControl("playpause")
+            if playIndex >= 0 then m.focusIndex = playIndex : return true
+        end if
+    end if
+
     if dx < 0 and action = "playerControl" then
+        control = ""
+        if current.doesExist("control") then control = current.control
+        if control <> "playpause" then return false
         visible = filteredChannels()
         if visible.count() > 0 then
             m.focusArea = "channels"
@@ -242,7 +254,6 @@ sub selectLiveCategory(categoryIndex as Integer)
     visible = filteredChannels()
     if visible.count() > 0 then
         m.channelIndex = visible[0].index
-        playSelectedChannel()
     end if
     render()
 end sub
@@ -305,16 +316,23 @@ sub playSelectedChannel()
     if channel = invalid then return
     content = CreateObject("roSGNode", "ContentNode")
     content.url = mediaPlaybackUrl(channel)
-    content.streamformat = mediaPlaybackFormat(channel)
+    content.streamFormat = mediaPlaybackFormat(channel)
     content.title = liveText(channel, "name", liveText(channel, "title", "Live TV"))
     content.HttpCertificatesFile = "common:/certs/ca-bundle.crt"
+    m.video.control = "stop"
     m.video.content = content
     m.playing = true
     m.video.control = "play"
 end sub
 
 sub onVideoStateChange()
-    if m.video <> invalid then print "Live TV video state: "; m.video.state
+    if m.video = invalid then return
+    print "Live TV video state: "; m.video.state
+    if m.video.state = "playing" then
+        if not m.playing then m.playing = true : render()
+    else if m.video.state = "paused" or m.video.state = "stopped" or m.video.state = "finished" then
+        if m.playing then m.playing = false : render()
+    end if
 end sub
 
 sub onVideoError()
@@ -369,10 +387,15 @@ sub updateVideoLayout()
         m.video.width = 1280
         m.video.height = 720
         if m.overlay <> invalid then m.overlay.visible = false
+    else if liveUsesDemoArtwork() then
+        m.video.translation = [669, 190]
+        m.video.width = 398
+        m.video.height = 224
+        if m.overlay <> invalid then m.overlay.visible = true
     else
-        m.video.translation = [592, 220]
+        m.video.translation = [592, 212]
         m.video.width = 552
-        m.video.height = 190
+        m.video.height = 310
         if m.overlay <> invalid then m.overlay.visible = true
     end if
     m.video.visible = true
@@ -663,34 +686,47 @@ sub drawChannel(ch as Object, channelIndex as Integer, visibleIndex as Integer, 
 
     title = liveText(ch, "name", liveText(ch, "title", "Untitled"))
     nowText = liveText(ch, "now", liveText(ch, "programTitle"))
-    badgeUrl = liveArtUrl(ch, false)
-    hasBadge = badgeUrl <> ""
-    textX = x + 74
-    textW = 174
-    if hasBadge then
-        textX = x + 18
-        textW = 170
-    end if
-    if liveFlag(ch, "live") then textW = 120
+    if liveUsesDemoArtwork() then
+        badgeUrl = liveArtUrl(ch, false)
+        hasBadge = badgeUrl <> ""
+        textX = x + 74
+        textW = 174
+        if hasBadge then
+            textX = x + 18
+            textW = 170
+        end if
+        if liveFlag(ch, "live") then textW = 120
 
-    if hasBadge then
-        uiPoster(m.canvas, badgeUrl, x, y, w, h, 1.0)
-        if selected then uiRoundRect(m.canvas, x, y, w, h, m.colors.purpleSoft, m.colors.greenFocus, 0.28)
-        if focused then uiRoundRect(m.canvas, x, y, w, h, m.colors.greenSoft, m.colors.greenFocus, 0.46)
+        if hasBadge then
+            uiPoster(m.canvas, badgeUrl, x, y, w, h, 1.0)
+            if selected then uiRoundRect(m.canvas, x, y, w, h, m.colors.purpleSoft, m.colors.greenFocus, 0.28)
+            if focused then uiRoundRect(m.canvas, x, y, w, h, m.colors.greenSoft, m.colors.greenFocus, 0.46)
+        else
+            uiRoundRect(m.canvas, x, y, w, h, bg, border)
+            brandColor = liveText(ch, "brandColor", m.colors.greenFocus)
+            uiRect(m.canvas, x + 1, y + 9, 3, h - 18, brandColor, 0.86)
+            logoUrl = liveText(ch, "logoUrl")
+            if logoUrl <> "" then
+                uiPoster(m.canvas, logoUrl, x + 12, y + 15, 48, 30, logoOpacity)
+            else
+                uiRect(m.canvas, x + 12, y + 12, 42, 36, m.colors.purpleSoft, 0.9)
+                uiDrawIcon(m.canvas, liveText(ch, "icon", "tv"), x + 19, y + 20, 18, 18, focused, titleColor, 8)
+            end if
+        end if
     else
-        uiRoundRect(m.canvas, x, y, w, h, bg, border)
+        logoUrl = liveLogoArtUrl(ch)
         brandColor = liveText(ch, "brandColor", m.colors.greenFocus)
-        uiRect(m.canvas, x + 1, y + 9, 3, h - 18, brandColor, 0.86)
+        textX = x + 68
+        textW = w - 88
+        if liveFlag(ch, "live") then textW = 126
+
+        uiRoundRect(m.canvas, x, y, w, h, bg, border)
+        uiRect(m.canvas, x + 1, y + 8, 3, h - 16, brandColor, 0.88)
+        drawChannelRowBrand(ch, logoUrl, x, y, w, h, focused or selected)
     end if
-    logoUrl = liveText(ch, "logoUrl")
-    if logoUrl <> "" and not hasBadge then
-        uiPoster(m.canvas, logoUrl, x + 12, y + 15, 48, 30, logoOpacity)
-    else if not hasBadge then
-        uiRect(m.canvas, x + 12, y + 12, 42, 36, m.colors.purpleSoft, 0.9)
-        uiDrawIcon(m.canvas, liveText(ch, "icon", "tv"), x + 19, y + 20, 18, 18, focused, titleColor, 8)
-    end if
-    uiLabel(m.canvas, title, textX, y + 9, textW, 18, 7, titleColor)
-    uiLabel(m.canvas, nowText, textX, y + 31, textW, 16, 5, subColor)
+
+    uiLabel(m.canvas, title, textX, y + 7, textW, 22, 9, titleColor)
+    uiLabel(m.canvas, nowText, textX, y + 32, textW, 18, 6, subColor)
     if liveFlag(ch, "live") then
         drawLiveBadge(x + 202, y + 19)
     end if
@@ -708,6 +744,19 @@ sub drawChannel(ch as Object, channelIndex as Integer, visibleIndex as Integer, 
     m.focusItems.push(item)
 end sub
 
+sub drawChannelRowBrand(ch as Object, logoUrl as String, x as Integer, y as Integer, w as Integer, h as Integer, emphasized as Boolean)
+    brandColor = liveText(ch, "brandColor", m.colors.greenFocus)
+    uiRect(m.canvas, x + 10, y + 10, 46, 40, m.colors.bg, 0.48)
+    uiRectBorder(m.canvas, x + 10, y + 10, 46, 40, "0xFFFFFF18", 1, 0.72)
+    if logoUrl <> "" then
+        uiPoster(m.canvas, logoUrl, x + 15, y + 17, 36, 26, 0.96)
+        uiRect(m.canvas, x + w - 58, y + 1, 56, h - 2, brandColor, 0.08)
+    else
+        uiRect(m.canvas, x + 16, y + 15, 34, 30, brandColor, 0.22)
+        uiDrawIcon(m.canvas, liveText(ch, "icon", "tv"), x + 23, y + 21, 18, 18, emphasized, m.colors.text, 8)
+    end if
+end sub
+
 sub drawLiveBadge(x as Integer, y as Integer)
     uiPoster(m.canvas, "pkg:/images/ui/live_badge.png", x, y, 64, 22)
 end sub
@@ -716,33 +765,51 @@ sub drawPlayer()
     panelX = 568
     panelY = 108
     panelW = 600
-    panelH = 390
+    panelH = 500
+    videoX = panelX + 24
+    videoY = panelY + 104
+    videoW = panelW - 48
+    videoH = 310
+    controlsY = panelY + 424
+    progressY = panelY + 441
+    epgTitleY = 622
+    epgY = 650
+    if liveUsesDemoArtwork() then
+        panelH = 390
+        videoX = panelX + 101
+        videoY = panelY + 82
+        videoW = 398
+        videoH = 224
+        controlsY = panelY + 320
+        progressY = panelY + 337
+        epgTitleY = 526
+        epgY = 562
+    end if
     ch = displayChannel(invalid)
     channelTitle = liveText(ch, "name", liveText(ch, "title", "Live TV"))
     nowText = liveText(ch, "now", liveText(ch, "programTitle", "Select a channel"))
     uiRoundRect(m.canvas, panelX, panelY, panelW, panelH, m.colors.purpleActive, m.colors.greenFocus, 0.32)
+    if not liveUsesDemoArtwork() then drawPlayerPanelBrand(ch, panelX, panelY, panelW, panelH)
 
     if liveFlag(ch, "live") then drawLiveBadge(panelX + 24, panelY + 22)
     titleX = panelX + 24
     if liveFlag(ch, "live") then titleX = panelX + 94
-    uiLabel(m.canvas, channelTitle, titleX, panelY + 18, 170, 24, 13, m.colors.text)
+    uiLabel(m.canvas, channelTitle, titleX, panelY + 18, 246, 24, 13, m.colors.text)
     uiLabel(m.canvas, nowText, panelX + 24, panelY + 50, 380, 26, 14, m.colors.text)
     addPlayerControl(panelX + panelW - 76, panelY + 28, 50, "player_heart", "Favorite", "favorite", 8, 6, 32)
 
-    uiRoundRect(m.canvas, panelX + 24, panelY + 112, panelW - 48, 190, m.colors.black, m.colors.black, 0.94)
-    addPlayerControl(panelX + 268, panelY + 176, 64, "player_play", "Play", "playpause", 9, 5, 64, m.overlay)
-    if liveFlag(ch, "live") then drawLiveBadge(panelX + 38, panelY + 274)
-    uiLabel(m.canvas, liveStatusText(ch), panelX + panelW - 164, panelY + 274, 126, 22, 10, m.colors.textDim, "right")
+    uiRoundRect(m.canvas, videoX, videoY, videoW, videoH, m.colors.black, m.colors.black, 0.94)
+    if not m.playing then addPlayerControl(videoX + 244, videoY + Int((videoH - 64) / 2), 64, "player_play", "Play", "playpause", 9, 5, 64, m.overlay)
 
-    drawPlayerControls(panelX + 24, panelY + 320)
-    uiRect(m.canvas, panelX + 82, panelY + 337, 330, 3, "0xFFFFFF18")
-    uiRect(m.canvas, panelX + 82, panelY + 337, 220, 3, m.colors.greenFocus, 0.72)
+    drawPlayerControls(panelX + 24, controlsY)
+    uiRect(m.canvas, panelX + 82, progressY, 330, 3, "0xFFFFFF18")
+    uiRect(m.canvas, panelX + 82, progressY, 220, 3, m.colors.greenFocus, 0.72)
 
-    uiLabel(m.canvas, "UP NEXT ON " + channelTitle, panelX, 526, 300, 22, 10, m.colors.textDim)
+    uiLabel(m.canvas, "UP NEXT ON " + channelTitle, panelX, epgTitleY, 360, 22, 10, m.colors.textDim)
     epg = currentEpgRows(ch)
     for i = 0 to epg.count() - 1
         item = epg[i]
-        drawEpg(liveText(item, "time"), liveText(item, "title", "Upcoming"), 568 + i * 196)
+        drawEpg(liveText(item, "time"), liveText(item, "title", "Upcoming"), 568 + i * 196, epgY)
     end for
 end sub
 
@@ -751,6 +818,20 @@ sub drawPlayerControls(x as Integer, y as Integer)
     addPlayerControl(x + 394, y, 48, "player_volume", "Volume", "volume", 10, 4, 32)
     addPlayerControl(x + 448, y, 48, "player_replay", "Replay", "restart", 10, 5, 32)
     addPlayerControl(x + 502, y, 48, "player_full", "Full", "fullscreen", 10, 6, 32)
+end sub
+
+sub drawPlayerPanelBrand(ch as Dynamic, x as Integer, y as Integer, w as Integer, h as Integer)
+    brandColor = liveText(ch, "brandColor", m.colors.greenFocus)
+    brandColor2 = liveText(ch, "brandColor2", m.colors.purpleActive)
+    brandText = liveBrandText(ch)
+    uiRect(m.canvas, x + 2, y + 2, w - 4, 78, brandColor2, 0.22)
+    uiRect(m.canvas, x + 2, y + 78, w - 4, 1, brandColor, 0.18)
+    uiRect(m.canvas, x + w - 180, y + 2, 178, h - 4, brandColor, 0.08)
+    uiRect(m.canvas, x + w - 172, y + 18, 118, 48, m.colors.bg, 0.18)
+    uiRectBorder(m.canvas, x + w - 172, y + 18, 118, 48, brandColor, 1, 0.22)
+    uiLabel(m.canvas, brandText, x + w - 164, y + 24, 102, 34, 16, "0xFFFFFF18", "center")
+    uiLabel(m.canvas, brandText, x + w - 184, y + h - 98, 136, 58, 28, "0xFFFFFF0E", "right")
+    uiRect(m.canvas, x + 2, y + 2, w - 4, h - 4, m.colors.bg, 0.16)
 end sub
 
 sub addPlayerControl(x as Integer, y as Integer, w as Integer, icon as String, label as String, control as String, row as Integer, col as Integer, iconSize = 18 as Integer, target = invalid as Object)
@@ -783,10 +864,10 @@ sub addPlayerControl(x as Integer, y as Integer, w as Integer, icon as String, l
     })
 end sub
 
-sub drawEpg(time as String, title as String, x as Integer)
-    uiRoundRect(m.canvas, x, 562, 190, 54, m.colors.panel, m.colors.whiteLine, 0.88)
-    uiLabel(m.canvas, time, x + 12, 566, 80, 18, 8, m.colors.greenFocus)
-    uiLabel(m.canvas, title, x + 12, 590, 158, 20, 8, m.colors.text)
+sub drawEpg(time as String, title as String, x as Integer, y as Integer)
+    uiRoundRect(m.canvas, x, y, 190, 54, m.colors.panel, m.colors.whiteLine, 0.88)
+    uiLabel(m.canvas, time, x + 12, y + 4, 80, 18, 8, m.colors.greenFocus)
+    uiLabel(m.canvas, title, x + 12, y + 28, 158, 20, 8, m.colors.text)
 end sub
 
 sub drawChannelScrollbar(total as Integer, x as Integer, y as Integer, h as Integer)
@@ -807,46 +888,45 @@ sub drawRightSectionBackdrop(channel as Dynamic)
     y = 86
     w = 728
     h = 634
-    backdropUrl = liveArtUrl(channel, true)
+    backdropUrl = liveCategoryArtworkUrl(channel)
+    if liveUsesDemoArtwork() then backdropUrl = liveArtUrl(channel, true)
     if backdropUrl <> "" then
         uiPosterZoom(m.canvas, backdropUrl, x, y, w, h, 1.0)
-        uiRect(m.canvas, x, y, w, h, m.colors.bg, 0.38)
-        uiRect(m.canvas, x, y, w, h, "0x000000FF", 0.10)
+        if not liveUsesDemoArtwork() then drawChannelBrandBackground(channel, x, y, w, h, 0.22, true)
+        bgOpacity = 0.38
+        blackOpacity = 0.10
+        if not liveUsesDemoArtwork() then
+            bgOpacity = 0.62
+            blackOpacity = 0.16
+        end if
+        uiRect(m.canvas, x, y, w, h, m.colors.bg, bgOpacity)
+        uiRect(m.canvas, x, y, w, h, "0x000000FF", blackOpacity)
     else
-        drawChannelBrandBackground(channel, x, y, w, h, 0.42, true)
-        uiRect(m.canvas, x, y, w, h, m.colors.bg, 0.58)
+        drawChannelBrandBackground(channel, x, y, w, h, 0.46, true)
+        uiRect(m.canvas, x, y, w, h, m.colors.bg, 0.50)
     end if
     uiRect(m.canvas, x, y, 1, h, "0xFFFFFF12")
 end sub
+
+function liveUsesDemoArtwork() as Boolean
+    return m.activePlaylistId = playlistStoreDemoId()
+end function
 
 sub drawChannelBrandBackground(channel as Dynamic, x as Integer, y as Integer, w as Integer, h as Integer, opacity as Float, large as Boolean)
     bg1 = liveText(channel, "brandColor", m.colors.purpleActive)
     bg2 = liveText(channel, "brandColor2", m.colors.bg2)
     uiRect(m.canvas, x, y, w, h, bg2, opacity)
     if large then
-        uiRect(m.canvas, x, y, 92, h, bg1, opacity * 0.22)
-        uiRect(m.canvas, x + 92, y, 2, h, m.colors.greenFocus, 0.16)
-        uiRect(m.canvas, x, y + h - 124, w, 124, bg1, opacity * 0.10)
+        uiRect(m.canvas, x, y, 108, h, bg1, opacity * 0.18)
+        uiRect(m.canvas, x + 108, y, 2, h, m.colors.greenFocus, 0.12)
+        uiRect(m.canvas, x, y + h - 128, w, 128, bg1, opacity * 0.10)
+        uiRect(m.canvas, x + w - 260, y, 260, h, bg1, opacity * 0.07)
     else
         uiRect(m.canvas, x, y, w, h, bg2, opacity)
         uiRect(m.canvas, x, y, 58, h, bg1, opacity * 0.24)
     end if
 
-    logoUrl = liveText(channel, "logoUrl")
-    if logoUrl <> "" then
-        logoW = Int(w * 0.28)
-        logoH = Int(h * 0.28)
-        logoOpacity = 0.12
-        if not large then
-            logoW = Int(w * 0.38)
-            logoH = h - 12
-            logoOpacity = 0.24
-        end if
-        uiPoster(m.canvas, logoUrl, x + w - logoW - 34, y + Int((h - logoH) / 2), logoW, logoH, logoOpacity)
-        return
-    end if
-
-    logoText = liveText(channel, "logoText", liveText(channel, "name", "TV"))
+    logoText = liveBrandText(channel)
     fontSize = 28
     logoX = x + Int(w * 0.48)
     logoY = y + Int((h - 42) / 2)
@@ -958,9 +1038,7 @@ function currentEpgRows(channel as Dynamic) as Object
 end function
 
 function liveText(item as Dynamic, key as String, fallback = "" as String) as String
-    if item = invalid then return fallback
-    if not item.doesExist(key) then return fallback
-    value = item[key]
+    value = liveValue(item, key)
     if value = invalid then return fallback
     valueType = type(value)
     if valueType = "String" or valueType = "roString" then return value
@@ -969,9 +1047,17 @@ function liveText(item as Dynamic, key as String, fallback = "" as String) as St
 end function
 
 function liveFlag(item as Dynamic, key as String) as Boolean
-    if item = invalid then return false
-    if not item.doesExist(key) then return false
-    return item[key] = true
+    value = liveValue(item, key)
+    if value = invalid then return false
+    return value = true
+end function
+
+function liveValue(item as Dynamic, key as String) as Dynamic
+    if item = invalid then return invalid
+    if item.doesExist(key) then return item[key]
+    lowerKey = LCase(key)
+    if lowerKey <> key and item.doesExist(lowerKey) then return item[lowerKey]
+    return invalid
 end function
 
 function liveChannelCategory(channel as Dynamic) as String
@@ -1000,10 +1086,48 @@ function liveStatusText(channel as Dynamic) as String
     return "ON AIR"
 end function
 
+function liveLogoArtUrl(channel as Dynamic) as String
+    logoUrl = liveText(channel, "logoUrl")
+    if logoUrl <> "" then return logoUrl
+    badgeUrl = liveText(channel, "badgeUrl")
+    if badgeUrl <> "" then return badgeUrl
+    cardUrl = liveText(channel, "cardUrl")
+    if cardUrl <> "" then return cardUrl
+    backdropUrl = liveText(channel, "backdropUrl")
+    if backdropUrl <> "" then return backdropUrl
+    return ""
+end function
+
+function liveCategoryArtworkUrl(channel as Dynamic) as String
+    text = LCase(liveChannelCategory(channel) + " " + liveText(channel, "name") + " " + liveText(channel, "title"))
+    if Instr(1, text, "sport") > 0 or Instr(1, text, "football") > 0 or Instr(1, text, "bein") > 0 then return "pkg:/images/logos/live/backdrops/bein_sports_backdrop.jpg"
+    if Instr(1, text, "news") > 0 or Instr(1, text, "cnn") > 0 then return "pkg:/images/logos/live/backdrops/cnn_backdrop.jpg"
+    if Instr(1, text, "bbc") > 0 then return "pkg:/images/logos/live/backdrops/bbc_news_backdrop.jpg"
+    if Instr(1, text, "doc") > 0 or Instr(1, text, "discovery") > 0 then return "pkg:/images/logos/live/backdrops/discovery_backdrop.jpg"
+    if Instr(1, text, "music") > 0 or Instr(1, text, "mtv") > 0 then return "pkg:/images/logos/live/backdrops/mtv_hits_backdrop.jpg"
+    if Instr(1, text, "kid") > 0 or Instr(1, text, "cartoon") > 0 then return "pkg:/images/logos/live/backdrops/cartoon_network_backdrop.jpg"
+    if Instr(1, text, "movie") > 0 or Instr(1, text, "entertain") > 0 or Instr(1, text, "mix") > 0 then return "pkg:/images/logos/live/backdrops/movie_channel_backdrop.jpg"
+    return "pkg:/images/logos/live/backdrops/bbc_news_backdrop.jpg"
+end function
+
+function liveBrandText(channel as Dynamic) as String
+    logoText = liveText(channel, "logoText")
+    if logoText <> "" then return logoText
+    title = liveText(channel, "name", liveText(channel, "title", "TV"))
+    letters = ""
+    words = title.Tokenize(" ")
+    for each word in words
+        if word <> "" and letters.len() < 4 then letters += Left(UCase(word), 1)
+    end for
+    if letters = "" then letters = Left(UCase(title), 4)
+    return letters
+end function
+
 function liveArtUrl(channel as Dynamic, preferBackdrop as Boolean) as String
     if preferBackdrop then
         backdropUrl = liveText(channel, "backdropUrl")
         if backdropUrl <> "" then return backdropUrl
+        return ""
     end if
     badgeUrl = liveText(channel, "badgeUrl")
     if badgeUrl <> "" then return badgeUrl
@@ -1011,8 +1135,6 @@ function liveArtUrl(channel as Dynamic, preferBackdrop as Boolean) as String
     if cardUrl <> "" then return cardUrl
     backdropUrl = liveText(channel, "backdropUrl")
     if backdropUrl <> "" then return backdropUrl
-    logoUrl = liveText(channel, "logoUrl")
-    if logoUrl <> "" then return logoUrl
     return ""
 end function
 

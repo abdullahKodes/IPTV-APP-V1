@@ -2,7 +2,7 @@ sub init()
     m.colors = appColors()
     m.canvas = m.top.findNode("myPlaylistsCanvas")
     m.focusItems = []
-    m.focusIndex = 8
+    m.focusIndex = firstPlaylistFocusIndex()
     m.searchQuery = ""
     m.searchEditing = false
     m.searchKeyboardIndex = 0
@@ -11,6 +11,8 @@ sub init()
     m.pendingDeleteTitle = ""
     m.playlistWindowStart = 0
     m.playlistWindowSize = 6
+    m.initialFocusPlaylistId = playlistStoreActiveId()
+    m.initialFocusApplied = false
     m.searchKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "SPACE", "DEL", "CLEAR", "DONE"]
     m.playlists = playlistStoreList()
     render()
@@ -62,6 +64,7 @@ end sub
 
 sub render()
     visible = filteredPlaylists()
+    keepActivePlaylistFirstFocus(visible)
     normalizePlaylistWindow(visible.count())
     normalizePlaylistFocus(visible.count())
 
@@ -88,6 +91,21 @@ sub render()
     drawPlaylistScrollbar(visible.count())
     uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
     if m.searchEditing then drawSearchKeyboardOverlay()
+end sub
+
+function firstPlaylistFocusIndex() as Integer
+    return 8
+end function
+
+sub keepActivePlaylistFirstFocus(visible as Object)
+    if m.initialFocusApplied then return
+    m.initialFocusApplied = true
+    if m.initialFocusPlaylistId = invalid or m.initialFocusPlaylistId = "" then return
+    if visible.count() <= 0 then return
+    if playlistStoreText(visible[0].playlist, "id") = m.initialFocusPlaylistId then
+        m.playlistWindowStart = 0
+        m.focusIndex = firstPlaylistFocusIndex()
+    end if
 end sub
 
 function routePlaylistFocus(dx as Integer, dy as Integer) as Boolean
@@ -517,9 +535,15 @@ end function
 
 function playlistStoreBoolField(item as Object, key as String, fallback as Boolean) as Boolean
     if item = invalid then return fallback
-    if not item.doesExist(key) then return fallback
-    if item[key] = invalid then return fallback
-    return item[key] = true
+    value = invalid
+    if item.doesExist(key) then
+        value = item[key]
+    else
+        lowerKey = LCase(key)
+        if lowerKey <> key and item.doesExist(lowerKey) then value = item[lowerKey]
+    end if
+    if value = invalid then return fallback
+    return value = true
 end function
 
 function playlistTypeLabel(p as Object) as String
@@ -620,13 +644,27 @@ end sub
 
 function filteredPlaylists() as Object
     out = []
+    active = invalid
+    activeId = playlistStoreActiveId()
     query = LCase(m.searchQuery)
     for i = 0 to m.playlists.count() - 1
         p = m.playlists[i]
         searchable = LCase(playlistStoreText(p, "title") + " " + playlistStoreText(p, "meta") + " " + playlistStoreText(p, "status") + " " + playlistStoreText(p, "type"))
-        if query = "" or Instr(1, searchable, query) > 0 then out.push({ playlist: p, index: i })
+        if query = "" or Instr(1, searchable, query) > 0 then
+            row = { playlist: p, index: i }
+            if playlistStoreText(p, "id") = activeId then
+                active = row
+            else
+                out.push(row)
+            end if
+        end if
     end for
-    return out
+    if active = invalid then return out
+    sorted = [active]
+    for each row in out
+        sorted.push(row)
+    end for
+    return sorted
 end function
 
 function playlistSummary(items as Object) as Object

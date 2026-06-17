@@ -6,7 +6,6 @@ sub init()
     m.pageHost = m.top.findNode("pageHost")
     m.top.backgroundColor = m.colors.bg
     m.top.setFocus(true)
-    playlistStoreSetActive(playlistStoreEmptyM3uId())
 
     m.timer = CreateObject("roSGNode", "Timer")
     m.timer.repeat = true
