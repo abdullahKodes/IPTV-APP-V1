@@ -15,7 +15,10 @@ sub init()
     m.selectedResumeIndex = 0
     m.focusArea = "normal"
     m.searchKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "SPACE", "DEL", "CLEAR", "DONE"]
-    m.series = mockSeriesCatalog()
+    m.activePlaylist = playlistStoreActive()
+    m.activePlaylistId = playlistStoreText(m.activePlaylist, "id", playlistStoreDemoId())
+    m.activePlaylistTitle = playlistStoreText(m.activePlaylist, "title", "Demo Playlist")
+    m.series = mediaSeriesCatalogForPlaylist(m.activePlaylistId)
     render()
 end sub
 
@@ -78,6 +81,13 @@ sub render()
 
     row = drawSeriesSideNav()
     drawSearchBox()
+    if visible.count() = 0 then
+        uiLabel(m.canvas, "No series in " + m.activePlaylistTitle, 244, 332, 746, 28, 15, m.colors.textDim, "center")
+        uiLabel(m.canvas, "Switch playlist or add one with series content.", 244, 366, 746, 24, 11, m.colors.textMuted, "center")
+        uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
+        if m.searchEditing then drawSearchKeyboardOverlay()
+        return
+    end if
     drawCategoryPills(row)
 
     uiLabel(m.canvas, "CONTINUE WATCHING", 244, 158, 300, 26, 13, m.colors.textDim)
@@ -88,20 +98,15 @@ sub render()
     countText = visible.count().toStr() + " titles"
     uiLabel(m.canvas, sectionLabel, 244, 362, 250, 26, 13, m.colors.textDim)
     uiLabel(m.canvas, countText, 824, 362, 190, 26, 12, m.colors.textDim, "right")
-    if visible.count() > 0 then
-        endIndex = m.seriesWindowStart + m.seriesWindowSize - 1
-        if endIndex > visible.count() - 1 then endIndex = visible.count() - 1
-        slot = 0
-        for i = m.seriesWindowStart to endIndex
-            rowData = visible[i]
-            drawMediaCard(rowData.series, i, rowData.index, 244 + slot * 212, 402, 200, 202, 3, slot + 1)
-            slot += 1
-        end for
-        drawSeriesScrollbar(visible.count(), 1130, 402, 202)
-    end if
-    if visible.count() = 0 then
-        uiLabel(m.canvas, "No series found", 244, 430, 746, 28, 15, m.colors.textDim, "center")
-    end if
+    endIndex = m.seriesWindowStart + m.seriesWindowSize - 1
+    if endIndex > visible.count() - 1 then endIndex = visible.count() - 1
+    slot = 0
+    for i = m.seriesWindowStart to endIndex
+        rowData = visible[i]
+        drawMediaCard(rowData.series, i, rowData.index, 244 + slot * 212, 402, 200, 202, 3, slot + 1)
+        slot += 1
+    end for
+    drawSeriesScrollbar(visible.count(), 1130, 402, 202)
 
     uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
     if m.searchEditing then drawSearchKeyboardOverlay()
@@ -129,7 +134,7 @@ sub addSeriesNavItem(x as Integer, y as Integer, icon as String, label as String
         iconSize: 12, titleSize: 12, subSize: 10,
         bg: m.colors.bg, border: m.colors.bg, textColor: m.colors.textGreen, subColor: m.colors.textDim,
         focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
-        row: row, col: 0, page: page, mode: "row"
+        row: row, col: 0, page: page, mode: "row", noFocusShift: true
     }
     if active then
         item.bg = m.colors.purpleSoft
@@ -146,7 +151,7 @@ sub addSeriesProfileItem()
         iconSize: 14, iconW: 32, iconH: 32, iconX: 18, titleSize: 11, subSize: 7,
         bg: "0xFFFFFF10", border: m.colors.panel, textColor: m.colors.text, subColor: m.colors.textDim,
         focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
-        row: 5, col: 0, page: "ProfilePage", mode: "row"
+        row: 5, col: 0, page: "ProfilePage", mode: "row", noFocusShift: true
     }
     m.focusItems.push(item)
 end sub

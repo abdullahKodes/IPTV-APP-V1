@@ -14,6 +14,282 @@ function mediaPlaybackFormat(item as Dynamic) as String
     return "hls"
 end function
 
+function mediaLiveCatalogForPlaylist(playlistId as String) as Object
+    if playlistId = "demo_playlist" then return mediaSetPlaylistId(mockLiveTvCatalog(), playlistId)
+    parsed = mediaM3uCatalogForPlaylist(playlistId, "live")
+    if parsed.count() > 0 then return parsed
+    if mediaPlaylistProfile(playlistId) = "demo_live_m3u" or mediaPlaylistIsFakeLive(playlistId) then return mediaSetPlaylistId(mockLiveTvCatalog(), playlistId)
+    return parsed
+end function
+
+function mediaMovieCatalogForPlaylist(playlistId as String) as Object
+    if playlistId = "demo_playlist" then return mediaSetPlaylistId(mockMovieCatalog(), playlistId)
+    if playlistId = "demo_movies_playlist" then return mediaSetPlaylistId(mockMovieCatalog(), playlistId)
+    parsed = mediaM3uCatalogForPlaylist(playlistId, "movies")
+    if parsed.count() > 0 then return parsed
+    if mediaPlaylistProfile(playlistId) = "demo_movies_m3u" then return mediaSetPlaylistId(mockMovieCatalog(), playlistId)
+    return parsed
+end function
+
+function mediaSeriesCatalogForPlaylist(playlistId as String) as Object
+    if playlistId = "demo_playlist" then return mediaSetPlaylistId(mockSeriesCatalog(), playlistId)
+    parsed = mediaM3uCatalogForPlaylist(playlistId, "series")
+    if parsed.count() > 0 then return parsed
+    if mediaPlaylistProfile(playlistId) = "demo_series" then return mediaSetPlaylistId(mockSeriesCatalog(), playlistId)
+    return parsed
+end function
+
+function mediaPlaylistProfile(playlistId as String) as String
+    items = playlistStoreList()
+    for each item in items
+        if playlistStoreText(item, "id") = playlistId then return playlistStoreText(item, "contentProfile")
+    end for
+    return ""
+end function
+
+function mediaSetPlaylistId(items as Object, playlistId as String) as Object
+    if items = invalid then return []
+    for i = 0 to items.count() - 1
+        if items[i] <> invalid then items[i].playlistId = playlistId
+    end for
+    return items
+end function
+
+function mediaPlaylistItem(playlistId as String) as Object
+    items = playlistStoreList()
+    for each item in items
+        if playlistStoreText(item, "id") = playlistId then return item
+    end for
+    return invalid
+end function
+
+function mediaPlaylistIsFakeLive(playlistId as String) as Boolean
+    item = mediaPlaylistItem(playlistId)
+    if item = invalid then return false
+    return playlistStoreIsFakeLiveText(playlistStoreText(item, "sourceUrl")) or playlistStoreIsFakeLiveText(playlistStoreText(item, "title"))
+end function
+
+function mediaM3uCatalogForPlaylist(playlistId as String, kind as String) as Object
+    item = mediaPlaylistItem(playlistId)
+    if item = invalid then return []
+
+    sourceUrl = playlistStoreText(item, "sourceUrl")
+    title = playlistStoreText(item, "title")
+    if sourceUrl = "" then return []
+
+    raw = ""
+    if playlistStoreIsFakeLiveText(sourceUrl) or playlistStoreIsFakeLiveText(title) then
+        raw = mediaFakeLiveM3u()
+    else if playlistStoreIsFakeMoviesText(sourceUrl) or playlistStoreIsFakeMoviesText(title) then
+        raw = mediaFakeMoviesM3u()
+    else if playlistStoreIsFakeSeriesText(sourceUrl) or playlistStoreIsFakeSeriesText(title) then
+        raw = mediaFakeSeriesM3u()
+    else
+        raw = ""
+    end if
+
+    if raw = "" then return []
+    return mediaParseM3uCatalog(raw, playlistId, kind)
+end function
+
+function mediaFetchM3uText(sourceUrl as String) as String
+    ' Network fetches must run in a Task, not inside page render.
+    if sourceUrl = invalid or sourceUrl = "" then return ""
+    return ""
+end function
+
+function mediaParseM3uCatalog(raw as String, playlistId as String, kind as String) as Object
+    out = []
+    if raw = invalid or raw = "" then return out
+
+    lines = raw.Tokenize(Chr(10))
+    extinf = ""
+    itemIndex = 0
+
+    for each rawLine in lines
+        line = mediaTrimText(rawLine)
+        if line <> "" then
+            if Left(line, 7) = "#EXTINF" then
+                extinf = line
+            else if extinf <> "" and Left(line, 1) <> "#" then
+                itemIndex += 1
+                item = mediaM3uBuildItem(extinf, line, playlistId, kind, itemIndex)
+                if item <> invalid then out.push(item)
+                extinf = ""
+                if out.count() >= 250 then return out
+            end if
+        end if
+    end for
+
+    return out
+end function
+
+function mediaM3uBuildItem(extinf as String, streamUrl as String, playlistId as String, kind as String, itemIndex as Integer) as Object
+    title = mediaM3uTitle(extinf)
+    if title = "" then title = "M3U Item " + itemIndex.toStr()
+    groupTitle = mediaM3uAttribute(extinf, "group-title")
+    logoUrl = mediaM3uAttribute(extinf, "tvg-logo")
+    resolvedKind = mediaM3uKind(title, groupTitle, streamUrl)
+    if resolvedKind <> kind then return invalid
+
+    itemId = kind + "_" + itemIndex.toStr()
+    accent = "purple"
+    if itemIndex mod 2 = 1 then accent = "green"
+
+    if kind = "live" then
+        category = groupTitle
+        if category = "" then category = "Live TV"
+        return {
+            id: itemId,
+            playlistId: playlistId,
+            name: title,
+            title: title,
+            now: "Live stream",
+            category: category,
+            groupTitle: category,
+            icon: "tv",
+            logoUrl: logoUrl,
+            badgeUrl: "",
+            logoText: Left(UCase(title), 4),
+            brandColor: "0x2B8C6BFF",
+            brandColor2: "0x151C26FF",
+            cardUrl: logoUrl,
+            backdropUrl: logoUrl,
+            streamUrl: streamUrl,
+            streamFormat: mediaStreamFormat(streamUrl),
+            live: true,
+            favorite: false,
+            channelNumber: itemIndex.toStr(),
+            epg: [
+                { time: "Now", title: "Live stream" },
+                { time: "Next", title: "Schedule unavailable" }
+            ]
+        }
+    end if
+
+    if kind = "movies" then
+        genre = groupTitle
+        if genre = "" then genre = "Movie"
+        return {
+            id: itemId,
+            playlistId: playlistId,
+            title: title,
+            year: "",
+            duration: "",
+            genre: genre,
+            rating: "",
+            posterUrl: logoUrl,
+            cardUrl: logoUrl,
+            backdropUrl: logoUrl,
+            streamUrl: streamUrl,
+            streamFormat: mediaStreamFormat(streamUrl),
+            resumePercent: 0,
+            featured: itemIndex = 1,
+            accent: accent
+        }
+    end if
+
+    genre = groupTitle
+    if genre = "" then genre = "Series"
+    return {
+        id: itemId,
+        playlistId: playlistId,
+        title: title,
+        year: "",
+        seasons: "Series",
+        episodeCount: "Episodes",
+        genre: genre,
+        rating: "",
+        posterUrl: logoUrl,
+        cardUrl: logoUrl,
+        backdropUrl: logoUrl,
+        streamUrl: streamUrl,
+        streamFormat: mediaStreamFormat(streamUrl),
+        activeEpisodeTitle: mediaEpisodeLabel(title),
+        progressText: "",
+        resumePercent: 0,
+        featured: itemIndex = 1,
+        accent: accent
+    }
+end function
+
+function mediaM3uKind(title as String, groupTitle as String, streamUrl as String) as String
+    text = LCase(groupTitle + " " + title + " " + streamUrl)
+    if Instr(1, text, "series") > 0 then return "series"
+    if Instr(1, text, "season") > 0 then return "series"
+    if Instr(1, text, "episode") > 0 then return "series"
+    if Instr(1, text, "s01") > 0 or Instr(1, text, "s02") > 0 or Instr(1, text, "s03") > 0 then return "series"
+    if Instr(1, text, "movie") > 0 then return "movies"
+    if Instr(1, text, "movies") > 0 then return "movies"
+    if Instr(1, text, "vod") > 0 then return "movies"
+    if Instr(1, text, "film") > 0 then return "movies"
+    if Instr(1, text, ".mp4") > 0 or Instr(1, text, ".mkv") > 0 or Instr(1, text, ".avi") > 0 then return "movies"
+    return "live"
+end function
+
+function mediaM3uTitle(extinf as String) as String
+    comma = Instr(1, extinf, ",")
+    if comma = 0 then return ""
+    return mediaTrimText(Right(extinf, extinf.len() - comma))
+end function
+
+function mediaM3uAttribute(line as String, key as String) as String
+    marker = key + Chr(61) + Chr(34)
+    start = Instr(1, line, marker)
+    quote = Chr(34)
+    if start = 0 then
+        marker = key + Chr(61) + "'"
+        start = Instr(1, line, marker)
+        quote = "'"
+    end if
+    if start = 0 then return ""
+    valueStart = start + marker.len()
+    rest = Mid(line, valueStart)
+    valueEnd = Instr(1, rest, quote)
+    if valueEnd = 0 then return ""
+    return Left(rest, valueEnd - 1)
+end function
+
+function mediaEpisodeLabel(title as String) as String
+    text = LCase(title)
+    sPos = Instr(1, text, "s0")
+    if sPos > 0 then return Mid(title, sPos)
+    return ""
+end function
+
+function mediaStreamFormat(streamUrl as String) as String
+    text = LCase(streamUrl)
+    if Instr(1, text, ".mp4") > 0 then return "mp4"
+    return "hls"
+end function
+
+function mediaTrimText(value as Dynamic) as String
+    if value = invalid then return ""
+    text = value
+    while text.len() > 0 and (Left(text, 1) = " " or Left(text, 1) = Chr(9) or Left(text, 1) = Chr(13))
+        text = Right(text, text.len() - 1)
+    end while
+    while text.len() > 0 and (Right(text, 1) = " " or Right(text, 1) = Chr(9) or Right(text, 1) = Chr(13))
+        text = Left(text, text.len() - 1)
+    end while
+    return text
+end function
+
+function mediaFakeSeriesM3u() as String
+    stream = demoPlaybackUrl()
+    return "#EXTM3U" + Chr(10) + "#EXTINF:-1 tvg-logo=" + Chr(34) + "pkg:/images/demo/posters/get_out.jpg" + Chr(34) + " group-title=" + Chr(34) + "Series" + Chr(34) + ",Ozark S01E01" + Chr(10) + stream + Chr(10) + "#EXTINF:-1 tvg-logo=" + Chr(34) + "pkg:/images/demo/posters/inception.jpg" + Chr(34) + " group-title=" + Chr(34) + "Series" + Chr(34) + ",Westworld S01E01" + Chr(10) + stream + Chr(10) + "#EXTINF:-1 tvg-logo=" + Chr(34) + "pkg:/images/demo/posters/arrival.jpg" + Chr(34) + " group-title=" + Chr(34) + "Series" + Chr(34) + ",The Crown S01E01" + Chr(10) + stream
+end function
+
+function mediaFakeMoviesM3u() as String
+    stream = demoPlaybackUrl()
+    return "#EXTM3U" + Chr(10) + "#EXTINF:-1 tvg-logo=" + Chr(34) + "pkg:/images/demo/posters/dune_part_two.jpg" + Chr(34) + " group-title=" + Chr(34) + "Movies" + Chr(34) + ",Dune Part Two" + Chr(10) + stream + Chr(10) + "#EXTINF:-1 tvg-logo=" + Chr(34) + "pkg:/images/demo/posters/inception.jpg" + Chr(34) + " group-title=" + Chr(34) + "Movies" + Chr(34) + ",Inception" + Chr(10) + stream + Chr(10) + "#EXTINF:-1 tvg-logo=" + Chr(34) + "pkg:/images/demo/posters/dark_knight.jpg" + Chr(34) + " group-title=" + Chr(34) + "Movies" + Chr(34) + ",The Dark Knight" + Chr(10) + stream
+end function
+
+function mediaFakeLiveM3u() as String
+    stream = demoPlaybackUrl()
+    return "#EXTM3U" + Chr(10) + "#EXTINF:-1 tvg-logo=" + Chr(34) + "pkg:/images/logos/live/bbc_news.png" + Chr(34) + " group-title=" + Chr(34) + "News" + Chr(34) + ",IPTV Max News" + Chr(10) + stream + Chr(10) + "#EXTINF:-1 tvg-logo=" + Chr(34) + "pkg:/images/logos/live/bein_sports.png" + Chr(34) + " group-title=" + Chr(34) + "Sports" + Chr(34) + ",IPTV Max Sports" + Chr(10) + stream + Chr(10) + "#EXTINF:-1 tvg-logo=" + Chr(34) + "pkg:/images/logos/live/discovery.png" + Chr(34) + " group-title=" + Chr(34) + "Documentary" + Chr(34) + ",IPTV Max Docs" + Chr(10) + stream + Chr(10) + "#EXTINF:-1 tvg-logo=" + Chr(34) + "pkg:/images/logos/live/movie_channel.png" + Chr(34) + " group-title=" + Chr(34) + "Entertainment" + Chr(34) + ",IPTV Max Mix" + Chr(10) + stream
+end function
+
 function mockLiveTvCatalog() as Object
     demoUrl = "https://roku.s.cpl.delvenetworks.com/media/59021fabe3b645968e382ac726cd6c7b/60b4a471ffb74809beb2f7d5a15b3193/roku_ep_111_segment_1_final-cc_mix_033015-a7ec8a288c4bcec001c118181c668de321108861.m3u8"
     return [

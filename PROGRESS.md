@@ -1,6 +1,6 @@
 # IPTV App Progress
 
-Last updated: 2026-06-16
+Last updated: 2026-06-17
 
 Read this file before starting a new session. Update it only after a meaningful milestone is completed, such as finishing a screen, fixing a major workflow, committing/pushing, or changing project structure. Do not update it for every tiny visual tweak.
 
@@ -18,6 +18,52 @@ Read this file before starting a new session. Update it only after a meaningful 
   `C:\Users\M Abdullah\Documents\GitHub\IPTV-APP-V1\build\roku-iptv-app.zip`
 
 ## Current Design Progress
+
+### Demo Playlist Foundation
+
+Status: foundation added.
+
+Completed:
+- Replaced the scattered built-in demo playlist cards with one protected `Demo Playlist`.
+- `Demo Playlist` now represents the current bundled demo Live TV, Movies, and Series content.
+- Added a second protected `Demo Movies` playlist that contains Movies content only so empty Live TV/Series states can be tested.
+- Added local active-playlist storage in `components/shared/PlaylistStore.brs`.
+- My Playlists now sets the selected playlist as active before opening Live TV.
+- Live TV, Movies, and Series now load content through the active playlist instead of directly using global mock catalogs.
+- User-added M3U playlists are preserved in My Playlists and now resolve through the shared M3U content parser when a source URL is available.
+- Empty states now mention the active playlist and suggest switching or adding a playlist.
+- Add Playlist now validates required fields, URL prefixes, and duplicate playlist names before saving.
+- Add Playlist field errors now render inside the specific invalid input field.
+- The local test M3U URL `https://iptvmax.test/demo-series.m3u` creates a user-added series-only playlist for flow testing before the real parser is implemented.
+- Existing test playlists using that URL now infer their series-only profile on load, so they do not need to be re-added.
+- Fake series test URL matching is uppercase/Roku-keyboard tolerant and also accepts URLs containing `DEMO-SERIES` or `SERIES.M3U`.
+- Fake series detection now also checks the playlist title for `Series`, and the Add Playlist keyboard has an `abc`/`ABC` case toggle.
+- My Playlists routes movies-only playlists to Movies first and series-only playlists to Series first.
+- Movies no longer shows the Featured Movie panel when the selected playlist has no movies.
+- Empty Live TV, Movies, and Series pages now show only the app shell/search plus the empty-state message; category pills, featured panels, content rows, and player panels are hidden when there is no content.
+- My Playlists keeps normal playlist cards purple and uses green for the focused card state.
+- Added a protected `Empty M3U Playlist` and made it the startup active playlist from `MainScene`, so the app launches into an empty active-content state until the user selects demo/user content.
+- Added a first working M3U parser path in `components/shared/MediaData.brs`: it fetches M3U URLs, parses `#EXTINF` entries, classifies streams into Live TV, Movies, or Series, keeps logo/poster URLs where present, and uses each entry stream URL for playback.
+- The local test M3U URL `https://iptvmax.test/demo-series.m3u` now flows through M3U parsing and produces series items without needing a real backend.
+- Added the local test M3U URL `https://iptvmax.test/demo-movies.m3u` for safe Movies-page testing without a remote provider.
+- Added the local test M3U URL `https://iptvmax.test/demo-live.m3u` for safe Live TV testing through the parsed-playlist path.
+- Real Live TV from parsed playlist is now testable with the fake Live M3U: adding/selecting it routes to Live TV and renders parsed live channels with stream URLs.
+- Add Playlist now makes the newly added playlist active immediately, preventing Live TV from still reading the startup Empty M3U playlist after a new test playlist is saved.
+- Fake Live M3U detection has a defensive media fallback for older saved playlist items that may not have a stored `demo_live_m3u` profile.
+- Fixed a Movies-page crash on empty/test playlists by clamping the focus index before remote key handling.
+- Removed render-time remote M3U fetching from content pages; real provider fetches should run through a background Roku Task in the next parser step.
+- Improved Movies remote behavior so sidebar up/down stays in the sidebar, right enters content, and left from search/filters/featured/movie cards returns to the Movies sidebar item instead of wrapping awkwardly.
+- Tightened Add Playlist URL validation so `http://abc` or any text after only the scheme no longer saves; URLs now need a real host-style address.
+- Made sidebar focus stationary across Home, Add Playlist, Live TV, Movies, Series, My Playlists, Profile, Settings, and the shared sidebar helper.
+- Confirmed `npm.cmd run check` and `npm.cmd run build` pass, and the generated zip contains the updated startup/playlist/media files.
+
+Next:
+- Test startup on Roku: Home should launch with `Empty M3U Playlist` active, and Live TV/Movies/Series should show clean empty states until another playlist is selected.
+- Test Demo Playlist selection on Roku.
+- Test Demo Movies selection: Movies should show content; Live TV and Series should show empty states.
+- Test fake Live M3U selection: add `https://iptvmax.test/demo-live.m3u`, select it from My Playlists, confirm Live TV shows only those parsed channels, then press OK on a channel to play its parsed stream URL.
+- Implement a dedicated background `M3uSyncTask` so real provider M3U URLs are fetched/parsing outside page render, then saved into the active-playlist content model.
+- Expand parser coverage for provider-specific M3U edge cases and add Xtreme API parsing into the same active-playlist content model.
 
 ### Home Page
 

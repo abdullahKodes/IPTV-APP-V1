@@ -6,8 +6,11 @@ sub init()
     m.editing = false
     m.editField = ""
     m.editLabel = ""
+    m.errorMessage = ""
+    m.errorField = ""
     m.keyboardIndex = 0
-    m.keyboardKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "SPACE", "DEL", "DONE"]
+    m.keyboardUpper = true
+    m.keyboardKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "CASE", "SPACE", "DEL", "DONE"]
     m.inputs = {
         playlistTitle: "",
         m3uUrl: "",
@@ -50,8 +53,17 @@ sub activate()
     if item.action = "m3u" or item.action = "xtreme" then m.mode = item.action : render() : return
     if item.action = "field" then openKeyboard(item.fieldKey, item.fieldLabel) : return
     if item.action = "submit" then
-        playlistStoreAdd(m.inputs, m.mode)
+        errorText = validatePlaylistInput()
+        if errorText <> "" then
+            render()
+            return
+        end if
+        normalizePlaylistInputForSave()
+        addedPlaylist = playlistStoreAdd(m.inputs, m.mode)
+        if addedPlaylist <> invalid and addedPlaylist.doesExist("id") then playlistStoreSetActive(addedPlaylist.id)
         m.added = true
+        m.errorMessage = ""
+        m.errorField = ""
         m.top.navigateTo = "MyPlaylistsPage"
         return
     end if
@@ -108,7 +120,7 @@ sub addAddNavItem(x as Integer, y as Integer, icon as String, label as String, p
         iconSize: 12, titleSize: 12, subSize: 10,
         bg: m.colors.bg, border: m.colors.bg, textColor: m.colors.textGreen, subColor: m.colors.textDim,
         focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
-        row: row, col: 0, page: page, mode: "row"
+        row: row, col: 0, page: page, mode: "row", noFocusShift: true
     }
     if active then
         item.bg = m.colors.purpleSoft
@@ -125,7 +137,7 @@ sub addAddProfileItem()
         iconSize: 14, iconW: 32, iconH: 32, iconX: 18, titleSize: 11, subSize: 7,
         bg: "0xFFFFFF10", border: m.colors.panel, textColor: m.colors.text, subColor: m.colors.textDim,
         focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
-        row: 5, col: 0, page: "ProfilePage", mode: "row"
+        row: 5, col: 0, page: "ProfilePage", mode: "row", noFocusShift: true
     }
     m.focusItems.push(item)
 end sub
@@ -134,14 +146,23 @@ sub addInputField(x as Integer, y as Integer, w as Integer, label as String, fie
     uiLabel(m.canvas, label, x, y, w, 24, 13, m.colors.textGreen)
     value = m.inputs[fieldKey]
     displayValue = value
+    textColor = m.colors.text
+    borderColor = m.colors.panel
+    focusBorder = m.colors.purpleLine
     if secure and value <> "" then displayValue = maskText(value)
+    if m.errorField = fieldKey and m.errorMessage <> "" then
+        displayValue = m.errorMessage
+        textColor = "0xFFB2A8FF"
+        borderColor = "0xFFB2A8FF"
+        focusBorder = "0xFFB2A8FF"
+    end if
     item = {
         x: x, y: y + 30, w: w, h: 48,
         icon: "", label: displayValue, subtitle: "",
         iconSize: 0, titleSize: 16, subSize: 10,
-        bg: m.colors.panel, border: m.colors.panel, textColor: m.colors.text,
-        subColor: m.colors.textDim, focusBg: m.colors.panel, focusBorder: m.colors.purpleLine,
-        focusTextColor: m.colors.text, row: row, col: col, action: "field",
+        bg: m.colors.panel, border: borderColor, textColor: textColor,
+        subColor: m.colors.textDim, focusBg: m.colors.panel, focusBorder: focusBorder,
+        focusTextColor: textColor, row: row, col: col, action: "field",
         fieldKey: fieldKey, fieldLabel: label, page: "", mode: "row",
         labelX: 24, labelW: w - 48, labelAlign: "left", noFocusShift: true
     }
@@ -170,6 +191,8 @@ sub openKeyboard(fieldKey as String, fieldLabel as String)
     m.editing = true
     m.editField = fieldKey
     m.editLabel = fieldLabel
+    m.errorMessage = ""
+    m.errorField = ""
     m.keyboardIndex = 0
     render()
 end sub
@@ -193,16 +216,106 @@ sub pressKeyboardKey()
         closeKeyboard()
         return
     end if
+    if selected = "CASE" then
+        m.keyboardUpper = not m.keyboardUpper
+        render()
+        return
+    end if
     if selected = "DEL" then
         if current.len() > 0 then current = current.left(current.len() - 1)
     else if selected = "SPACE" then
         current += " "
     else
-        current += selected
+        current += keyboardInputValue(selected)
     end if
     m.inputs[m.editField] = current
     render()
 end sub
+
+function validatePlaylistInput() as String
+    m.errorMessage = ""
+    m.errorField = ""
+    if m.mode = "xtreme" then
+        title = cleanInput(m.inputs.accountName)
+        if title = "" then return setFieldError("accountName", "Account name is required.")
+        if cleanInput(m.inputs.serverUrl) = "" then return setFieldError("serverUrl", "Server URL is required.")
+        if not isValidHttpUrl(m.inputs.serverUrl) then return setFieldError("serverUrl", "Enter a valid URL like http://example.com.")
+        if cleanInput(m.inputs.username) = "" then return setFieldError("username", "Username is required.")
+        if cleanInput(m.inputs.password) = "" then return setFieldError("password", "Password is required.")
+    else
+        title = cleanInput(m.inputs.playlistTitle)
+        if title = "" then return setFieldError("playlistTitle", "Playlist title is required.")
+        if cleanInput(m.inputs.m3uUrl) = "" then return setFieldError("m3uUrl", "M3U URL is required.")
+        if not isValidHttpUrl(m.inputs.m3uUrl) then return setFieldError("m3uUrl", "Enter a valid M3U URL.")
+    end if
+
+    if playlistStoreTitleExists(title) then
+        if m.mode = "xtreme" then return setFieldError("accountName", "Playlist name already exists.")
+        return setFieldError("playlistTitle", "Playlist name already exists.")
+    end if
+    return ""
+end function
+
+function setFieldError(fieldKey as String, message as String) as String
+    m.errorField = fieldKey
+    m.errorMessage = message
+    return message
+end function
+
+sub normalizePlaylistInputForSave()
+    m.inputs.playlistTitle = cleanInput(m.inputs.playlistTitle)
+    m.inputs.m3uUrl = cleanInput(m.inputs.m3uUrl)
+    m.inputs.accountName = cleanInput(m.inputs.accountName)
+    m.inputs.serverUrl = cleanInput(m.inputs.serverUrl)
+    m.inputs.username = cleanInput(m.inputs.username)
+    m.inputs.password = cleanInput(m.inputs.password)
+end sub
+
+function cleanInput(value as Dynamic) as String
+    if value = invalid then return ""
+    if type(value) <> "String" and type(value) <> "roString" then return ""
+    text = value
+    while text.len() > 0 and Left(text, 1) = " "
+        text = Right(text, text.len() - 1)
+    end while
+    while text.len() > 0 and Right(text, 1) = " "
+        text = Left(text, text.len() - 1)
+    end while
+    return text
+end function
+
+function isValidHttpUrl(value as Dynamic) as Boolean
+    text = LCase(cleanInput(value))
+    if text.len() < 8 then return false
+    if Instr(1, text, " ") > 0 then return false
+
+    hostAndPath = ""
+    if Left(text, 7) = "http://" then
+        hostAndPath = Right(text, text.len() - 7)
+    else if Left(text, 8) = "https://" then
+        hostAndPath = Right(text, text.len() - 8)
+    else
+        return false
+    end if
+
+    if hostAndPath = "" then return false
+    slashPos = Instr(1, hostAndPath, "/")
+    host = hostAndPath
+    if slashPos > 0 then host = Left(hostAndPath, slashPos - 1)
+    if host = "" then return false
+    if Instr(1, host, ".") = 0 then return false
+    if Left(host, 1) = "." or Right(host, 1) = "." then return false
+    if Instr(1, host, "..") > 0 then return false
+    if Instr(1, host, ":") > 0 then
+        colonPos = Instr(1, host, ":")
+        hostName = Left(host, colonPos - 1)
+        portText = Right(host, host.len() - colonPos)
+        if hostName = "" or portText = "" then return false
+        host = hostName
+    end if
+    if host.len() < 4 then return false
+    return true
+end function
 
 sub closeKeyboard()
     m.editing = false
@@ -210,6 +323,27 @@ sub closeKeyboard()
     m.editLabel = ""
     render()
 end sub
+
+function keyboardInputValue(keyLabel as String) as String
+    if not m.keyboardUpper and isKeyboardLetter(keyLabel) then return LCase(keyLabel)
+    return keyLabel
+end function
+
+function keyboardDisplayLabel(keyLabel as String) as String
+    if keyLabel = "SPACE" then return "Space"
+    if keyLabel = "DEL" then return "Del"
+    if keyLabel = "DONE" then return "Done"
+    if keyLabel = "CASE" then
+        if m.keyboardUpper then return "abc"
+        return "ABC"
+    end if
+    return keyboardInputValue(keyLabel)
+end function
+
+function isKeyboardLetter(keyLabel as String) as Boolean
+    if keyLabel.len() <> 1 then return false
+    return Instr(1, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", keyLabel) > 0
+end function
 
 sub drawKeyboardOverlay()
     uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.92)
@@ -230,9 +364,7 @@ sub drawKeyboardOverlay()
         y = startY + row * (keyH + gap)
         keyLabel = m.keyboardKeys[i]
         w = keyW
-        if keyLabel = "SPACE" then keyLabel = "Space"
-        if keyLabel = "DEL" then keyLabel = "Del"
-        if keyLabel = "DONE" then keyLabel = "Done"
+        keyLabel = keyboardDisplayLabel(keyLabel)
         bg = m.colors.bg
         border = m.colors.whiteLine
         text = m.colors.text

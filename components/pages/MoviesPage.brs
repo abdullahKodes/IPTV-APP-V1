@@ -2,7 +2,7 @@ sub init()
     m.colors = appColors()
     m.canvas = m.top.findNode("moviesCanvas")
     m.focusItems = []
-    m.focusIndex = 7
+    m.focusIndex = 3
     m.selectedGenre = "All"
     m.searchQuery = ""
     m.searchEditing = false
@@ -13,7 +13,10 @@ sub init()
     m.featuredMovieIndex = -1
     m.focusArea = "normal"
     m.searchKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "SPACE", "DEL", "CLEAR", "DONE"]
-    m.movies = mockMovieCatalog()
+    m.activePlaylist = playlistStoreActive()
+    m.activePlaylistId = playlistStoreText(m.activePlaylist, "id", playlistStoreDemoId())
+    m.activePlaylistTitle = playlistStoreText(m.activePlaylist, "title", "Demo Playlist")
+    m.movies = mediaMovieCatalogForPlaylist(m.activePlaylistId)
     render()
 end sub
 
@@ -73,6 +76,14 @@ sub render()
 
     row = drawMoviesSideNav()
     drawSearchBox()
+    if visible.count() = 0 then
+        uiLabel(m.canvas, "No movies in " + m.activePlaylistTitle, 244, 332, 746, 28, 15, m.colors.textDim, "center")
+        uiLabel(m.canvas, "Switch playlist or add one with movie content.", 244, 366, 746, 24, 11, m.colors.textMuted, "center")
+        ensureMovieFocus()
+        uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
+        if m.searchEditing then drawSearchKeyboardOverlay()
+        return
+    end if
     drawMoviePills(row)
 
     uiLabel(m.canvas, "FEATURED MOVIE", 244, 166, 250, 26, 13, m.colors.textDim)
@@ -83,21 +94,17 @@ sub render()
     countText = visible.count().toStr() + " titles"
     uiLabel(m.canvas, sectionLabel, 244, 404, 250, 26, 13, m.colors.textDim)
     uiLabel(m.canvas, countText, 824, 404, 190, 26, 12, m.colors.textDim, "right")
-    if visible.count() > 0 then
-        endIndex = m.movieWindowStart + m.movieWindowSize - 1
-        if endIndex > visible.count() - 1 then endIndex = visible.count() - 1
-        slot = 0
-        for i = m.movieWindowStart to endIndex
-            rowData = visible[i]
-            drawMovieCard(rowData.movie, i, rowData.index, 244 + slot * 222, 444, 200, 202, 4, slot + 1)
-            slot += 1
-        end for
-        drawMovieScrollbar(visible.count(), 1130, 444, 202)
-    end if
-    if visible.count() = 0 then
-        uiLabel(m.canvas, "No movies found", 244, 478, 746, 28, 15, m.colors.textDim, "center")
-    end if
+    endIndex = m.movieWindowStart + m.movieWindowSize - 1
+    if endIndex > visible.count() - 1 then endIndex = visible.count() - 1
+    slot = 0
+    for i = m.movieWindowStart to endIndex
+        rowData = visible[i]
+        drawMovieCard(rowData.movie, i, rowData.index, 244 + slot * 222, 444, 200, 202, 4, slot + 1)
+        slot += 1
+    end for
+    drawMovieScrollbar(visible.count(), 1130, 444, 202)
 
+    ensureMovieFocus()
     uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
     if m.searchEditing then drawSearchKeyboardOverlay()
 end sub
@@ -124,7 +131,7 @@ sub addMoviesNavItem(x as Integer, y as Integer, icon as String, label as String
         iconSize: 12, titleSize: 12, subSize: 10,
         bg: m.colors.bg, border: m.colors.bg, textColor: m.colors.textGreen, subColor: m.colors.textDim,
         focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
-        row: row, col: 0, page: page, mode: "row"
+        row: row, col: 0, page: page, mode: "row", noFocusShift: true
     }
     if active then
         item.bg = m.colors.purpleSoft
@@ -141,7 +148,7 @@ sub addMoviesProfileItem()
         iconSize: 14, iconW: 32, iconH: 32, iconX: 18, titleSize: 11, subSize: 7,
         bg: "0xFFFFFF10", border: m.colors.panel, textColor: m.colors.text, subColor: m.colors.textDim,
         focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
-        row: 5, col: 0, page: "ProfilePage", mode: "row"
+        row: 5, col: 0, page: "ProfilePage", mode: "row", noFocusShift: true
     }
     m.focusItems.push(item)
 end sub
@@ -447,10 +454,37 @@ end sub
 
 function routeMoviesFocus(dx as Integer, dy as Integer) as Boolean
     if m.focusItems.count() = 0 then return false
+    ensureMovieFocus()
     current = m.focusItems[m.focusIndex]
     action = ""
     if current.doesExist("action") then action = current.action
     if action <> "movie" then m.focusArea = "normal"
+
+    if current.col = 0 then
+        if dy <> 0 then
+            nextSidebar = findMovieFocusByRowCol(current.row + dy, 0)
+            if nextSidebar >= 0 then m.focusIndex = nextSidebar : return true
+            return true
+        end if
+        if dx > 0 then
+            if filteredMovies().count() = 0 then
+                sIndex = findMovieFocusAction("search")
+                if sIndex >= 0 then m.focusIndex = sIndex : return true
+            end if
+            pIndex = findMovieFocusByRowCol(1, 1)
+            if pIndex >= 0 then m.focusIndex = pIndex : return true
+            fIndex = findMovieFocusAction("watch")
+            if fIndex >= 0 then m.focusIndex = fIndex : return true
+            sIndex = findMovieFocusAction("search")
+            if sIndex >= 0 then m.focusIndex = sIndex : return true
+        end if
+        return false
+    end if
+
+    if dx < 0 and action = "search" then
+        navIndex = findMovieFocusByRowCol(3, 0)
+        if navIndex >= 0 then m.focusIndex = navIndex : return true
+    end if
 
     if action = "search" and dy > 0 then
         pIndex = findMovieFocusByRowCol(1, 1)
@@ -458,6 +492,10 @@ function routeMoviesFocus(dx as Integer, dy as Integer) as Boolean
     end if
 
     if action = "genre" then
+        if dx < 0 and current.col = 1 then
+            navIndex = findMovieFocusByRowCol(3, 0)
+            if navIndex >= 0 then m.focusIndex = navIndex : return true
+        end if
         if dy < 0 then
             sIndex = findMovieFocusAction("search")
             if sIndex >= 0 then m.focusIndex = sIndex : return true
@@ -469,6 +507,10 @@ function routeMoviesFocus(dx as Integer, dy as Integer) as Boolean
     end if
 
     if action = "watch" then
+        if dx < 0 then
+            navIndex = findMovieFocusByRowCol(3, 0)
+            if navIndex >= 0 then m.focusIndex = navIndex : return true
+        end if
         if dy < 0 then
             pIndex = findMovieFocusByRowCol(1, 1)
             if pIndex >= 0 then m.focusIndex = pIndex : return true
@@ -494,10 +536,10 @@ function routeMoviesFocus(dx as Integer, dy as Integer) as Boolean
             normalizeMovieWindow(visible.count())
             return true
         end if
-        if dx < 0 and visible.count() > 0 then
-            m.selectedMovieIndex = visible.count() - 1
-            m.focusArea = "movies"
-            normalizeMovieWindow(visible.count())
+        if dx < 0 then
+            m.focusArea = "normal"
+            navIndex = findMovieFocusByRowCol(3, 0)
+            if navIndex >= 0 then m.focusIndex = navIndex
             return true
         end if
         if dx > 0 and m.selectedMovieIndex < visible.count() - 1 then
@@ -506,16 +548,7 @@ function routeMoviesFocus(dx as Integer, dy as Integer) as Boolean
             normalizeMovieWindow(visible.count())
             return true
         end if
-        if dx > 0 and visible.count() > 0 then
-            m.selectedMovieIndex = 0
-            m.focusArea = "movies"
-            normalizeMovieWindow(visible.count())
-            return true
-        end if
-        if dx <> 0 then
-            m.focusArea = "normal"
-            return false
-        end if
+        if dx > 0 then return true
         if dy < 0 then
             m.focusArea = "normal"
             fIndex = findMovieFocusAction("watch")
@@ -525,6 +558,21 @@ function routeMoviesFocus(dx as Integer, dy as Integer) as Boolean
 
     return false
 end function
+
+sub ensureMovieFocus()
+    if m.focusItems.count() = 0 then
+        m.focusIndex = 0
+        return
+    end if
+    if m.focusIndex < 0 or m.focusIndex >= m.focusItems.count() then
+        navIndex = findMovieFocusByRowCol(3, 0)
+        if navIndex >= 0 then
+            m.focusIndex = navIndex
+        else
+            m.focusIndex = 0
+        end if
+    end if
+end sub
 
 function findMovieFocusByRowCol(row as Integer, col as Integer) as Integer
     for i = 0 to m.focusItems.count() - 1

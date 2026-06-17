@@ -21,7 +21,10 @@ sub init()
     m.searchEditing = false
     m.searchKeyboardIndex = 0
     m.searchKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "SPACE", "DEL", "CLEAR", "DONE"]
-    m.channels = mockLiveTvCatalog()
+    m.activePlaylist = playlistStoreActive()
+    m.activePlaylistId = playlistStoreText(m.activePlaylist, "id", playlistStoreDemoId())
+    m.activePlaylistTitle = playlistStoreText(m.activePlaylist, "title", "Demo Playlist")
+    m.channels = mediaLiveCatalogForPlaylist(m.activePlaylistId)
     m.categories = liveCategoriesFromChannels(m.channels)
     setupVideo()
     render()
@@ -256,26 +259,31 @@ sub render()
     row = drawLiveSideNav()
 
     drawSearchBox()
-    uiRect(m.canvas, 550, 86, 1, 634, "0xFFFFFF12")
+    visible = filteredChannels()
+    m.hasVisibleChannels = visible.count() > 0
+    if not m.hasVisibleChannels then
+        uiLabel(m.canvas, "No live channels in " + m.activePlaylistTitle, 392, 316, 520, 34, 18, m.colors.textDim, "center")
+        uiLabel(m.canvas, "Switch playlist or add one with live TV.", 392, 354, 520, 26, 12, m.colors.textMuted, "center")
+        updateVideoLayout()
+        uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
+        if m.searchEditing then drawSearchKeyboardOverlay()
+        return
+    end if
+    if m.hasVisibleChannels then uiRect(m.canvas, 550, 86, 1, 634, "0xFFFFFF12")
     channelRow = drawCategoryPills(row)
     drawChannelDivider()
-    visible = filteredChannels()
     syncSelectedChannelFromVisible(visible)
     normalizeChannelWindow(visible.count())
     drawRightSectionBackdrop(displayChannel(visible))
-    if visible.count() > 0 then
-        endIndex = m.channelWindowStart + m.channelWindowSize - 1
-        if endIndex > visible.count() - 1 then endIndex = visible.count() - 1
-        slot = 0
-        for i = m.channelWindowStart to endIndex
-            rowData = visible[i]
-            drawChannel(rowData.channel, rowData.index, i, 246, 234 + slot * 68, channelRow + slot, 1)
-            slot += 1
-        end for
-        drawChannelScrollbar(visible.count(), 534, 234, 400)
-    else
-        uiLabel(m.canvas, "No channels found", 246, 262, 276, 28, 15, m.colors.textDim, "center")
-    end if
+    endIndex = m.channelWindowStart + m.channelWindowSize - 1
+    if endIndex > visible.count() - 1 then endIndex = visible.count() - 1
+    slot = 0
+    for i = m.channelWindowStart to endIndex
+        rowData = visible[i]
+        drawChannel(rowData.channel, rowData.index, i, 246, 234 + slot * 68, channelRow + slot, 1)
+        slot += 1
+    end for
+    drawChannelScrollbar(visible.count(), 534, 234, 400)
     drawPlayer()
     updateVideoLayout()
     uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
@@ -346,6 +354,11 @@ end sub
 
 sub updateVideoLayout()
     if m.video = invalid then return
+    if not m.hasVisibleChannels then
+        m.video.visible = false
+        if m.overlay <> invalid then m.overlay.visible = false
+        return
+    end if
     if m.searchEditing then
         m.video.visible = false
         if m.overlay <> invalid then m.overlay.visible = false
@@ -387,7 +400,7 @@ sub addLiveNavItem(x as Integer, y as Integer, icon as String, label as String, 
         iconSize: 12, titleSize: 12, subSize: 10,
         bg: m.colors.bg, border: m.colors.bg, textColor: m.colors.textGreen, subColor: m.colors.textDim,
         focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
-        row: row, col: 0, page: page, mode: "row"
+        row: row, col: 0, page: page, mode: "row", noFocusShift: true
     }
     if active then
         item.bg = m.colors.purpleSoft
@@ -404,7 +417,7 @@ sub addLiveProfileItem()
         iconSize: 14, iconW: 32, iconH: 32, iconX: 18, titleSize: 11, subSize: 7,
         bg: "0xFFFFFF10", border: m.colors.panel, textColor: m.colors.text, subColor: m.colors.textDim,
         focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
-        row: 5, col: 0, page: "ProfilePage", mode: "row"
+        row: 5, col: 0, page: "ProfilePage", mode: "row", noFocusShift: true
     }
     m.focusItems.push(item)
 end sub

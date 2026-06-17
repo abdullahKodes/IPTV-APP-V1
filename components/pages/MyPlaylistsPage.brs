@@ -49,7 +49,11 @@ sub activate()
     item = m.focusItems[m.focusIndex]
     if item.page <> invalid and item.page <> "" then m.top.navigateTo = item.page : return
     if item.action = "search" then openSearchKeyboard() : return
-    if item.action = "playlist" then m.top.navigateTo = "LiveTvPage" : return
+    if item.action = "playlist" then
+        playlistStoreSetActive(item.playlistId)
+        m.top.navigateTo = playlistStorePreferredPageForId(item.playlistId)
+        return
+    end if
     if item.action = "delete" then
         openDeleteConfirm(item.playlistId, item.playlistTitle)
         return
@@ -156,6 +160,20 @@ function routePlaylistFocus(dx as Integer, dy as Integer) as Boolean
     if dx > 0 and action = "playlist" then
         target = findPlaylistDeleteFocus(current.playlistId)
         if target >= 0 then m.focusIndex = target : return true
+        currentVisible = 0
+        if current.doesExist("visibleIndex") then currentVisible = current.visibleIndex
+        nextVisible = currentVisible + 1
+        if nextVisible < visible.count() then
+            normalizePlaylistWindowForIndex(nextVisible, visible.count())
+            target = findPlaylistCardVisibleFocus(nextVisible)
+            if target >= 0 then
+                m.focusIndex = target
+            else
+                m.focusIndex = playlistFocusIndexForVisible(nextVisible, false)
+            end if
+            return true
+        end if
+        return true
     end if
 
     if dx < 0 and currentCol > 0 then
@@ -212,11 +230,15 @@ function routePlaylistFocus(dx as Integer, dy as Integer) as Boolean
 end function
 
 function playlistFocusIndexForVisible(visibleIndex as Integer, deleteAction as Boolean) as Integer
-    slot = visibleIndex - m.playlistWindowStart
-    if slot < 0 then slot = 0
-    if slot > m.playlistWindowSize - 1 then slot = m.playlistWindowSize - 1
-    index = 8 + slot * 2
-    if deleteAction then index += 1
+    visible = filteredPlaylists()
+    index = 8
+    for i = m.playlistWindowStart to visibleIndex - 1
+        if i >= 0 and i < visible.count() then
+            index += 1
+            if not playlistStoreBoolField(visible[i].playlist, "isProtected", false) then index += 1
+        end if
+    end for
+    if deleteAction and visibleIndex >= 0 and visibleIndex < visible.count() and not playlistStoreBoolField(visible[visibleIndex].playlist, "isProtected", false) then index += 1
     return index
 end function
 
@@ -280,7 +302,16 @@ sub normalizePlaylistFocus(visibleCount as Integer)
     maxIndex = 7
     drawnCount = visibleCount
     if drawnCount > m.playlistWindowSize then drawnCount = m.playlistWindowSize
-    if drawnCount > 0 then maxIndex = 7 + drawnCount * 2
+    if drawnCount > 0 then
+        maxIndex = 7
+        visible = filteredPlaylists()
+        endIndex = m.playlistWindowStart + drawnCount - 1
+        if endIndex > visible.count() - 1 then endIndex = visible.count() - 1
+        for i = m.playlistWindowStart to endIndex
+            maxIndex += 1
+            if not playlistStoreBoolField(visible[i].playlist, "isProtected", false) then maxIndex += 1
+        end for
+    end if
     if m.focusIndex > maxIndex then m.focusIndex = maxIndex
     if m.focusIndex < 0 then m.focusIndex = 0
 end sub
@@ -327,7 +358,7 @@ sub addPlaylistNavItem(x as Integer, y as Integer, icon as String, label as Stri
         iconSize: 12, titleSize: 12, subSize: 10,
         bg: m.colors.bg, border: m.colors.bg, textColor: m.colors.textGreen, subColor: m.colors.textDim,
         focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
-        row: row, col: 0, page: page, mode: "row"
+        row: row, col: 0, page: page, mode: "row", noFocusShift: true
     }
     if active then
         item.bg = m.colors.purpleSoft
@@ -344,7 +375,7 @@ sub addPlaylistProfileItem()
         iconSize: 14, iconW: 32, iconH: 32, iconX: 18, titleSize: 11, subSize: 7,
         bg: "0xFFFFFF10", border: m.colors.panel, textColor: m.colors.text, subColor: m.colors.textDim,
         focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
-        row: 5, col: 0, page: "ProfilePage", mode: "row"
+        row: 5, col: 0, page: "ProfilePage", mode: "row", noFocusShift: true
     }
     m.focusItems.push(item)
 end sub
@@ -418,14 +449,9 @@ end sub
 sub drawPlaylistCard(p as Object, x as Integer, y as Integer, w as Integer, h as Integer, row as Integer, col as Integer, visibleIndex as Integer)
     itemIndex = m.focusItems.count()
     cardFocused = itemIndex = m.focusIndex
-    accent = playlistStoreText(p, "accent", "purple")
     fill = m.colors.purpleSoft
     border = m.colors.purpleLine
     titleColor = m.colors.textGreen
-    if accent = "green" then
-        fill = m.colors.greenSoft
-        border = m.colors.green
-    end if
     if cardFocused then
         fill = m.colors.greenSoft
         border = m.colors.greenFocus
@@ -449,7 +475,9 @@ sub drawPlaylistCard(p as Object, x as Integer, y as Integer, w as Integer, h as
 
     m.focusItems.push({ x: x, y: y, w: w, h: h, icon: playlistStoreText(p, "icon", "list"), label: playlistStoreText(p, "title", "Playlist"), subtitle: playlistStoreText(p, "meta"), iconSize: 13, titleSize: 16, subSize: 12, bg: fill, border: border, textColor: titleColor, subColor: m.colors.textDim, focusBg: fill, focusBorder: border, focusTextColor: titleColor, row: row, col: col, page: "", action: "playlist", playlistId: playlistStoreText(p, "id"), visibleIndex: visibleIndex, mode: "manual" })
 
-    drawCardAction("Delete", "delete", playlistStoreText(p, "id"), playlistStoreText(p, "title", "Playlist"), x + w - 104, y + h - 43, row + 1, col + 1, visibleIndex)
+    if not playlistStoreBoolField(p, "isProtected", false) then
+        drawCardAction("Delete", "delete", playlistStoreText(p, "id"), playlistStoreText(p, "title", "Playlist"), x + w - 104, y + h - 43, row + 1, col + 1, visibleIndex)
+    end if
 end sub
 
 sub drawPlaylistCardShell(x as Integer, y as Integer, w as Integer, h as Integer, fill as String, border as String, opacity = 1.0 as Float)
@@ -472,6 +500,7 @@ end sub
 
 function playlistArtworkUri(p as Object) as String
     id = playlistStoreText(p, "id")
+    if id = playlistStoreDemoId() then return "pkg:/images/home/home_background.jpg"
     if id = "demo_live_tv" then return "pkg:/images/logos/live/backdrops/espn_backdrop.jpg"
     if id = "demo_movies" then return "pkg:/images/logos/live/backdrops/movie_channel_backdrop.jpg"
     if id = "demo_series" then return "pkg:/images/logos/live/backdrops/bbc_news_backdrop.jpg"
@@ -484,6 +513,13 @@ function playlistArtworkUri(p as Object) as String
     if id = "demo_family" then return "pkg:/images/logos/live/backdrops/movie_channel_backdrop.jpg"
     if playlistStoreText(p, "type") = "Xtreme" then return "pkg:/images/logos/live/backdrops/bein_sports_backdrop.jpg"
     return "pkg:/images/logos/live/backdrops/cnn_backdrop.jpg"
+end function
+
+function playlistStoreBoolField(item as Object, key as String, fallback as Boolean) as Boolean
+    if item = invalid then return fallback
+    if not item.doesExist(key) then return fallback
+    if item[key] = invalid then return fallback
+    return item[key] = true
 end function
 
 function playlistTypeLabel(p as Object) as String

@@ -356,7 +356,7 @@ function uiSideNav(parent as Object, colors as Object, activeKey as String, focu
             iconSize: 13, titleSize: 15, subSize: 10,
             bg: colors.bg, border: colors.bg, textColor: colors.textGreen, subColor: colors.textDim,
             focusBg: colors.purpleSoft, focusBorder: colors.purpleLine, focusTextColor: colors.textPurple,
-            row: row, col: 0, page: nav.page, mode: "row"
+            row: row, col: 0, page: nav.page, mode: "row", noFocusShift: true
         }
         if nav.active then
             item.bg = colors.purpleSoft
