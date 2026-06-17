@@ -50,6 +50,13 @@ Completed:
 - Real Live TV from parsed playlist is now testable with the fake Live M3U: adding/selecting it routes to Live TV and renders parsed live channels with stream URLs.
 - Add Playlist now makes the newly added playlist active immediately, preventing Live TV from still reading the startup Empty M3U playlist after a new test playlist is saved.
 - Fake Live M3U detection has a defensive media fallback for older saved playlist items that may not have a stored `demo_live_m3u` profile.
+- Added a protected `Demo Live M3U` playlist card with the fake live URL built in, so Live TV parsed-playlist behavior can be tested without relying on the Add Playlist form.
+- Bumped manifest build version to `00075` so Roku replaces the sideloaded app during this test pass.
+- Fixed user-added playlist identity collisions by generating stronger unique playlist IDs and repairing duplicate saved IDs on load; this prevents a newly added playlist card from activating an older playlist with the same ID.
+- Bumped manifest build version to `00076` for the duplicate-ID fix test pass.
+- Made fake test URL matching more tolerant for user-added M3U playlists, including `iptvmax.test` plus the content type, and moved active-playlist selection into `playlistStoreAdd()` itself.
+- Fixed parsed Live M3U channel artwork so logo images stay inside the channel rows instead of being used as full card/backdrop art.
+- Bumped manifest build version to `00077` for the user-added playlist activation and parsed-live artwork fixes.
 - Fixed a Movies-page crash on empty/test playlists by clamping the focus index before remote key handling.
 - Removed render-time remote M3U fetching from content pages; real provider fetches should run through a background Roku Task in the next parser step.
 - Improved Movies remote behavior so sidebar up/down stays in the sidebar, right enters content, and left from search/filters/featured/movie cards returns to the Movies sidebar item instead of wrapping awkwardly.

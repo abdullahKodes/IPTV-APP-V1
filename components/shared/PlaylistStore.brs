@@ -2,6 +2,7 @@ function playlistStoreDefaultItems() as Object
     return [
         { id: playlistStoreEmptyM3uId(), title: "Empty M3U Playlist", meta: "No content yet - M3U", itemCount: 0, type: "M3U", status: "Active", time: "Startup playlist", icon: "m3u", accent: "purple", sourceUrl: "", serverUrl: "", username: "", password: "", lastSync: "empty", isDemo: true, isProtected: true, contentProfile: "empty_m3u" },
         { id: playlistStoreDemoId(), title: "Demo Playlist", meta: "8 live - 10 movies - 8 series", itemCount: 26, type: "Demo", status: "Trial", time: "7-day trial content", icon: "tv", accent: "purple", sourceUrl: "", serverUrl: "", username: "", password: "", lastSync: "built in", isDemo: true, isProtected: true },
+        { id: playlistStoreDemoLiveM3uId(), title: "Demo Live M3U", meta: "4 live channels - Demo M3U", itemCount: 4, type: "M3U", status: "Trial", time: "Parsed live test content", icon: "tv", accent: "purple", sourceUrl: playlistStoreFakeLiveUrl(), serverUrl: "", username: "", password: "", lastSync: "built in", isDemo: true, isProtected: true, contentProfile: "demo_live_m3u" },
         { id: playlistStoreDemoMoviesId(), title: "Demo Movies", meta: "10 movies only", itemCount: 10, type: "Demo", status: "Trial", time: "Movies-only trial content", icon: "movies", accent: "purple", sourceUrl: "", serverUrl: "", username: "", password: "", lastSync: "built in", isDemo: true, isProtected: true }
     ]
 end function
@@ -16,6 +17,10 @@ end function
 
 function playlistStoreDemoMoviesId() as String
     return "demo_movies_playlist"
+end function
+
+function playlistStoreDemoLiveM3uId() as String
+    return "demo_live_m3u_playlist"
 end function
 
 function playlistStoreFakeSeriesUrl() as String
@@ -51,9 +56,7 @@ end function
 
 function playlistStoreAdd(input as Object, mode as String) as Object
     items = playlistStoreList()
-    dt = CreateObject("roDateTime")
-    dt.toLocalTime()
-    id = "user_" + dt.asSeconds().toStr()
+    id = playlistStoreUniqueUserId(items)
     accent = "purple"
     if items.count() mod 2 = 1 then accent = "green"
 
@@ -119,6 +122,7 @@ function playlistStoreAdd(input as Object, mode as String) as Object
 
     items.push(item)
     playlistStoreSave(items)
+    playlistStoreSetActive(id)
     return item
 end function
 
@@ -153,10 +157,17 @@ end function
 
 function playlistStoreNormalize(items as Object) as Object
     normalized = []
+    usedIds = {}
     for i = 0 to items.count() - 1
         item = items[i]
         if item <> invalid then
             if not item.doesExist("id") then item.id = "playlist_" + i.toStr()
+            itemId = playlistStoreText(item, "id", "playlist_" + i.toStr())
+            if usedIds.doesExist(itemId) then
+                item.id = playlistStoreDuplicateSafeId(itemId, i, usedIds)
+                itemId = item.id
+            end if
+            usedIds[itemId] = true
             if not item.doesExist("title") then item.title = "Playlist"
             if not item.doesExist("meta") then item.meta = "Ready to sync"
             if not item.doesExist("itemCount") then item.itemCount = 0
@@ -187,6 +198,38 @@ function playlistStoreNormalize(items as Object) as Object
         end if
     end for
     return normalized
+end function
+
+function playlistStoreUniqueUserId(items as Object) as String
+    dt = CreateObject("roDateTime")
+    dt.toLocalTime()
+    base = "user_" + dt.asSeconds().toStr() + "_" + items.count().toStr()
+    id = base
+    suffix = 1
+    while playlistStoreContainsId(items, id)
+        id = base + "_" + suffix.toStr()
+        suffix += 1
+    end while
+    return id
+end function
+
+function playlistStoreContainsId(items as Object, id as String) as Boolean
+    if items = invalid then return false
+    for each item in items
+        if playlistStoreText(item, "id") = id then return true
+    end for
+    return false
+end function
+
+function playlistStoreDuplicateSafeId(baseId as String, index as Integer, usedIds as Object) as String
+    if baseId = invalid or baseId = "" then baseId = "playlist"
+    id = baseId + "_copy_" + index.toStr()
+    suffix = 1
+    while usedIds.doesExist(id)
+        id = baseId + "_copy_" + index.toStr() + "_" + suffix.toStr()
+        suffix += 1
+    end while
+    return id
 end function
 
 function playlistStoreMergeDemoDefaults(items as Object) as Object
@@ -251,10 +294,12 @@ end function
 function playlistStoreIsFakeSeriesText(value as Dynamic) as Boolean
     if value = invalid then return false
     if type(value) <> "String" and type(value) <> "roString" then return false
-    text = LCase(value)
+    text = playlistStoreNormalizeMatchText(value)
     if text = playlistStoreFakeSeriesUrl() then return true
     if Instr(1, text, "demo-series") > 0 then return true
     if Instr(1, text, "series.m3u") > 0 then return true
+    if Instr(1, text, "iptvmax.test") > 0 and Instr(1, text, "series") > 0 then return true
+    if Instr(1, text, "demo") > 0 and Instr(1, text, "series") > 0 then return true
     if Instr(1, text, "series") > 0 then return true
     return false
 end function
@@ -262,28 +307,44 @@ end function
 function playlistStoreIsFakeMoviesText(value as Dynamic) as Boolean
     if value = invalid then return false
     if type(value) <> "String" and type(value) <> "roString" then return false
-    text = LCase(value)
+    text = playlistStoreNormalizeMatchText(value)
     if text = playlistStoreFakeMoviesUrl() then return true
     if Instr(1, text, "demo-movies") > 0 then return true
     if Instr(1, text, "movies.m3u") > 0 then return true
     if Instr(1, text, "movie.m3u") > 0 then return true
+    if Instr(1, text, "iptvmax.test") > 0 and Instr(1, text, "movie") > 0 then return true
+    if Instr(1, text, "demo") > 0 and Instr(1, text, "movie") > 0 then return true
     return false
 end function
 
 function playlistStoreIsFakeLiveText(value as Dynamic) as Boolean
     if value = invalid then return false
     if type(value) <> "String" and type(value) <> "roString" then return false
-    text = LCase(value)
+    text = playlistStoreNormalizeMatchText(value)
     if text = playlistStoreFakeLiveUrl() then return true
     if Instr(1, text, "demo-live") > 0 then return true
     if Instr(1, text, "live.m3u") > 0 then return true
+    if Instr(1, text, "iptvmax.test") > 0 and Instr(1, text, "live") > 0 then return true
+    if Instr(1, text, "demo") > 0 and Instr(1, text, "live") > 0 then return true
     return false
+end function
+
+function playlistStoreNormalizeMatchText(value as String) as String
+    text = LCase(value)
+    while text.len() > 0 and Left(text, 1) = " "
+        text = Right(text, text.len() - 1)
+    end while
+    while text.len() > 0 and Right(text, 1) = " "
+        text = Left(text, text.len() - 1)
+    end while
+    return text
 end function
 
 function playlistStorePreferredPageForId(id as String) as String
     items = playlistStoreList()
     for each item in items
         if playlistStoreText(item, "id") = id then
+            if id = playlistStoreDemoLiveM3uId() then return "LiveTvPage"
             if playlistStoreText(item, "contentProfile") = "demo_live_m3u" then return "LiveTvPage"
             if id = playlistStoreDemoMoviesId() then return "MoviesPage"
             if playlistStoreText(item, "contentProfile") = "demo_movies_m3u" then return "MoviesPage"
