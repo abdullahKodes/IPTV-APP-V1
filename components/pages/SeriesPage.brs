@@ -49,8 +49,23 @@ sub activate()
     if item.page <> invalid and item.page <> "" then m.top.navigateTo = item.page : return
     if item.action = "search" then openSearchKeyboard() : return
     if item.action = "genre" then m.selectedGenre = item.label : resetSeriesWindow() : render() : return
-    if item.action = "play" then playSeries(m.series[item.sourceIndex]) : return
-    if item.action = "series" then playSeries(m.series[item.sourceIndex]) : return
+    if item.action = "play" then openSeriesDetail(m.series[item.sourceIndex]) : return
+    if item.action = "series" then openSeriesDetail(m.series[item.sourceIndex]) : return
+end sub
+
+sub openSeriesDetail(series as Object)
+    if series = invalid then return
+    m.top.detailId = seriesText(series, "id")
+    m.top.detailTitle = seriesText(series, "title", "Series")
+    m.top.detailSubtitle = seriesText(series, "seasons") + " - " + seriesText(series, "episodeCount")
+    m.top.detailMeta = seriesText(series, "genre") + " - " + seriesText(series, "rating")
+    m.top.detailDescription = seriesDescription(series)
+    m.top.detailPosterUrl = seriesText(series, "posterUrl")
+    m.top.detailBackdropUrl = seriesBackdropUrl(series)
+    m.top.detailPlaybackUrl = mediaPlaybackUrl(series)
+    m.top.detailPlaybackFormat = mediaPlaybackFormat(series)
+    m.top.detailReturnPage = "SeriesPage"
+    m.top.navigateTo = "SeriesDetailPage"
 end sub
 
 sub playSeries(series as Object)
@@ -125,6 +140,12 @@ function drawSeriesSideNav() as Integer
 
     addSeriesProfileItem()
     return 6
+end function
+
+function seriesDescription(series as Dynamic) as String
+    title = seriesText(series, "title", "This series")
+    genre = seriesText(series, "genre", "premium episodes")
+    return title + " is ready for series browsing, resume playback, and episode selection from the active playlist."
 end function
 
 sub addSeriesNavItem(x as Integer, y as Integer, icon as String, label as String, page as String, row as Integer, active as Boolean)
@@ -352,9 +373,17 @@ sub drawSeriesCardBorder(x as Integer, y as Integer, w as Integer, h as Integer,
 end sub
 
 sub drawSeriesPoster(series as Object, x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean)
-    cardUrl = seriesCardUrl(series)
-    if cardUrl <> "" then
-        uiPosterZoom(m.canvas, cardUrl, x, y, w, h)
+    posterUrl = seriesText(series, "posterUrl")
+    if posterUrl <> "" then
+        uiPosterZoom(m.canvas, posterUrl, x, y, w, h, 0.72)
+        uiRect(m.canvas, x, y, w, h, m.colors.bg, 0.42)
+        posterH = h - 8
+        posterW = Int(posterH * 2 / 3)
+        posterX = x + Int((w - posterW) / 2)
+        posterY = y + 4
+        poster = uiPoster(m.canvas, posterUrl, posterX, posterY, posterW, posterH)
+        poster.loadDisplayMode = "scaleToFit"
+        uiRectBorder(m.canvas, posterX, posterY, posterW, posterH, "0xFFFFFF24", 1, 0.88)
     else
         iconW = 36
         iconH = 36
@@ -369,15 +398,38 @@ sub drawSelectedSeriesBackdrop(visible as Object)
     series = selectedSeriesForBackdrop(visible)
     if series = invalid then return
 
-    bgUrl = seriesCardUrl(series)
+    bgUrl = seriesBackdropUrl(series)
     if bgUrl <> "" then
-        backdrop = uiPoster(m.canvas, bgUrl, 226, 86, 1054, 634, 0.28)
+        backdrop = uiPoster(m.canvas, bgUrl, 226, 86, 1054, 634, 0.36)
         backdrop.loadDisplayMode = "scaleToZoom"
     end if
-    uiRect(m.canvas, 226, 86, 1054, 634, m.colors.bg, 0.68)
+    posterUrl = seriesText(series, "posterUrl")
+    if posterUrl <> "" and not seriesBackdropIsComposed(bgUrl) then drawSeriesBackdropPosterAnchor(posterUrl, 226, 86, 1054, 634)
+    uiRect(m.canvas, 226, 86, 1054, 634, m.colors.bg, 0.58)
 end sub
 
+sub drawSeriesBackdropPosterAnchor(posterUrl as String, x as Integer, y as Integer, w as Integer, h as Integer)
+    posterH = Int(h * 0.76)
+    posterW = Int(posterH * 2 / 3)
+    posterX = x + w - posterW - 48
+    posterY = y + Int((h - posterH) / 2)
+
+    uiRect(m.canvas, posterX + 16, posterY + 20, posterW, posterH, "0x000000FF", 0.36)
+    poster = uiPoster(m.canvas, posterUrl, posterX, posterY, posterW, posterH, 0.92)
+    poster.loadDisplayMode = "scaleToFit"
+    uiRectBorder(m.canvas, posterX, posterY, posterW, posterH, "0xFFFFFF28", 1, 0.86)
+end sub
+
+function seriesBackdropIsComposed(url as String) as Boolean
+    if url = invalid or url = "" then return false
+    return Instr(1, LCase(url), "/series_backdrops/") > 0
+end function
+
 function selectedSeriesForBackdrop(visible as Object) as Dynamic
+    if m.focusArea = "resume" then
+        resumeItems = resumeSeriesRows()
+        if resumeItems.count() > 0 and m.selectedResumeIndex >= 0 and m.selectedResumeIndex < resumeItems.count() then return resumeItems[m.selectedResumeIndex].series
+    end if
     if visible.count() > 0 and m.focusArea = "series" then
         if m.selectedSeriesIndex >= 0 and m.selectedSeriesIndex < visible.count() then return visible[m.selectedSeriesIndex].series
     end if
@@ -387,12 +439,22 @@ function selectedSeriesForBackdrop(visible as Object) as Dynamic
 end function
 
 function seriesCardUrl(series as Object) as String
+    posterUrl = seriesText(series, "posterUrl")
+    if posterUrl <> "" then return posterUrl
+    cardUrl = seriesText(series, "cardUrl")
+    if cardUrl <> "" then return cardUrl
+    backdropUrl = seriesText(series, "backdropUrl")
+    if backdropUrl <> "" then return backdropUrl
+    return ""
+end function
+
+function seriesBackdropUrl(series as Object) as String
+    backdropUrl = seriesText(series, "backdropUrl")
+    if backdropUrl <> "" then return backdropUrl
     cardUrl = seriesText(series, "cardUrl")
     if cardUrl <> "" then return cardUrl
     posterUrl = seriesText(series, "posterUrl")
     if posterUrl <> "" then return posterUrl
-    backdropUrl = seriesText(series, "backdropUrl")
-    if backdropUrl <> "" then return backdropUrl
     return ""
 end function
 

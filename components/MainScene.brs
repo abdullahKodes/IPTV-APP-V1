@@ -3,6 +3,7 @@ sub init()
     m.currentPage = invalid
     m.currentPageName = ""
     m.pendingPlayback = invalid
+    m.pendingDetail = invalid
     m.pageHost = m.top.findNode("pageHost")
     m.top.backgroundColor = m.colors.bg
     m.top.setFocus(true)
@@ -34,6 +35,18 @@ sub showPage(componentName as String)
         m.currentPage.playbackFormat = m.pendingPlayback.streamFormat
         m.currentPage.playbackPosterUrl = m.pendingPlayback.posterUrl
         m.currentPage.returnPage = m.pendingPlayback.returnPage
+    else if (componentName = "MovieDetailPage" or componentName = "SeriesDetailPage") and m.pendingDetail <> invalid then
+        m.currentPage.detailId = m.pendingDetail.id
+        m.currentPage.detailTitle = m.pendingDetail.title
+        m.currentPage.detailSubtitle = m.pendingDetail.subtitle
+        m.currentPage.detailMeta = m.pendingDetail.meta
+        m.currentPage.detailDescription = m.pendingDetail.description
+        m.currentPage.detailPosterUrl = m.pendingDetail.posterUrl
+        m.currentPage.detailBackdropUrl = m.pendingDetail.backdropUrl
+        m.currentPage.detailPlaybackUrl = m.pendingDetail.playbackUrl
+        m.currentPage.detailPlaybackFormat = m.pendingDetail.playbackFormat
+        m.currentPage.detailReturnPage = m.pendingDetail.returnPage
+        m.currentPage.callFunc("syncDetail")
     end if
     m.pageHost.appendChild(m.currentPage)
     m.currentPage.setFocus(true)
@@ -50,6 +63,19 @@ sub onPageNavigation()
                 streamFormat: m.currentPage.playbackFormat,
                 posterUrl: m.currentPage.playbackPosterUrl,
                 returnPage: m.currentPage.returnPage
+            }
+        else if (target = "MovieDetailPage" or target = "SeriesDetailPage") and m.currentPage.hasField("detailTitle") then
+            m.pendingDetail = {
+                id: m.currentPage.detailId,
+                title: m.currentPage.detailTitle,
+                subtitle: m.currentPage.detailSubtitle,
+                meta: m.currentPage.detailMeta,
+                description: m.currentPage.detailDescription,
+                posterUrl: m.currentPage.detailPosterUrl,
+                backdropUrl: m.currentPage.detailBackdropUrl,
+                playbackUrl: m.currentPage.detailPlaybackUrl,
+                playbackFormat: m.currentPage.detailPlaybackFormat,
+                returnPage: m.currentPage.detailReturnPage
             }
         end if
         showPage(target)

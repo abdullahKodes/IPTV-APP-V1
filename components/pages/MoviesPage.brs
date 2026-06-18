@@ -47,8 +47,23 @@ sub activate()
     if item.page <> invalid and item.page <> "" then m.top.navigateTo = item.page : return
     if item.action = "search" then openSearchKeyboard() : return
     if item.action = "genre" then m.selectedGenre = item.label : resetMovieWindow() : render() : return
-    if item.action = "watch" then playMovie(featuredMovie(filteredMovies())) : return
-    if item.action = "movie" then playMovie(m.movies[item.sourceIndex]) : return
+    if item.action = "watch" then openMovieDetail(featuredMovie(filteredMovies())) : return
+    if item.action = "movie" then openMovieDetail(m.movies[item.sourceIndex]) : return
+end sub
+
+sub openMovieDetail(movie as Object)
+    if movie = invalid then return
+    m.top.detailId = movieText(movie, "id")
+    m.top.detailTitle = movieText(movie, "title", "Movie")
+    m.top.detailSubtitle = movieText(movie, "year") + " - " + movieText(movie, "duration")
+    m.top.detailMeta = movieText(movie, "genre") + " - " + movieText(movie, "rating")
+    m.top.detailDescription = movieDescription(movie)
+    m.top.detailPosterUrl = movieText(movie, "posterUrl")
+    m.top.detailBackdropUrl = movieBackdropUrl(movie)
+    m.top.detailPlaybackUrl = mediaPlaybackUrl(movie)
+    m.top.detailPlaybackFormat = mediaPlaybackFormat(movie)
+    m.top.detailReturnPage = "MoviesPage"
+    m.top.navigateTo = "MovieDetailPage"
 end sub
 
 sub playMovie(movie as Object)
@@ -122,6 +137,12 @@ function drawMoviesSideNav() as Integer
 
     addMoviesProfileItem()
     return 6
+end function
+
+function movieDescription(movie as Dynamic) as String
+    title = movieText(movie, "title", "This title")
+    genre = movieText(movie, "genre", "premium entertainment")
+    return title + " is ready to watch from this playlist, with artwork and playback metadata flowing through the same provider-ready detail model used by the library."
 end function
 
 sub addMoviesNavItem(x as Integer, y as Integer, icon as String, label as String, page as String, row as Integer, active as Boolean)
@@ -294,9 +315,17 @@ sub drawMovieCard(movie as Object, mediaIndex as Integer, sourceIndex as Integer
 end sub
 
 sub drawMoviePoster(movie as Object, x as Integer, y as Integer, w as Integer, h as Integer)
-    cardUrl = movieCardUrl(movie)
-    if cardUrl <> "" then
-        uiPosterZoom(m.canvas, cardUrl, x, y, w, h)
+    posterUrl = movieText(movie, "posterUrl")
+    if posterUrl <> "" then
+        uiPosterZoom(m.canvas, posterUrl, x, y, w, h, 0.72)
+        uiRect(m.canvas, x, y, w, h, m.colors.bg, 0.42)
+        posterH = h - 8
+        posterW = Int(posterH * 2 / 3)
+        posterX = x + Int((w - posterW) / 2)
+        posterY = y + 4
+        poster = uiPoster(m.canvas, posterUrl, posterX, posterY, posterW, posterH)
+        poster.loadDisplayMode = "scaleToFit"
+        uiRectBorder(m.canvas, posterX, posterY, posterW, posterH, "0xFFFFFF24", 1, 0.88)
     else
         iconW = 36
         iconH = 36
@@ -337,15 +366,44 @@ sub drawSelectedBackdrop(visible as Object)
     movie = selectedMovieForBackdrop(visible)
     if movie = invalid then return
 
-    bgUrl = movieCardUrl(movie)
+    bgUrl = movieBackdropUrl(movie)
     if bgUrl <> "" then
-        backdrop = uiPoster(m.canvas, bgUrl, 226, 86, 1054, 634, 0.28)
+        backdrop = uiPoster(m.canvas, bgUrl, 226, 86, 1054, 634, 0.36)
         backdrop.loadDisplayMode = "scaleToZoom"
     end if
-    uiRect(m.canvas, 226, 86, 1054, 634, m.colors.bg, 0.68)
+    posterUrl = movieText(movie, "posterUrl")
+    if posterUrl <> "" and not movieBackdropIsComposed(bgUrl) then drawMovieBackdropPosterAnchor(posterUrl, 226, 86, 1054, 634)
+    uiRect(m.canvas, 226, 86, 1054, 634, m.colors.bg, 0.58)
 end sub
 
+sub drawMovieBackdropPosterAnchor(posterUrl as String, x as Integer, y as Integer, w as Integer, h as Integer)
+    posterH = Int(h * 0.76)
+    posterW = Int(posterH * 2 / 3)
+    posterX = x + w - posterW - 48
+    posterY = y + Int((h - posterH) / 2)
+
+    uiRect(m.canvas, posterX + 16, posterY + 20, posterW, posterH, "0x000000FF", 0.36)
+    poster = uiPoster(m.canvas, posterUrl, posterX, posterY, posterW, posterH, 0.92)
+    poster.loadDisplayMode = "scaleToFit"
+    uiRectBorder(m.canvas, posterX, posterY, posterW, posterH, "0xFFFFFF28", 1, 0.86)
+end sub
+
+function movieBackdropIsComposed(url as String) as Boolean
+    if url = invalid or url = "" then return false
+    return Instr(1, LCase(url), "/movie_backdrops/") > 0
+end function
+
 function movieCardUrl(movie as Object) as String
+    posterUrl = movieText(movie, "posterUrl")
+    if posterUrl <> "" then return posterUrl
+    cardUrl = movieText(movie, "cardUrl")
+    if cardUrl <> "" then return cardUrl
+    return ""
+end function
+
+function movieBackdropUrl(movie as Object) as String
+    backdropUrl = movieText(movie, "backdropUrl")
+    if backdropUrl <> "" then return backdropUrl
     cardUrl = movieText(movie, "cardUrl")
     if cardUrl <> "" then return cardUrl
     posterUrl = movieText(movie, "posterUrl")

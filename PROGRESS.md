@@ -1,6 +1,6 @@
 # IPTV App Progress
 
-Last updated: 2026-06-17
+Last updated: 2026-06-18
 
 Read this file before starting a new session. Update it only after a meaningful milestone is completed, such as finishing a screen, fixing a major workflow, committing/pushing, or changing project structure. Do not update it for every tiny visual tweak.
 
@@ -105,6 +105,29 @@ Completed:
 - Improved Movies remote behavior so sidebar up/down stays in the sidebar, right enters content, and left from search/filters/featured/movie cards returns to the Movies sidebar item instead of wrapping awkwardly.
 - Tightened Add Playlist URL validation so `http://abc` or any text after only the scheme no longer saves; URLs now need a real host-style address.
 - Made sidebar focus stationary across Home, Add Playlist, Live TV, Movies, Series, My Playlists, Profile, Settings, and the shared sidebar helper.
+- Replaced the demo Movies poster files with recognizable theatrical poster artwork and added real Series poster assets under `images/demo/series_posters`.
+- Movies and Series cards now render contained poster artwork from `posterUrl` first instead of relying on old landscape `card_fill` images, making the next detail-page pass safer to judge visually.
+- Fixed poster-card empty space by drawing a dimmed zoomed poster fill behind the uncropped poster on Movies and Series cards.
+- Fixed focused background updates by using the currently focused movie/series poster as the page backdrop, including Series Continue Watching focus.
+- Corrected the accidental `Get Out`/`Ozark` poster mapping swap.
+- Bumped manifest build version to `00092` for the poster fit and focused-backdrop fixes.
+- Improved blurry page backgrounds by preferring landscape backdrop assets over portrait posters, adding generated 16:9 Series backdrop images under `images/demo/series_backdrops`, and restoring Get Out to the landscape movie backdrop.
+- Bumped manifest build version to `00093` for the backdrop quality pass.
+- Matched Movies to the Series backdrop treatment by generating composed 16:9 movie backgrounds under `images/demo/movie_backdrops` and wiring demo movie `backdropUrl` values to those assets.
+- Bumped manifest build version to `00094` for the matching Movies/Series background treatment.
+- Added runtime composed backdrop rendering for real/provider poster-only Movies and Series items: when no prebuilt composed backdrop exists, the page draws a zoomed backdrop field plus a sharp poster anchor directly from `posterUrl`.
+- Bumped manifest build version to `00095` for the dynamic provider-poster backdrop treatment.
+- Added dedicated Movie and Series detail pages with cinematic backdrop art, poster display, Watch/Resume actions, back navigation, and placeholder favorite affordances for the later Favorites pass.
+- Movies and Series cards now open their detail page first, then launch `PlayerPage` from the selected title's real/provider playback URL and return back to that detail page after playback.
+- Bumped manifest build version to `00096` for the Movie/Series detail-page milestone.
+- Fixed Movie/Series detail pages so selected-title data is synced before the screen is shown, preventing the initial blank fallback render until the remote moves focus.
+- Reworked detail-page backdrop/poster treatment to avoid double-stacking a giant poster over composed artwork while still dynamically anchoring provider poster-only titles.
+- Series detail seasons and episode cards now derive from the selected series metadata instead of fixed mock labels.
+- Bumped manifest build version to `00097` for the detail-page sync and dynamic Series layout fix.
+- Replaced Movie/Series detail action surfaces with direct rectangle/border drawing so focused buttons render reliably on Roku instead of depending on missing rounded-size assets.
+- Removed the hard full-height dark overlay bands from detail backdrops; the previous section-like vertical shadows were readability overlays, not source-art bugs.
+- Added explicit Series detail focus routing across Back, Resume, Favorite, Season chips, and Episode cards, plus horizontal episode-window scrolling for series with more than four episodes.
+- Bumped manifest build version to `00098` for detail button polish, softer backdrop overlays, and Series episode scrolling.
 - Confirmed `npm.cmd run check` and `npm.cmd run build` pass, and the generated zip contains the updated startup/playlist/media files.
 
 Next:
@@ -114,6 +137,8 @@ Next:
 - Test fake Live M3U selection: add `https://iptvmax.test/demo-live.m3u`, select it from My Playlists, confirm Live TV shows only those parsed channels, then press OK on a channel to play its parsed stream URL.
 - Implement a dedicated background `M3uSyncTask` so real provider M3U URLs are fetched/parsing outside page render, then saved into the active-playlist content model.
 - Expand parser coverage for provider-specific M3U edge cases and add Xtreme API parsing into the same active-playlist content model.
+- Add Favorites behavior to the existing favorite affordances across Movie/Series detail and playback screens when that roadmap item resumes.
+- Add parental lock and continue-watching persistence after the detail pages are verified on device.
 
 ### Home Page
 

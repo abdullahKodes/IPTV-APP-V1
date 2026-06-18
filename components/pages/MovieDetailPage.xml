@@ -1,17 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<component name="MoviesPage" extends="Group">
+<component name="MovieDetailPage" extends="Group">
   <children>
-    <!-- Movies renders genre filters, featured movie panel, ratings, and movie grid. -->
-    <Group id="moviesCanvas" />
+    <Group id="movieDetailCanvas" />
   </children>
   <interface>
     <field id="navigateTo" type="string" alwaysNotify="true" />
-    <field id="playbackTitle" type="string" />
-    <field id="playbackSubtitle" type="string" />
-    <field id="playbackUrl" type="string" />
-    <field id="playbackFormat" type="string" />
-    <field id="playbackPosterUrl" type="string" />
-    <field id="returnPage" type="string" />
     <field id="detailId" type="string" />
     <field id="detailTitle" type="string" />
     <field id="detailSubtitle" type="string" />
@@ -22,11 +15,16 @@
     <field id="detailPlaybackUrl" type="string" />
     <field id="detailPlaybackFormat" type="string" />
     <field id="detailReturnPage" type="string" />
+    <field id="playbackTitle" type="string" />
+    <field id="playbackSubtitle" type="string" />
+    <field id="playbackUrl" type="string" />
+    <field id="playbackFormat" type="string" />
+    <field id="playbackPosterUrl" type="string" />
+    <field id="returnPage" type="string" />
     <function name="handleKey" />
     <function name="refreshClock" />
+    <function name="syncDetail" />
   </interface>
   <script type="text/brightscript" uri="pkg:/components/shared/AppUi.brs" />
-  <script type="text/brightscript" uri="pkg:/components/shared/PlaylistStore.brs" />
-  <script type="text/brightscript" uri="pkg:/components/shared/MediaData.brs" />
-  <script type="text/brightscript" uri="pkg:/components/pages/MoviesPage.brs" />
+  <script type="text/brightscript" uri="pkg:/components/pages/MovieDetailPage.brs" />
 </component>

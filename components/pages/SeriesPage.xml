@@ -12,6 +12,16 @@
     <field id="playbackFormat" type="string" />
     <field id="playbackPosterUrl" type="string" />
     <field id="returnPage" type="string" />
+    <field id="detailId" type="string" />
+    <field id="detailTitle" type="string" />
+    <field id="detailSubtitle" type="string" />
+    <field id="detailMeta" type="string" />
+    <field id="detailDescription" type="string" />
+    <field id="detailPosterUrl" type="string" />
+    <field id="detailBackdropUrl" type="string" />
+    <field id="detailPlaybackUrl" type="string" />
+    <field id="detailPlaybackFormat" type="string" />
+    <field id="detailReturnPage" type="string" />
     <function name="handleKey" />
     <function name="refreshClock" />
   </interface>
