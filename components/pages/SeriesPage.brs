@@ -400,12 +400,12 @@ sub drawSelectedSeriesBackdrop(visible as Object)
 
     bgUrl = seriesBackdropUrl(series)
     if bgUrl <> "" then
-        backdrop = uiPoster(m.canvas, bgUrl, 226, 86, 1054, 634, 0.36)
+        backdrop = uiPoster(m.canvas, bgUrl, 226, 86, 1054, 634, 0.46)
         backdrop.loadDisplayMode = "scaleToZoom"
     end if
     posterUrl = seriesText(series, "posterUrl")
     if posterUrl <> "" and not seriesBackdropIsComposed(bgUrl) then drawSeriesBackdropPosterAnchor(posterUrl, 226, 86, 1054, 634)
-    uiRect(m.canvas, 226, 86, 1054, 634, m.colors.bg, 0.58)
+    uiRect(m.canvas, 226, 86, 1054, 634, m.colors.bg, 0.50)
 end sub
 
 sub drawSeriesBackdropPosterAnchor(posterUrl as String, x as Integer, y as Integer, w as Integer, h as Integer)

@@ -56,7 +56,7 @@ sub openMovieDetail(movie as Object)
     m.top.detailId = movieText(movie, "id")
     m.top.detailTitle = movieText(movie, "title", "Movie")
     m.top.detailSubtitle = movieText(movie, "year") + " - " + movieText(movie, "duration")
-    m.top.detailMeta = movieText(movie, "genre") + " - " + movieText(movie, "rating")
+    m.top.detailMeta = movieText(movie, "genre")
     m.top.detailDescription = movieDescription(movie)
     m.top.detailPosterUrl = movieText(movie, "posterUrl")
     m.top.detailBackdropUrl = movieBackdropUrl(movie)
@@ -368,12 +368,12 @@ sub drawSelectedBackdrop(visible as Object)
 
     bgUrl = movieBackdropUrl(movie)
     if bgUrl <> "" then
-        backdrop = uiPoster(m.canvas, bgUrl, 226, 86, 1054, 634, 0.36)
+        backdrop = uiPoster(m.canvas, bgUrl, 226, 86, 1054, 634, 0.46)
         backdrop.loadDisplayMode = "scaleToZoom"
     end if
     posterUrl = movieText(movie, "posterUrl")
     if posterUrl <> "" and not movieBackdropIsComposed(bgUrl) then drawMovieBackdropPosterAnchor(posterUrl, 226, 86, 1054, 634)
-    uiRect(m.canvas, 226, 86, 1054, 634, m.colors.bg, 0.58)
+    uiRect(m.canvas, 226, 86, 1054, 634, m.colors.bg, 0.50)
 end sub
 
 sub drawMovieBackdropPosterAnchor(posterUrl as String, x as Integer, y as Integer, w as Integer, h as Integer)

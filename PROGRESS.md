@@ -1,6 +1,6 @@
 # IPTV App Progress
 
-Last updated: 2026-06-18
+Last updated: 2026-06-22
 
 Read this file before starting a new session. Update it only after a meaningful milestone is completed, such as finishing a screen, fixing a major workflow, committing/pushing, or changing project structure. Do not update it for every tiny visual tweak.
 
@@ -128,6 +128,28 @@ Completed:
 - Removed the hard full-height dark overlay bands from detail backdrops; the previous section-like vertical shadows were readability overlays, not source-art bugs.
 - Added explicit Series detail focus routing across Back, Resume, Favorite, Season chips, and Episode cards, plus horizontal episode-window scrolling for series with more than four episodes.
 - Bumped manifest build version to `00098` for detail button polish, softer backdrop overlays, and Series episode scrolling.
+- Upscaled demo Movie poster assets to the same approximate source size as Series posters and regenerated the 16:9 Movie backdrop compositions from those larger files.
+- Increased Movies and Series library-page backdrop visibility slightly while keeping Movie/Series detail-page backdrop opacity unchanged.
+- Removed the remaining hard-edged local dim rectangles from Movie/Series detail pages so backdrop readability no longer creates visible vertical section bands.
+- Bumped manifest build version to `00099` for the Movie HD backdrop and detail-band cleanup pass.
+- Stopped Movie/Series pages and detail pages from using local composed backdrop files as the main background layer; they now use the poster as the soft zoomed background with a controlled poster anchor, removing the remaining vertical center seam and fixing the disturbed Movie detail backdrop.
+- Bumped manifest build version to `00100` for the composed-backdrop seam removal pass.
+- Restored Movies, Series, Movie detail, and Series detail to the earlier composed-backdrop architecture after device review showed the poster-only zoom background changed the intended design too much.
+- Bumped manifest build version to `00101` for the backdrop-architecture restore pass.
+- Regenerated Movie composed backdrop assets so the right-side poster anchor matches the larger Series backdrop poster scale and placement.
+- Bumped manifest build version to `00102` for the Movie backdrop poster-size match pass.
+- Polished Movie detail typography by enlarging/recoloring the title, removing the rating from the Movie detail meta line, and increasing description line spacing.
+- Restored rounded detail action surfaces with matching generated UI assets and added cleaner detail-only play/favorite/info icons.
+- Rebalanced Movie backdrop compositions so the background layer shows more of the poster content with less aggressive crop while keeping the larger right-side poster anchor.
+- Bumped manifest build version to `00103` for the Movie detail typography, button, icon, and backdrop-crop polish pass.
+- Reduced the Movie detail Back button to the casual app size, removed the unused Details action, separated the movie title color from the section label, and matched Watch/Favorite buttons closer to the featured-card rounded style.
+- Bumped manifest build version to `00104` for the final Movie detail action/back/title cleanup pass.
+- Matched Movie detail Watch/Favorite controls to the Movies featured-card button styling with wider generated button assets, complete `Watch now` text, app-native play/favorite icons, and removed the static lower Quality/Source/Resume info rail.
+- Bumped manifest build version to `00105` for the Movie detail button and lower-rail cleanup pass.
+- Changed Movie detail titles to render uppercase and reduced package weight by removing unused reference/design images plus old demo backdrop/card-art folders, then downscaling/compressing active demo posters and backdrops.
+- Bumped manifest build version to `00106`; the rebuilt channel zip is now under the 4 MB target.
+- Regenerated the Movie Watch/Favorite button asset family with a slimmer 1px border for both normal and focused states.
+- Bumped manifest build version to `00107` for the sleeker Movie detail button-border pass.
 - Confirmed `npm.cmd run check` and `npm.cmd run build` pass, and the generated zip contains the updated startup/playlist/media files.
 
 Next:

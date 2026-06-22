@@ -177,9 +177,7 @@ sub drawBackdrop()
     else
         uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg)
     end if
-    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.56)
-    uiRect(m.canvas, 64, 112, 610, 382, m.colors.bg, 0.18)
-    uiRect(m.canvas, 64, 526, 960, 132, "0x000000FF", 0.18)
+    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.58)
     if posterUrl <> invalid and posterUrl <> "" and not seriesDetailBackdropIsComposed(bgUrl) then
         drawSeriesPosterAnchor(posterUrl)
     else if (posterUrl = invalid or posterUrl = "") and (bgUrl = invalid or bgUrl = "") then
@@ -229,8 +227,8 @@ sub drawActionButton(x as Integer, y as Integer, w as Integer, icon as String, l
     textColor = m.colors.textDim
     if focused then textColor = m.colors.text
     drawDetailSurface(x, y, w, 48, focused)
-    uiDrawIcon(m.canvas, icon, x + 18, y + 14, 20, 20, focused, textColor, 10)
-    uiLabel(m.canvas, label, x + 48, y + 9, w - 62, 28, 13, textColor)
+    drawDetailIcon(icon, focused, x + 22, y + 14, 20, 20, textColor)
+    uiLabel(m.canvas, label, x + 56, y + 9, w - 76, 28, 13, textColor)
 end sub
 
 sub drawSeasonTabs()
@@ -296,17 +294,21 @@ end sub
 
 sub drawDetailSurface(x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean)
     fill = m.colors.panel
-    border = "0xFFFFFF26"
+    border = m.colors.whiteLine
     opacity = 0.72
-    thickness = 1
     if focused then
         fill = m.colors.greenSoft
         border = m.colors.greenFocus
         opacity = 0.92
-        thickness = 2
     end if
-    uiRect(m.canvas, x, y, w, h, fill, opacity)
-    uiRectBorder(m.canvas, x, y, w, h, border, thickness, 0.95)
+    uiRoundRect(m.canvas, x, y, w, h, fill, border, opacity)
+end sub
+
+sub drawDetailIcon(icon as String, focused as Boolean, x as Integer, y as Integer, w as Integer, h as Integer, tint as String)
+    uri = "pkg:/images/icons/detail_" + icon + ".png"
+    if focused then uri = "pkg:/images/icons/detail_" + icon + "_focus.png"
+    poster = uiPoster(m.canvas, uri, x, y, w, h)
+    poster.blendColor = tint
 end sub
 
 function detailTitle() as String

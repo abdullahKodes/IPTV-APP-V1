@@ -63,7 +63,6 @@ sub render()
     drawTopBar()
     drawHeroCopy()
     drawActions()
-    drawInfoRail()
 end sub
 
 sub drawBackdrop()
@@ -78,9 +77,7 @@ sub drawBackdrop()
     else
         uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg)
     end if
-    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.56)
-    uiRect(m.canvas, 64, 112, 610, 398, m.colors.bg, 0.18)
-    uiRect(m.canvas, 64, 544, 690, 112, "0x000000FF", 0.18)
+    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.58)
     if posterUrl <> invalid and posterUrl <> "" and not movieDetailBackdropIsComposed(bgUrl) then
         drawMoviePosterAnchor(posterUrl)
     else if (posterUrl = invalid or posterUrl = "") and (bgUrl = invalid or bgUrl = "") then
@@ -89,13 +86,21 @@ sub drawBackdrop()
 end sub
 
 sub drawTopBar()
-    addFocusAction(48, 34, 112, 42, "back", 0, 0)
+    addFocusAction(48, 36, 100, 34, "back", 0, 0)
     focused = m.focusIndex = m.focusItems.count() - 1
     textColor = m.colors.textDim
     if focused then textColor = m.colors.text
-    drawDetailSurface(48, 34, 112, 42, focused)
-    uiDrawIcon(m.canvas, "back", 64, 45, 18, 18, focused, textColor, 9)
-    uiLabel(m.canvas, "Back", 92, 40, 52, 28, 12, textColor)
+    backFill = m.colors.panel
+    backBorder = m.colors.whiteLine
+    backOpacity = 0.72
+    if focused then
+        backFill = m.colors.greenSoft
+        backBorder = m.colors.greenFocus
+        backOpacity = 0.92
+    end if
+    uiRoundRect(m.canvas, 48, 36, 100, 34, backFill, backBorder, backOpacity)
+    uiDrawIcon(m.canvas, "back", 62, 46, 14, 14, focused, textColor, 8)
+    uiLabel(m.canvas, "Back", 84, 39, 48, 26, 11, textColor)
     uiLabel(m.canvas, "IPTV MAX", 1050, 36, 170, 32, 16, m.colors.textGreen, "right")
 end sub
 
@@ -112,41 +117,25 @@ end sub
 
 sub drawHeroCopy()
     uiLabel(m.canvas, "MOVIE", 92, 132, 180, 24, 13, m.colors.textGreen)
-    uiLabel(m.canvas, detailTitle(), 92, 164, 600, 66, 38, m.colors.text)
-    uiLabel(m.canvas, detailSubtitle(), 94, 236, 560, 28, 16, m.colors.textDim)
-    uiLabel(m.canvas, detailMeta(), 94, 272, 560, 28, 15, m.colors.textPurple)
-    drawTwoLineText(detailDescription(), 94, 324, 574, 18, 14, m.colors.textMuted, 68)
+    uiLabel(m.canvas, detailTitle(), 92, 162, 600, 70, 43, m.colors.text)
+    uiLabel(m.canvas, detailSubtitle(), 94, 238, 560, 30, 17, m.colors.text)
+    uiLabel(m.canvas, detailMeta(), 94, 276, 560, 30, 16, m.colors.text)
+    drawTwoLineText(detailDescription(), 94, 328, 574, 24, 15, m.colors.text, 62)
 end sub
 
 sub drawActions()
-    drawActionButton(94, 446, 172, "play", "Watch now", "watch", 2, 0)
-    drawActionButton(284, 446, 156, "heart", "Favorite", "favorite", 2, 1)
-    drawActionButton(458, 446, 146, "info", "Details", "info", 2, 2)
+    drawActionButton(94, 446, 176, "play", "Watch now", "watch", 2, 0)
+    drawActionButton(292, 446, 166, "heart", "Favorite", "favorite", 2, 1)
 end sub
 
 sub drawActionButton(x as Integer, y as Integer, w as Integer, icon as String, label as String, action as String, row as Integer, col as Integer)
     idx = m.focusItems.count()
     focused = idx = m.focusIndex
-    addFocusAction(x, y, w, 48, action, row, col)
-    textColor = m.colors.textDim
-    if focused then textColor = m.colors.text
-    drawDetailSurface(x, y, w, 48, focused)
-    uiDrawIcon(m.canvas, icon, x + 18, y + 14, 20, 20, focused, textColor, 10)
-    uiLabel(m.canvas, label, x + 48, y + 9, w - 62, 28, 13, textColor)
-end sub
-
-sub drawInfoRail()
-    y = 580
-    drawInfoPill(94, y, 190, "Quality", "Auto / HLS")
-    drawInfoPill(304, y, 190, "Source", "Active playlist")
-    drawInfoPill(514, y, 190, "Resume", "Start from beginning")
-end sub
-
-sub drawInfoPill(x as Integer, y as Integer, w as Integer, label as String, value as String)
-    uiRect(m.canvas, x, y, w, 74, m.colors.bg, 0.36)
-    uiRectBorder(m.canvas, x, y, w, 74, "0xFFFFFF18", 1, 0.52)
-    uiLabel(m.canvas, label, x + 18, y + 12, w - 36, 20, 10, m.colors.textDim)
-    uiLabel(m.canvas, value, x + 18, y + 38, w - 36, 22, 12, m.colors.text)
+    addFocusAction(x, y, w, 40, action, row, col)
+    textColor = "0xFFFFFFFF"
+    drawDetailSurface(x, y, w, 40, focused)
+    uiDrawIcon(m.canvas, icon, x + 22, y + 10, 20, 20, focused, textColor, 12)
+    uiLabel(m.canvas, label, x + 52, y + 5, w - 62, 28, 13, textColor)
 end sub
 
 sub drawMovieFallbackArt(x as Integer, y as Integer, w as Integer, h as Integer)
@@ -163,24 +152,17 @@ sub addFocusAction(x as Integer, y as Integer, w as Integer, h as Integer, actio
 end sub
 
 sub drawDetailSurface(x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean)
-    fill = m.colors.panel
-    border = "0xFFFFFF26"
-    opacity = 0.72
-    thickness = 1
+    uri = "pkg:/images/ui/movie_watch_" + w.toStr() + "x40_panel_greenFocus.png"
     if focused then
-        fill = m.colors.greenSoft
-        border = m.colors.greenFocus
-        opacity = 0.92
-        thickness = 2
+        uri = "pkg:/images/ui/movie_watch_" + w.toStr() + "x40_greenSoft_greenFocus.png"
     end if
-    uiRect(m.canvas, x, y, w, h, fill, opacity)
-    uiRectBorder(m.canvas, x, y, w, h, border, thickness, 0.95)
+    uiPoster(m.canvas, uri, x, y, w, h)
 end sub
 
 function detailTitle() as String
     title = m.top.detailTitle
     if title = invalid or title = "" then return "Movie"
-    return title
+    return UCase(title)
 end function
 
 function detailSubtitle() as String
