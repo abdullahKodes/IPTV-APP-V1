@@ -182,6 +182,12 @@ function uiLabel(parent as Object, text as String, x as Integer, y as Integer, w
     return node
 end function
 
+function uiScaledLabel(parent as Object, text as String, x as Integer, y as Integer, w as Integer, h as Integer, size as Integer, color as String, align = "left" as String, scale = 0.8 as Float) as Object
+    node = uiLabel(parent, text, x, y, Int(w / scale), Int(h / scale), size, color, align)
+    node.scale = [scale, scale]
+    return node
+end function
+
 function uiIconUri(icon as String, focused as Boolean) as String
     key = LCase(icon)
     if focused then

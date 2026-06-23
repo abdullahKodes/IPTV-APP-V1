@@ -8,7 +8,7 @@ sub init()
     m.searchEditing = false
     m.searchKeyboardIndex = 0
     m.seriesWindowStart = 0
-    m.seriesWindowSize = 4
+    m.seriesWindowSize = 5
     m.selectedSeriesIndex = 0
     m.resumeWindowStart = 0
     m.resumeWindowSize = 2
@@ -118,18 +118,18 @@ sub render()
     slot = 0
     for i = m.seriesWindowStart to endIndex
         rowData = visible[i]
-        drawMediaCard(rowData.series, i, rowData.index, 244 + slot * 172, 402, 146, 206, 3, slot + 1)
+        drawMediaCard(rowData.series, i, rowData.index, 244 + slot * 174, 402, 164, 230, 3, slot + 1)
         slot += 1
     end for
-    drawSeriesScrollbar(visible.count(), 1162, 402, 206)
+    drawSeriesScrollbar(visible.count(), 1134, 402, 230)
 
     uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
     if m.searchEditing then drawSearchKeyboardOverlay()
 end sub
 
 function drawSeriesSideNav() as Integer
-    uiRect(m.canvas, 0, 86, 226, 634, m.colors.panel, 0.38)
-    uiRect(m.canvas, 225, 86, 1, 634, "0xFFFFFF14", 0.38)
+    uiRect(m.canvas, 0, 86, 226, 634, m.colors.panel, 0.24)
+    uiRect(m.canvas, 225, 86, 1, 634, "0xFFFFFF14", 0.26)
 
     seriesActive = (m.focusIndex = 2) or (m.focusIndex > 5)
     addSeriesNavItem(12, 112, "list", "My Playlists", "MyPlaylistsPage", 0, false)
@@ -149,13 +149,29 @@ function seriesDescription(series as Dynamic) as String
 end function
 
 sub addSeriesNavItem(x as Integer, y as Integer, icon as String, label as String, page as String, row as Integer, active as Boolean)
+    itemIndex = m.focusItems.count()
+    focused = itemIndex = m.focusIndex
+    fill = m.colors.bg
+    border = m.colors.bg
+    opacity = 0.24
+    textColor = m.colors.textGreen
+    if active or focused then
+        fill = m.colors.purpleSoft
+        border = m.colors.greenFocus
+        opacity = 0.58
+        textColor = m.colors.text
+    end if
+    uiRoundRect(m.canvas, x, y, 204, 52, fill, border, opacity)
+    uiDrawIcon(m.canvas, icon, x + 22, y + 14, 24, 24, focused or active, textColor, 12)
+    uiLabel(m.canvas, label, x + 62, y + 9, 128, 34, 12, textColor)
+
     item = {
         x: x, y: y, w: 204, h: 52,
         icon: icon, label: label, subtitle: "",
         iconSize: 12, titleSize: 12, subSize: 10,
         bg: m.colors.bg, border: m.colors.bg, textColor: m.colors.textGreen, subColor: m.colors.textDim,
         focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
-        row: row, col: 0, page: page, mode: "row", noFocusShift: true
+        row: row, col: 0, page: page, mode: "manual", noFocusShift: true
     }
     if active then
         item.bg = m.colors.purpleSoft
@@ -166,13 +182,28 @@ sub addSeriesNavItem(x as Integer, y as Integer, icon as String, label as String
 end sub
 
 sub addSeriesProfileItem()
+    itemIndex = m.focusItems.count()
+    focused = itemIndex = m.focusIndex
+    fill = m.colors.bg
+    border = m.colors.bg
+    opacity = 0.26
+    textColor = m.colors.text
+    if focused then
+        fill = m.colors.purpleSoft
+        border = m.colors.greenFocus
+        opacity = 0.58
+    end if
+    uiRoundRect(m.canvas, 12, 640, 204, 52, fill, border, opacity)
+    uiDrawIcon(m.canvas, "profile", 30, 652, 24, 24, focused, textColor, 14)
+    uiLabel(m.canvas, "My Profile", 70, 652, 126, 28, 11, textColor)
+
     item = {
         x: 12, y: 640, w: 204, h: 52,
         icon: "profile", label: "My Profile", subtitle: "",
         iconSize: 14, iconW: 32, iconH: 32, iconX: 18, titleSize: 11, subSize: 7,
         bg: "0xFFFFFF10", border: m.colors.panel, textColor: m.colors.text, subColor: m.colors.textDim,
         focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
-        row: 5, col: 0, page: "ProfilePage", mode: "row", noFocusShift: true
+        row: 5, col: 0, page: "ProfilePage", mode: "manual", noFocusShift: true
     }
     m.focusItems.push(item)
 end sub
@@ -192,7 +223,9 @@ sub drawSearchBox()
     label = "Search series"
     if m.searchQuery <> "" then label = m.searchQuery
 
-    uiRoundRect(m.canvas, 686, 22, 260, 40, bg, border, 0.64)
+    searchOpacity = 0.48
+    if focused then searchOpacity = 0.56
+    uiRoundRect(m.canvas, 686, 22, 260, 40, bg, border, searchOpacity)
     uiDrawIcon(m.canvas, "search", 704, 33, 18, 18, focused, textColor, 11)
     uiLabel(m.canvas, label, 734, 28, 198, 28, 12, textColor)
 
@@ -208,12 +241,12 @@ end sub
 
 sub drawCategoryPills(row as Integer)
     categories = [
-        { label: "All", x: 244, y: 102, w: 100, h: 40 },
-        { label: "Drama", x: 356, y: 102, w: 100, h: 40 },
-        { label: "Action", x: 468, y: 102, w: 100, h: 40 },
-        { label: "Comedy", x: 580, y: 102, w: 140, h: 40 },
-        { label: "Sci-Fi", x: 732, y: 102, w: 100, h: 40 },
-        { label: "Thriller", x: 844, y: 102, w: 100, h: 40 }
+        { label: "All", x: 244, y: 102, w: 76, h: 40, assetW: 100 },
+        { label: "Drama", x: 334, y: 102, w: 100, h: 40, assetW: 100 },
+        { label: "Action", x: 448, y: 102, w: 100, h: 40, assetW: 100 },
+        { label: "Comedy", x: 562, y: 102, w: 112, h: 40, assetW: 140 },
+        { label: "Sci-Fi", x: 688, y: 102, w: 92, h: 40, assetW: 100 },
+        { label: "Thriller", x: 794, y: 102, w: 100, h: 40, assetW: 100 }
     ]
     for i = 0 to categories.count() - 1
         cat = categories[i]
@@ -237,8 +270,10 @@ sub drawCategoryPills(row as Integer)
             pillOpacity = 0.66
         end if
 
-        uiRoundRect(m.canvas, cat.x, cat.y, cat.w, cat.h, bg, border, pillOpacity)
-        uiLabel(m.canvas, cat.label, cat.x, cat.y + 9, cat.w, 24, 11, textColor, "center")
+        uiPoster(m.canvas, uiRoundUri(cat.assetW, cat.h, bg, border), cat.x, cat.y, cat.w, cat.h, pillOpacity)
+        labelScale = 0.84
+        if cat.label = "All" then labelScale = 0.78
+        uiScaledLabel(m.canvas, cat.label, cat.x, cat.y + 10, cat.w, 24, 11, textColor, "center", labelScale)
 
         m.focusItems.push({
             x: cat.x, y: cat.y, w: cat.w, h: cat.h,
@@ -302,9 +337,9 @@ sub drawContinueCard(series as Object, sourceIndex as Integer, resumeIndex as In
     uiPoster(m.canvas, cardUri, x, y, w, h, cardOpacity)
     drawContinuePoster(series, x + 20, y + 17, 76, 102)
     uiLabel(m.canvas, title, x + 116, y + 20, w - 138, 28, 17, textColor)
-    uiLabel(m.canvas, meta, x + 116, y + 52, w - 138, 22, 11, subColor)
+    uiScaledLabel(m.canvas, meta, x + 116, y + 54, w - 138, 20, 9, subColor, "left", 0.76)
     uiPoster(m.canvas, buttonUri, x + 116, y + 84, 126, 34, 0.74)
-    uiLabel(m.canvas, "Watch now", x + 123, y + 89, 112, 20, 8, "0xFFFFFFFF", "center")
+    uiScaledLabel(m.canvas, "Watch now", x + 123, y + 91, 112, 18, 8, "0xFFFFFFFF", "center", 0.78)
 
     m.focusItems.push({
         x: x, y: y, w: w, h: h,
@@ -364,7 +399,7 @@ sub drawSeriesCardBorder(x as Integer, y as Integer, w as Integer, h as Integer,
     opacity = 0.9
     if focused then
         borderColor = m.colors.greenFocus
-        thickness = 1
+        thickness = 3
         opacity = 1.0
     end if
     uiRectBorder(m.canvas, x, y, w, h, borderColor, thickness, opacity)
@@ -391,12 +426,10 @@ sub drawSelectedSeriesBackdrop(visible as Object)
 
     bgUrl = seriesBackdropUrl(series)
     if bgUrl <> "" then
-        backdrop = uiPoster(m.canvas, bgUrl, 0, 0, 1280, 720, 0.52)
+        backdrop = uiPoster(m.canvas, bgUrl, 0, 0, 1280, 720, 0.28)
         backdrop.loadDisplayMode = "scaleToZoom"
     end if
-    posterUrl = seriesText(series, "posterUrl")
-    if posterUrl <> "" and not seriesBackdropIsComposed(bgUrl) then drawSeriesBackdropPosterAnchor(posterUrl, 0, 0, 1280, 720)
-    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.44)
+    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.58)
 end sub
 
 sub drawSeriesBackdropPosterAnchor(posterUrl as String, x as Integer, y as Integer, w as Integer, h as Integer)
@@ -442,10 +475,6 @@ end function
 function seriesBackdropUrl(series as Object) as String
     backdropUrl = seriesText(series, "backdropUrl")
     if backdropUrl <> "" then return backdropUrl
-    cardUrl = seriesText(series, "cardUrl")
-    if cardUrl <> "" then return cardUrl
-    posterUrl = seriesText(series, "posterUrl")
-    if posterUrl <> "" then return posterUrl
     return ""
 end function
 
@@ -524,7 +553,7 @@ end sub
 
 sub drawResumeScrollbar(total as Integer, x as Integer, y as Integer, h as Integer)
     if total <= m.resumeWindowSize then return
-    uiVerticalPill(m.canvas, x, y, 4, h, "0xFFFFFF18", "pkg:/images/ui/scroll_cap_4_whiteLine.png", 0.22)
+    uiRect(m.canvas, x, y, 4, h, "0xFFFFFF18", 0.10)
     maxStart = total - m.resumeWindowSize
     if maxStart < 1 then maxStart = 1
     thumbH = Int(h * m.resumeWindowSize / total)
@@ -532,12 +561,12 @@ sub drawResumeScrollbar(total as Integer, x as Integer, y as Integer, h as Integ
     if thumbH > h then thumbH = h
     thumbY = y
     if h > thumbH then thumbY = y + Int((h - thumbH) * m.resumeWindowStart / maxStart)
-    uiVerticalPill(m.canvas, x - 1, thumbY, 6, thumbH, m.colors.greenFocus, "pkg:/images/ui/scroll_cap_6_greenFocus.png", 0.54)
+    uiVerticalPill(m.canvas, x - 1, thumbY, 6, thumbH, m.colors.greenFocus, "pkg:/images/ui/scroll_cap_6_greenFocus.png", 0.24)
 end sub
 
 sub drawSeriesScrollbar(total as Integer, x as Integer, y as Integer, h as Integer)
     if total <= m.seriesWindowSize then return
-    uiVerticalPill(m.canvas, x, y, 4, h, "0xFFFFFF18", "pkg:/images/ui/scroll_cap_4_whiteLine.png", 0.22)
+    uiRect(m.canvas, x, y, 4, h, "0xFFFFFF18", 0.10)
     maxStart = total - m.seriesWindowSize
     if maxStart < 1 then maxStart = 1
     thumbH = Int(h * m.seriesWindowSize / total)
@@ -545,7 +574,7 @@ sub drawSeriesScrollbar(total as Integer, x as Integer, y as Integer, h as Integ
     if thumbH > h then thumbH = h
     thumbY = y
     if h > thumbH then thumbY = y + Int((h - thumbH) * m.seriesWindowStart / maxStart)
-    uiVerticalPill(m.canvas, x - 1, thumbY, 6, thumbH, m.colors.greenFocus, "pkg:/images/ui/scroll_cap_6_greenFocus.png", 0.54)
+    uiVerticalPill(m.canvas, x - 1, thumbY, 6, thumbH, m.colors.greenFocus, "pkg:/images/ui/scroll_cap_6_greenFocus.png", 0.24)
 end sub
 
 sub resetSeriesWindow()
