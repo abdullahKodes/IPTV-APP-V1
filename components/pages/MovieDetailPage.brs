@@ -77,7 +77,7 @@ sub drawBackdrop()
     else
         uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg)
     end if
-    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.58)
+    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.66)
     if posterUrl <> invalid and posterUrl <> "" and not movieDetailBackdropIsComposed(bgUrl) then
         drawMoviePosterAnchor(posterUrl)
     else if (posterUrl = invalid or posterUrl = "") and (bgUrl = invalid or bgUrl = "") then
@@ -117,10 +117,10 @@ end sub
 
 sub drawHeroCopy()
     uiLabel(m.canvas, "MOVIE", 92, 132, 180, 24, 13, m.colors.textGreen)
-    uiLabel(m.canvas, detailTitle(), 92, 162, 600, 70, 43, m.colors.text)
-    uiLabel(m.canvas, detailSubtitle(), 94, 238, 560, 30, 17, m.colors.text)
-    uiLabel(m.canvas, detailMeta(), 94, 276, 560, 30, 16, m.colors.text)
-    drawTwoLineText(detailDescription(), 94, 328, 574, 24, 15, m.colors.text, 62)
+    uiLabel(m.canvas, detailTitle(), 92, 166, 600, 52, 30, m.colors.text)
+    uiLabel(m.canvas, detailSubtitle(), 94, 236, 560, 28, 15, m.colors.textDim)
+    uiLabel(m.canvas, detailMeta(), 94, 272, 560, 28, 13, m.colors.textPurple)
+    drawTwoLineText(detailDescription(), 94, 322, 574, 22, 13, m.colors.textMuted, 66)
 end sub
 
 sub drawActions()
@@ -153,16 +153,18 @@ end sub
 
 sub drawDetailSurface(x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean)
     uri = "pkg:/images/ui/movie_watch_" + w.toStr() + "x40_panel_greenFocus.png"
+    opacity = 0.68
     if focused then
         uri = "pkg:/images/ui/movie_watch_" + w.toStr() + "x40_greenSoft_greenFocus.png"
+        opacity = 0.86
     end if
-    uiPoster(m.canvas, uri, x, y, w, h)
+    uiPoster(m.canvas, uri, x, y, w, h, opacity)
 end sub
 
 function detailTitle() as String
     title = m.top.detailTitle
     if title = invalid or title = "" then return "Movie"
-    return UCase(title)
+    return title
 end function
 
 function detailSubtitle() as String

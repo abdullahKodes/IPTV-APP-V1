@@ -177,7 +177,7 @@ sub drawBackdrop()
     else
         uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg)
     end if
-    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.58)
+    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.66)
     if posterUrl <> invalid and posterUrl <> "" and not seriesDetailBackdropIsComposed(bgUrl) then
         drawSeriesPosterAnchor(posterUrl)
     else if (posterUrl = invalid or posterUrl = "") and (bgUrl = invalid or bgUrl = "") then
@@ -209,10 +209,10 @@ end sub
 
 sub drawHeroCopy()
     uiLabel(m.canvas, "WEB SERIES", 92, 126, 220, 24, 13, m.colors.textGreen)
-    uiLabel(m.canvas, detailTitle(), 92, 158, 620, 64, 38, m.colors.text)
-    uiLabel(m.canvas, detailSubtitle(), 94, 230, 600, 28, 16, m.colors.textDim)
-    uiLabel(m.canvas, detailMeta(), 94, 266, 600, 28, 15, m.colors.textPurple)
-    drawTwoLineText(detailDescription(), 94, 318, 574, 18, 14, m.colors.textMuted, 68)
+    uiLabel(m.canvas, detailTitle(), 92, 160, 620, 52, 30, m.colors.text)
+    uiLabel(m.canvas, detailSubtitle(), 94, 228, 600, 28, 14, m.colors.textDim)
+    uiLabel(m.canvas, detailMeta(), 94, 262, 600, 28, 13, m.colors.textPurple)
+    drawTwoLineText(detailDescription(), 94, 312, 574, 20, 13, m.colors.textMuted, 70)
 end sub
 
 sub drawActions()
@@ -295,11 +295,11 @@ end sub
 sub drawDetailSurface(x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean)
     fill = m.colors.panel
     border = m.colors.whiteLine
-    opacity = 0.72
+    opacity = 0.60
     if focused then
         fill = m.colors.greenSoft
         border = m.colors.greenFocus
-        opacity = 0.92
+        opacity = 0.84
     end if
     uiRoundRect(m.canvas, x, y, w, h, fill, border, opacity)
 end sub

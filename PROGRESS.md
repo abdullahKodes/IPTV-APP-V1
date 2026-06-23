@@ -1,6 +1,6 @@
 # IPTV App Progress
 
-Last updated: 2026-06-22
+Last updated: 2026-06-23
 
 Read this file before starting a new session. Update it only after a meaningful milestone is completed, such as finishing a screen, fixing a major workflow, committing/pushing, or changing project structure. Do not update it for every tiny visual tweak.
 
@@ -243,6 +243,8 @@ Completed:
 - Bumped manifest build version to `00072`.
 - Confirmed `npm.cmd run check` passes.
 - Confirmed `npm.cmd run build` creates `build\roku-iptv-app.zip`.
+- Applied the 2026-06-23 Roku visual-review fixes to Series: selected artwork now covers the full viewport behind a translucent top bar/sidebar, search/category pills have balanced vertical spacing and softer opacity, Popular Series cards draw a single artwork surface instead of repeating poster art, and Series detail typography/overlays were reduced for clearer hierarchy.
+- Applied the follow-up 2026-06-23 list-page fixes to Series: category pill text was shifted for better visual centering, top/sidebar/pill opacity was reduced further, Continue Watching cards now use the softer Featured-card opacity style, Popular Series cards now render as full poster-only cards, and scrollbars are more transparent.
 - Verified the packaged zip contains `components/MainScene.*`, `components/pages/SettingsPage.*`, `components/pages/ProfilePage.*`, and `components/shared/SettingsStore.brs`.
 
 Needs future review:
@@ -352,6 +354,8 @@ Completed:
 - Split Movies card fill and border into separate assets so the rounded outline renders above artwork, added backend-safe movie field helpers for missing/null title/genre/year/rating/art fields, guarded activation against invalid focus indexes, and bumped manifest build version to `00048`.
 - Fixed custom focus rendering so `mode: "manual"` no longer receives an extra shared rounded overlay, preventing double borders on Movies cards and other manually drawn controls; manifest build version is now `00049`.
 - Capped Movies search text length to avoid unbounded keyboard input growth during backend-scale browsing; manifest build version is now `00050`.
+- Applied the 2026-06-23 Roku visual-review fixes to Movies: selected artwork now extends under the top bar/sidebar, search and category pills use balanced supported rounded-control sizes with lower opacity, the Featured card/badge/meta hierarchy was softened, movie cards were widened and changed to a single scaled artwork surface, and Movie detail typography/overlays were reduced. Manifest build version is now `00108`.
+- Applied the follow-up 2026-06-23 list-page fixes to Movies: category pill text was shifted for better visual centering, top/sidebar/pill opacity was reduced further, Featured badge was restored to badge styling instead of button styling, Featured metadata was reduced again, movie cards now use actual poster artwork as full poster-only cards with no text strip, scrollbars are more transparent, and manifest build version is now `00109`.
 
 Needs future review:
 - Test Movies page focus movement on actual Roku.

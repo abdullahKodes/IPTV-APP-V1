@@ -334,11 +334,11 @@ function uiButton(parent as Object, item as Object, focused as Boolean) as Objec
 end function
 
 function uiTopBar(parent as Object, colors as Object) as Object
-    uiRect(parent, 0, 0, 1280, 86, colors.bg)
-    uiRect(parent, 0, 85, 1280, 1, "0xFFFFFF14")
+    uiRect(parent, 0, 0, 1280, 86, colors.bg, 0.52)
+    uiRect(parent, 0, 85, 1280, 1, "0xFFFFFF14", 0.48)
     uiPoster(parent, "pkg:/images/logo_full_dark_modified.png", 28, 10, 205, 64)
     clock = uiLabel(parent, "--:--", 1115, 12, 130, 32, 25, colors.text, "right")
-    date = uiLabel(parent, "---", 1052, 48, 193, 24, 14, colors.textMuted, "right")
+    date = uiLabel(parent, "---", 994, 48, 251, 24, 13, colors.textMuted, "right")
     return { clock: clock, date: date }
 end function
 
@@ -426,8 +426,8 @@ function uiNowStrings() as Object
     minutes = dt.getMinutes().toStr()
     if hours.len() = 1 then hours = "0" + hours
     if minutes.len() = 1 then minutes = "0" + minutes
-    days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-    months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
     return {
         time: hours + ":" + minutes,
         date: days[dt.getDayOfWeek()] + ", " + months[dt.getMonth() - 1] + " " + dt.getDayOfMonth().toStr()

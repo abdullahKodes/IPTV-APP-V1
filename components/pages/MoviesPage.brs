@@ -114,10 +114,10 @@ sub render()
     slot = 0
     for i = m.movieWindowStart to endIndex
         rowData = visible[i]
-        drawMovieCard(rowData.movie, i, rowData.index, 244 + slot * 222, 444, 200, 202, 4, slot + 1)
+        drawMovieCard(rowData.movie, i, rowData.index, 244 + slot * 172, 444, 146, 206, 4, slot + 1)
         slot += 1
     end for
-    drawMovieScrollbar(visible.count(), 1130, 444, 202)
+    drawMovieScrollbar(visible.count(), 1162, 444, 206)
 
     ensureMovieFocus()
     uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
@@ -125,8 +125,8 @@ sub render()
 end sub
 
 function drawMoviesSideNav() as Integer
-    uiRect(m.canvas, 0, 86, 226, 634, m.colors.panel, 0.66)
-    uiRect(m.canvas, 225, 86, 1, 634, "0xFFFFFF14")
+    uiRect(m.canvas, 0, 86, 226, 634, m.colors.panel, 0.38)
+    uiRect(m.canvas, 225, 86, 1, 634, "0xFFFFFF14", 0.38)
 
     moviesActive = (m.focusIndex = 3) or (m.focusIndex > 5)
     addMoviesNavItem(12, 112, "list", "My Playlists", "MyPlaylistsPage", 0, false)
@@ -189,12 +189,12 @@ sub drawSearchBox()
     label = "Search movies"
     if m.searchQuery <> "" then label = m.searchQuery
 
-    uiRoundRect(m.canvas, 686, 24, 260, 40, bg, border)
-    uiDrawIcon(m.canvas, "search", 704, 34, 18, 18, focused, textColor, 11)
-    uiLabel(m.canvas, label, 734, 27, 198, 28, 12, textColor)
+    uiRoundRect(m.canvas, 686, 22, 260, 40, bg, border, 0.64)
+    uiDrawIcon(m.canvas, "search", 704, 33, 18, 18, focused, textColor, 11)
+    uiLabel(m.canvas, label, 734, 28, 198, 28, 12, textColor)
 
     m.focusItems.push({
-        x: 686, y: 24, w: 260, h: 40,
+        x: 686, y: 22, w: 260, h: 40,
         icon: "search", label: label, subtitle: "",
         iconSize: 11, titleSize: 13, subSize: 10,
         bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim,
@@ -205,12 +205,12 @@ end sub
 
 sub drawMoviePills(row as Integer)
     cats = [
-        { label: "All", x: 244, y: 106, w: 100, h: 34 },
-        { label: "Action", x: 356, y: 106, w: 100, h: 34 },
-        { label: "Horror", x: 468, y: 106, w: 100, h: 34 },
-        { label: "Comedy", x: 580, y: 106, w: 140, h: 34 },
-        { label: "Animation", x: 732, y: 106, w: 140, h: 34 },
-        { label: "Sci-Fi", x: 884, y: 106, w: 100, h: 34 }
+        { label: "All", x: 244, y: 102, w: 100, h: 40 },
+        { label: "Action", x: 356, y: 102, w: 100, h: 40 },
+        { label: "Horror", x: 468, y: 102, w: 100, h: 40 },
+        { label: "Comedy", x: 580, y: 102, w: 140, h: 40 },
+        { label: "Animation", x: 732, y: 102, w: 140, h: 40 },
+        { label: "Sci-Fi", x: 884, y: 102, w: 100, h: 40 }
     ]
 
     for i = 0 to cats.count() - 1
@@ -221,18 +221,21 @@ sub drawMoviePills(row as Integer)
         bg = m.colors.bg
         border = m.colors.whiteLine
         textColor = m.colors.textPurple
+        pillOpacity = 0.42
         if selected then
             bg = m.colors.purpleSoft
             border = m.colors.greenFocus
             textColor = m.colors.text
+            pillOpacity = 0.58
         end if
         if focused then
             bg = m.colors.greenSoft
             border = m.colors.greenFocus
             textColor = m.colors.text
+            pillOpacity = 0.66
         end if
-        uiRoundRect(m.canvas, cat.x, cat.y, cat.w, cat.h, bg, border)
-        uiLabel(m.canvas, cat.label, cat.x, cat.y + 1, cat.w, 30, 12, textColor, "center")
+        uiRoundRect(m.canvas, cat.x, cat.y, cat.w, cat.h, bg, border, pillOpacity)
+        uiLabel(m.canvas, cat.label, cat.x, cat.y + 9, cat.w, 24, 11, textColor, "center")
         m.focusItems.push({
             x: cat.x, y: cat.y, w: cat.w, h: cat.h,
             icon: "", label: cat.label, subtitle: "",
@@ -257,17 +260,17 @@ sub drawFeatured(movie as Object, row as Integer)
         buttonText = "0xFFFFFFFF"
     end if
 
-    uiPoster(m.canvas, "pkg:/images/ui/movie_featured_770x184_panel_whiteSoft.png", 244, 206, 770, 184)
+    uiPoster(m.canvas, "pkg:/images/ui/movie_featured_770x184_panel_whiteSoft.png", 244, 206, 770, 184, 0.50)
     if focused then
-        uiPoster(m.canvas, "pkg:/images/ui/movie_featured_770x184_panel_greenFocus.png", 244, 206, 770, 184)
+        uiPoster(m.canvas, "pkg:/images/ui/movie_featured_770x184_panel_greenFocus.png", 244, 206, 770, 184, 0.62)
     end if
     drawFeaturedPoster(movie, 278, 227, 92, 142)
-    uiPoster(m.canvas, "pkg:/images/ui/movie_featured_badge_100x34_purpleDeep.png", 404, 226, 100, 34)
-    uiLabel(m.canvas, "Featured", 404, 230, 100, 24, 12, labelColor, "center")
+    uiPoster(m.canvas, "pkg:/images/ui/movie_featured_badge_100x34_purpleDeep.png", 404, 225, 112, 34, 0.76)
+    uiLabel(m.canvas, "Featured", 404, 231, 112, 22, 10, labelColor, "center")
     title = movieText(movie, "title", "Untitled")
     meta = movieText(movie, "year") + " - " + movieText(movie, "duration") + " - " + movieText(movie, "genre")
-    uiLabel(m.canvas, title, 404, 258, 300, 30, 20, titleColor)
-    uiLabel(m.canvas, meta, 404, 290, 430, 24, 13, subColor)
+    uiLabel(m.canvas, title, 404, 260, 320, 28, 17, titleColor)
+    uiLabel(m.canvas, meta, 404, 292, 430, 20, 8, subColor)
     uiPoster(m.canvas, buttonUri, 404, 324, 140, 40)
     uiLabel(m.canvas, "Watch now", 414, 329, 120, 28, 12, buttonText, "center")
 
@@ -288,44 +291,28 @@ sub drawMovieCard(movie as Object, mediaIndex as Integer, sourceIndex as Integer
         focused = mediaIndex = m.selectedMovieIndex
         if focused then m.focusIndex = itemIndex
     end if
-    titleColor = m.colors.text
-    metaColor = m.colors.textDim
-    if focused then
-        titleColor = m.colors.textGreen
-    end if
     title = movieText(movie, "title", "Untitled")
-    meta = movieText(movie, "genre") + " - " + movieText(movie, "duration")
 
-    uiRect(m.canvas, x, y, w, h, m.colors.panel, 0.96)
-    if focused then uiRect(m.canvas, x, y, w, h, m.colors.greenSoft, 0.24)
-    drawMoviePoster(movie, x, y, w, 136)
-    uiRect(m.canvas, x + 12, y + 136, w - 24, 1, "0xFFFFFF12", 0.72)
-    uiLabel(m.canvas, title, x + 14, y + 143, w - 28, 22, 10, titleColor)
-    uiLabel(m.canvas, meta, x + 14, y + 167, w - 28, 20, 7, metaColor)
+    uiRect(m.canvas, x, y, w, h, m.colors.panel, 0.32)
+    drawMoviePoster(movie, x, y, w, h)
+    if focused then uiRect(m.canvas, x, y, w, h, m.colors.greenSoft, 0.10)
     drawMovieCardBorder(x, y, w, h, focused)
 
     m.focusItems.push({
         x: x, y: y, w: w, h: h,
         icon: "", label: title, subtitle: movieText(movie, "genre"),
         iconSize: 14, titleSize: 13, subSize: 9,
-        bg: m.colors.panel, border: "0xFFFFFF12", textColor: titleColor, subColor: metaColor,
+        bg: m.colors.panel, border: "0xFFFFFF12", textColor: m.colors.text, subColor: m.colors.textDim,
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         row: row, col: col, page: "", action: "movie", mediaIndex: mediaIndex, sourceIndex: sourceIndex, mode: "manual"
     })
 end sub
 
 sub drawMoviePoster(movie as Object, x as Integer, y as Integer, w as Integer, h as Integer)
-    posterUrl = movieText(movie, "posterUrl")
-    if posterUrl <> "" then
-        uiPosterZoom(m.canvas, posterUrl, x, y, w, h, 0.72)
-        uiRect(m.canvas, x, y, w, h, m.colors.bg, 0.42)
-        posterH = h - 8
-        posterW = Int(posterH * 2 / 3)
-        posterX = x + Int((w - posterW) / 2)
-        posterY = y + 4
-        poster = uiPoster(m.canvas, posterUrl, posterX, posterY, posterW, posterH)
-        poster.loadDisplayMode = "scaleToFit"
-        uiRectBorder(m.canvas, posterX, posterY, posterW, posterH, "0xFFFFFF24", 1, 0.88)
+    artUrl = movieCardUrl(movie)
+    if artUrl <> "" then
+        poster = uiPoster(m.canvas, artUrl, x, y, w, h, 0.96)
+        poster.loadDisplayMode = "scaleToZoom"
     else
         iconW = 36
         iconH = 36
@@ -368,12 +355,12 @@ sub drawSelectedBackdrop(visible as Object)
 
     bgUrl = movieBackdropUrl(movie)
     if bgUrl <> "" then
-        backdrop = uiPoster(m.canvas, bgUrl, 226, 86, 1054, 634, 0.46)
+        backdrop = uiPoster(m.canvas, bgUrl, 0, 0, 1280, 720, 0.52)
         backdrop.loadDisplayMode = "scaleToZoom"
     end if
     posterUrl = movieText(movie, "posterUrl")
-    if posterUrl <> "" and not movieBackdropIsComposed(bgUrl) then drawMovieBackdropPosterAnchor(posterUrl, 226, 86, 1054, 634)
-    uiRect(m.canvas, 226, 86, 1054, 634, m.colors.bg, 0.50)
+    if posterUrl <> "" and not movieBackdropIsComposed(bgUrl) then drawMovieBackdropPosterAnchor(posterUrl, 0, 0, 1280, 720)
+    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.44)
 end sub
 
 sub drawMovieBackdropPosterAnchor(posterUrl as String, x as Integer, y as Integer, w as Integer, h as Integer)
@@ -465,7 +452,7 @@ end function
 
 sub drawMovieScrollbar(total as Integer, x as Integer, y as Integer, h as Integer)
     if total <= m.movieWindowSize then return
-    uiVerticalPill(m.canvas, x, y, 4, h, "0xFFFFFF18", "pkg:/images/ui/scroll_cap_4_whiteLine.png", 0.56)
+    uiVerticalPill(m.canvas, x, y, 4, h, "0xFFFFFF18", "pkg:/images/ui/scroll_cap_4_whiteLine.png", 0.22)
     maxStart = total - m.movieWindowSize
     if maxStart < 1 then maxStart = 1
     thumbH = Int(h * m.movieWindowSize / total)
@@ -473,7 +460,7 @@ sub drawMovieScrollbar(total as Integer, x as Integer, y as Integer, h as Intege
     if thumbH > h then thumbH = h
     thumbY = y
     if h > thumbH then thumbY = y + Int((h - thumbH) * m.movieWindowStart / maxStart)
-    uiVerticalPill(m.canvas, x - 1, thumbY, 6, thumbH, m.colors.greenFocus, "pkg:/images/ui/scroll_cap_6_greenFocus.png", 0.92)
+    uiVerticalPill(m.canvas, x - 1, thumbY, 6, thumbH, m.colors.greenFocus, "pkg:/images/ui/scroll_cap_6_greenFocus.png", 0.54)
 end sub
 
 function filteredMovies() as Object
