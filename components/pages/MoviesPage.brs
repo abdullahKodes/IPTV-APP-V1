@@ -238,12 +238,12 @@ end sub
 
 sub drawMoviePills(row as Integer)
     cats = [
-        { label: "All", x: 244, y: 102, w: 76, h: 40, assetW: 100 },
-        { label: "Action", x: 334, y: 102, w: 100, h: 40, assetW: 100 },
-        { label: "Horror", x: 448, y: 102, w: 100, h: 40, assetW: 100 },
-        { label: "Comedy", x: 562, y: 102, w: 112, h: 40, assetW: 140 },
-        { label: "Animation", x: 688, y: 102, w: 136, h: 40, assetW: 140 },
-        { label: "Sci-Fi", x: 838, y: 102, w: 92, h: 40, assetW: 100 }
+        { label: "All", x: 244, y: 104, w: 70, h: 36, assetW: 100, assetH: 40 },
+        { label: "Action", x: 328, y: 104, w: 92, h: 36, assetW: 100, assetH: 40 },
+        { label: "Horror", x: 434, y: 104, w: 92, h: 36, assetW: 100, assetH: 40 },
+        { label: "Comedy", x: 540, y: 104, w: 104, h: 36, assetW: 140, assetH: 40 },
+        { label: "Animation", x: 658, y: 104, w: 128, h: 36, assetW: 140, assetH: 40 },
+        { label: "Sci-Fi", x: 800, y: 104, w: 84, h: 36, assetW: 100, assetH: 40 }
     ]
 
     for i = 0 to cats.count() - 1
@@ -267,10 +267,10 @@ sub drawMoviePills(row as Integer)
             textColor = m.colors.text
             pillOpacity = 0.66
         end if
-        uiPoster(m.canvas, uiRoundUri(cat.assetW, cat.h, bg, border), cat.x, cat.y, cat.w, cat.h, pillOpacity)
-        labelScale = 0.84
-        if cat.label = "All" then labelScale = 0.78
-        uiScaledLabel(m.canvas, cat.label, cat.x, cat.y + 10, cat.w, 24, 11, textColor, "center", labelScale)
+        uiPoster(m.canvas, uiRoundUri(cat.assetW, cat.assetH, bg, border), cat.x, cat.y, cat.w, cat.h, pillOpacity)
+        labelScale = 0.80
+        if cat.label = "All" then labelScale = 0.74
+        uiScaledLabel(m.canvas, cat.label, cat.x, cat.y + 8, cat.w, 22, 11, textColor, "center", labelScale)
         m.focusItems.push({
             x: cat.x, y: cat.y, w: cat.w, h: cat.h,
             icon: "", label: cat.label, subtitle: "",
@@ -306,11 +306,11 @@ sub drawFeatured(movie as Object, row as Integer)
     meta = movieText(movie, "year") + " - " + movieText(movie, "duration") + " - " + movieText(movie, "genre")
     uiLabel(m.canvas, title, 404, 260, 320, 28, 17, titleColor)
     uiScaledLabel(m.canvas, meta, 404, 293, 360, 18, 8, subColor, "left", 0.68)
-    uiPoster(m.canvas, buttonUri, 404, 324, 140, 40)
-    uiScaledLabel(m.canvas, "Watch now", 414, 331, 120, 24, 10, buttonText, "center", 0.84)
+    uiPoster(m.canvas, buttonUri, 404, 326, 126, 36)
+    uiScaledLabel(m.canvas, "Watch now", 411, 332, 112, 20, 10, buttonText, "center", 0.78)
 
     m.focusItems.push({
-        x: 404, y: 324, w: 140, h: 40,
+        x: 404, y: 326, w: 126, h: 36,
         icon: "", label: title, subtitle: "Featured",
         iconSize: 1, titleSize: 1, subSize: 1,
         bg: m.colors.panel, border: m.colors.whiteSoft, textColor: m.colors.text, subColor: m.colors.textDim,
@@ -388,24 +388,35 @@ sub drawSelectedBackdrop(visible as Object)
     movie = selectedMovieForBackdrop(visible)
     if movie = invalid then return
 
-    bgUrl = movieBackdropUrl(movie)
+    bgUrl = movieBackgroundUrl(movie)
     if bgUrl <> "" then
-        backdrop = uiPoster(m.canvas, bgUrl, 0, 0, 1280, 720, 0.28)
-        backdrop.loadDisplayMode = "scaleToZoom"
+        backdrop = uiPoster(m.canvas, bgUrl, 0, 0, 1280, 720, 0.62)
+        backdrop.loadDisplayMode = "scaleToFill"
     end if
-    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.58)
+    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.38)
+    uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.08)
+
+    heroUrl = movieHeroArtworkUrl(movie)
+    if heroUrl <> "" then
+        drawMovieBackdropPosterAnchor(heroUrl, 370, 28, 770, 664)
+    end if
 end sub
 
-sub drawMovieBackdropPosterAnchor(posterUrl as String, x as Integer, y as Integer, w as Integer, h as Integer)
-    posterH = Int(h * 0.76)
-    posterW = Int(posterH * 2 / 3)
-    posterX = x + w - posterW - 48
-    posterY = y + Int((h - posterH) / 2)
+sub drawMovieBackdropPosterAnchor(heroUrl as String, x as Integer, y as Integer, w as Integer, h as Integer)
+    hero = uiPoster(m.canvas, heroUrl, x, y, w, h, 0.36)
+    hero.loadDisplayMode = "scaleToZoom"
+    drawMovieHeroEdgeBlend(x, y, w, h)
+end sub
 
-    uiRect(m.canvas, posterX + 16, posterY + 20, posterW, posterH, "0x000000FF", 0.36)
-    poster = uiPoster(m.canvas, posterUrl, posterX, posterY, posterW, posterH, 0.92)
-    poster.loadDisplayMode = "scaleToFit"
-    uiRectBorder(m.canvas, posterX, posterY, posterW, posterH, "0xFFFFFF28", 1, 0.86)
+sub drawMovieHeroEdgeBlend(x as Integer, y as Integer, w as Integer, h as Integer)
+    uiRect(m.canvas, x, y, 22, h, m.colors.bg, 0.34)
+    uiRect(m.canvas, x + 22, y, 26, h, m.colors.bg, 0.20)
+    uiRect(m.canvas, x + 48, y, 32, h, m.colors.bg, 0.10)
+    uiRect(m.canvas, x + w - 22, y, 22, h, m.colors.bg, 0.34)
+    uiRect(m.canvas, x + w - 48, y, 26, h, m.colors.bg, 0.20)
+    uiRect(m.canvas, x + w - 80, y, 32, h, m.colors.bg, 0.10)
+    uiRect(m.canvas, x, y, w, 14, m.colors.bg, 0.12)
+    uiRect(m.canvas, x, y + h - 14, w, 14, m.colors.bg, 0.12)
 end sub
 
 function movieBackdropIsComposed(url as String) as Boolean
@@ -425,6 +436,26 @@ function movieBackdropUrl(movie as Object) as String
     backdropUrl = movieText(movie, "backdropUrl")
     if backdropUrl <> "" then return backdropUrl
     return ""
+end function
+
+function movieBackgroundUrl(movie as Object) as String
+    return "pkg:/images/demo/backgrounds/iptv_max_art_backdrop.jpg"
+end function
+
+function movieHeroArtworkUrl(movie as Object) as String
+    posterUrl = movieText(movie, "posterUrl")
+    if posterUrl <> "" then return posterUrl
+    cardUrl = movieText(movie, "cardUrl")
+    if cardUrl <> "" then return cardUrl
+    return movieBackdropUrl(movie)
+end function
+
+function movieAssetFileName(url as String) as String
+    if url = invalid or url = "" then return ""
+    for i = url.len() to 1 step -1
+        if Mid(url, i, 1) = "/" then return Mid(url, i + 1)
+    end for
+    return url
 end function
 
 function movieText(movie as Dynamic, key as String, fallback = "" as String) as String

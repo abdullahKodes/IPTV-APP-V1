@@ -66,21 +66,14 @@ sub render()
 end sub
 
 sub drawBackdrop()
-    bgUrl = m.top.detailBackdropUrl
     posterUrl = m.top.detailPosterUrl
-    if bgUrl <> invalid and bgUrl <> "" then
-        bg = uiPoster(m.canvas, bgUrl, 0, 0, 1280, 720, 1.0)
-        bg.loadDisplayMode = "scaleToZoom"
-    else if posterUrl <> invalid and posterUrl <> "" then
-        bg = uiPoster(m.canvas, posterUrl, 0, 0, 1280, 720, 0.52)
-        bg.loadDisplayMode = "scaleToZoom"
-    else
-        uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg)
-    end if
-    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.66)
-    if posterUrl <> invalid and posterUrl <> "" and not movieDetailBackdropIsComposed(bgUrl) then
-        drawMoviePosterAnchor(posterUrl)
-    else if (posterUrl = invalid or posterUrl = "") and (bgUrl = invalid or bgUrl = "") then
+    bg = uiPoster(m.canvas, "pkg:/images/demo/backgrounds/iptv_max_art_backdrop.jpg", 0, 0, 1280, 720, 0.74)
+    bg.loadDisplayMode = "scaleToFill"
+    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.46)
+    uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.08)
+    if posterUrl <> invalid and posterUrl <> "" then
+        drawMovieDetailHeroPoster(posterUrl)
+    else if posterUrl = invalid or posterUrl = "" then
         drawMovieFallbackArt(884, 126, 220, 330)
     end if
 end sub
@@ -113,6 +106,27 @@ sub drawMoviePosterAnchor(posterUrl as String)
     poster = uiPoster(m.canvas, posterUrl, x, y, w, h, 0.96)
     poster.loadDisplayMode = "scaleToFit"
     uiRectBorder(m.canvas, x, y, w, h, "0xFFFFFF30", 1, 0.88)
+end sub
+
+sub drawMovieDetailHeroPoster(posterUrl as String)
+    x = 370
+    y = 28
+    w = 770
+    h = 664
+    poster = uiPoster(m.canvas, posterUrl, x, y, w, h, 0.36)
+    poster.loadDisplayMode = "scaleToZoom"
+    drawMovieDetailHeroEdgeBlend(x, y, w, h)
+end sub
+
+sub drawMovieDetailHeroEdgeBlend(x as Integer, y as Integer, w as Integer, h as Integer)
+    uiRect(m.canvas, x, y, 22, h, m.colors.bg, 0.34)
+    uiRect(m.canvas, x + 22, y, 26, h, m.colors.bg, 0.20)
+    uiRect(m.canvas, x + 48, y, 32, h, m.colors.bg, 0.10)
+    uiRect(m.canvas, x + w - 22, y, 22, h, m.colors.bg, 0.34)
+    uiRect(m.canvas, x + w - 48, y, 26, h, m.colors.bg, 0.20)
+    uiRect(m.canvas, x + w - 80, y, 32, h, m.colors.bg, 0.10)
+    uiRect(m.canvas, x, y, w, 14, m.colors.bg, 0.12)
+    uiRect(m.canvas, x, y + h - 14, w, 14, m.colors.bg, 0.12)
 end sub
 
 sub drawHeroCopy()

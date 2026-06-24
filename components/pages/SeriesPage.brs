@@ -105,23 +105,23 @@ sub render()
     end if
     drawCategoryPills(row)
 
-    uiLabel(m.canvas, "CONTINUE WATCHING", 244, 158, 300, 26, 13, m.colors.textDim)
+    uiLabel(m.canvas, "CONTINUE WATCHING", 244, 166, 300, 26, 13, m.colors.textDim)
     drawResumeSeriesCards()
 
     sectionLabel = "POPULAR SERIES"
     if m.selectedGenre <> "All" then sectionLabel = m.selectedGenre + " series"
     countText = visible.count().toStr() + " titles"
-    uiLabel(m.canvas, sectionLabel, 244, 362, 250, 26, 13, m.colors.textDim)
-    uiLabel(m.canvas, countText, 824, 362, 190, 26, 12, m.colors.textDim, "right")
+    uiLabel(m.canvas, sectionLabel, 244, 376, 250, 26, 13, m.colors.textDim)
+    uiLabel(m.canvas, countText, 824, 376, 190, 26, 12, m.colors.textDim, "right")
     endIndex = m.seriesWindowStart + m.seriesWindowSize - 1
     if endIndex > visible.count() - 1 then endIndex = visible.count() - 1
     slot = 0
     for i = m.seriesWindowStart to endIndex
         rowData = visible[i]
-        drawMediaCard(rowData.series, i, rowData.index, 244 + slot * 174, 402, 164, 230, 3, slot + 1)
+        drawMediaCard(rowData.series, i, rowData.index, 244 + slot * 174, 416, 164, 230, 3, slot + 1)
         slot += 1
     end for
-    drawSeriesScrollbar(visible.count(), 1134, 402, 230)
+    drawSeriesScrollbar(visible.count(), 1134, 416, 230)
 
     uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
     if m.searchEditing then drawSearchKeyboardOverlay()
@@ -241,12 +241,12 @@ end sub
 
 sub drawCategoryPills(row as Integer)
     categories = [
-        { label: "All", x: 244, y: 102, w: 76, h: 40, assetW: 100 },
-        { label: "Drama", x: 334, y: 102, w: 100, h: 40, assetW: 100 },
-        { label: "Action", x: 448, y: 102, w: 100, h: 40, assetW: 100 },
-        { label: "Comedy", x: 562, y: 102, w: 112, h: 40, assetW: 140 },
-        { label: "Sci-Fi", x: 688, y: 102, w: 92, h: 40, assetW: 100 },
-        { label: "Thriller", x: 794, y: 102, w: 100, h: 40, assetW: 100 }
+        { label: "All", x: 244, y: 104, w: 70, h: 36, assetW: 100, assetH: 40 },
+        { label: "Drama", x: 328, y: 104, w: 92, h: 36, assetW: 100, assetH: 40 },
+        { label: "Action", x: 434, y: 104, w: 92, h: 36, assetW: 100, assetH: 40 },
+        { label: "Comedy", x: 540, y: 104, w: 104, h: 36, assetW: 140, assetH: 40 },
+        { label: "Sci-Fi", x: 658, y: 104, w: 84, h: 36, assetW: 100, assetH: 40 },
+        { label: "Thriller", x: 756, y: 104, w: 100, h: 36, assetW: 100, assetH: 40 }
     ]
     for i = 0 to categories.count() - 1
         cat = categories[i]
@@ -270,10 +270,10 @@ sub drawCategoryPills(row as Integer)
             pillOpacity = 0.66
         end if
 
-        uiPoster(m.canvas, uiRoundUri(cat.assetW, cat.h, bg, border), cat.x, cat.y, cat.w, cat.h, pillOpacity)
-        labelScale = 0.84
-        if cat.label = "All" then labelScale = 0.78
-        uiScaledLabel(m.canvas, cat.label, cat.x, cat.y + 10, cat.w, 24, 11, textColor, "center", labelScale)
+        uiPoster(m.canvas, uiRoundUri(cat.assetW, cat.assetH, bg, border), cat.x, cat.y, cat.w, cat.h, pillOpacity)
+        labelScale = 0.80
+        if cat.label = "All" then labelScale = 0.74
+        uiScaledLabel(m.canvas, cat.label, cat.x, cat.y + 8, cat.w, 22, 11, textColor, "center", labelScale)
 
         m.focusItems.push({
             x: cat.x, y: cat.y, w: cat.w, h: cat.h,
@@ -295,10 +295,10 @@ sub drawResumeSeriesCards()
     slot = 0
     for i = m.resumeWindowStart to endIndex
         rowData = items[i]
-        drawContinueCard(rowData.series, rowData.index, i, 244 + slot * 432, 194, 410, 136, 2, slot + 1)
+        drawContinueCard(rowData.series, rowData.index, i, 244 + slot * 432, 202, 410, 136, 2, slot + 1)
         slot += 1
     end for
-    drawResumeScrollbar(maxCards, 1130, 194, 136)
+    drawResumeScrollbar(maxCards, 1130, 202, 136)
 end sub
 
 sub drawContinueCard(series as Object, sourceIndex as Integer, resumeIndex as Integer, x as Integer, y as Integer, w as Integer, h as Integer, row as Integer, col as Integer)
@@ -424,24 +424,35 @@ sub drawSelectedSeriesBackdrop(visible as Object)
     series = selectedSeriesForBackdrop(visible)
     if series = invalid then return
 
-    bgUrl = seriesBackdropUrl(series)
+    bgUrl = seriesBackgroundUrl(series)
     if bgUrl <> "" then
-        backdrop = uiPoster(m.canvas, bgUrl, 0, 0, 1280, 720, 0.28)
-        backdrop.loadDisplayMode = "scaleToZoom"
+        backdrop = uiPoster(m.canvas, bgUrl, 0, 0, 1280, 720, 0.62)
+        backdrop.loadDisplayMode = "scaleToFill"
     end if
-    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.58)
+    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.38)
+    uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.08)
+
+    heroUrl = seriesHeroArtworkUrl(series)
+    if heroUrl <> "" then
+        drawSeriesBackdropPosterAnchor(heroUrl, 370, 28, 770, 664)
+    end if
 end sub
 
-sub drawSeriesBackdropPosterAnchor(posterUrl as String, x as Integer, y as Integer, w as Integer, h as Integer)
-    posterH = Int(h * 0.76)
-    posterW = Int(posterH * 2 / 3)
-    posterX = x + w - posterW - 48
-    posterY = y + Int((h - posterH) / 2)
+sub drawSeriesBackdropPosterAnchor(heroUrl as String, x as Integer, y as Integer, w as Integer, h as Integer)
+    hero = uiPoster(m.canvas, heroUrl, x, y, w, h, 0.36)
+    hero.loadDisplayMode = "scaleToZoom"
+    drawSeriesHeroEdgeBlend(x, y, w, h)
+end sub
 
-    uiRect(m.canvas, posterX + 16, posterY + 20, posterW, posterH, "0x000000FF", 0.36)
-    poster = uiPoster(m.canvas, posterUrl, posterX, posterY, posterW, posterH, 0.92)
-    poster.loadDisplayMode = "scaleToFit"
-    uiRectBorder(m.canvas, posterX, posterY, posterW, posterH, "0xFFFFFF28", 1, 0.86)
+sub drawSeriesHeroEdgeBlend(x as Integer, y as Integer, w as Integer, h as Integer)
+    uiRect(m.canvas, x, y, 22, h, m.colors.bg, 0.34)
+    uiRect(m.canvas, x + 22, y, 26, h, m.colors.bg, 0.20)
+    uiRect(m.canvas, x + 48, y, 32, h, m.colors.bg, 0.10)
+    uiRect(m.canvas, x + w - 22, y, 22, h, m.colors.bg, 0.34)
+    uiRect(m.canvas, x + w - 48, y, 26, h, m.colors.bg, 0.20)
+    uiRect(m.canvas, x + w - 80, y, 32, h, m.colors.bg, 0.10)
+    uiRect(m.canvas, x, y, w, 14, m.colors.bg, 0.12)
+    uiRect(m.canvas, x, y + h - 14, w, 14, m.colors.bg, 0.12)
 end sub
 
 function seriesBackdropIsComposed(url as String) as Boolean
@@ -476,6 +487,26 @@ function seriesBackdropUrl(series as Object) as String
     backdropUrl = seriesText(series, "backdropUrl")
     if backdropUrl <> "" then return backdropUrl
     return ""
+end function
+
+function seriesBackgroundUrl(series as Object) as String
+    return "pkg:/images/demo/backgrounds/iptv_max_art_backdrop.jpg"
+end function
+
+function seriesHeroArtworkUrl(series as Object) as String
+    posterUrl = seriesText(series, "posterUrl")
+    if posterUrl <> "" then return posterUrl
+    cardUrl = seriesText(series, "cardUrl")
+    if cardUrl <> "" then return cardUrl
+    return seriesBackdropUrl(series)
+end function
+
+function seriesAssetFileName(url as String) as String
+    if url = invalid or url = "" then return ""
+    for i = url.len() to 1 step -1
+        if Mid(url, i, 1) = "/" then return Mid(url, i + 1)
+    end for
+    return url
 end function
 
 function seriesText(series as Dynamic, key as String, fallback = "" as String) as String

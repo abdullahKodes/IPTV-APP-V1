@@ -47,7 +47,6 @@ sub render()
 
     nextRow = drawHomeSideNav()
 
-    uiLabel(m.canvas, "QUICK ACCESS", 514, 150, 430, 34, 18, m.colors.textDim, "center")
     addTile(480, 230, 260, 152, "card_add", "Add Playlist", "", m.colors.purpleSoft, m.colors.purpleLine, m.colors.text, nextRow, 1, "AddPlaylistPage")
     addTile(780, 230, 260, 152, "card_tv", "Live TV", "", m.colors.greenSoft, m.colors.greenFocus, m.colors.text, nextRow, 2, "LiveTvPage")
     addTile(480, 412, 260, 152, "card_series", "Series", "", m.colors.purpleSoft, m.colors.purpleLine, m.colors.text, nextRow + 1, 1, "SeriesPage")
@@ -57,14 +56,15 @@ sub render()
 end sub
 
 sub drawHomeArtwork()
-    uiPosterZoom(m.canvas, "pkg:/images/home/home_background.jpg", 226, 86, 1054, 634, 0.62)
-    uiRect(m.canvas, 226, 86, 1054, 634, m.colors.bg, 0.36)
-    uiRect(m.canvas, 226, 86, 1054, 634, "0x000000FF", 0.08)
+    backdrop = uiPoster(m.canvas, "pkg:/images/demo/backgrounds/iptv_max_art_backdrop.jpg", 0, 0, 1280, 720, 0.74)
+    backdrop.loadDisplayMode = "scaleToFill"
+    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.38)
+    uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.08)
 end sub
 
 function drawHomeSideNav() as Integer
-    uiRect(m.canvas, 0, 86, 226, 634, m.colors.panel, 0.66)
-    uiRect(m.canvas, 225, 86, 1, 634, "0xFFFFFF14")
+    uiRect(m.canvas, 0, 86, 226, 634, m.colors.panel, 0.28)
+    uiRect(m.canvas, 225, 86, 1, 634, "0xFFFFFF14", 0.26)
 
     addHomeNavItem(12, 112, "list", "My Playlists", "MyPlaylistsPage", 0, false)
     addHomeNavItem(12, 168, "heart", "Favourites", "MoviesPage", 1, false)
