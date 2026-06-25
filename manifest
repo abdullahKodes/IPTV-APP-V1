@@ -2,7 +2,7 @@ title=IPTV Max
 subtitle=Premium IPTV for Roku
 major_version=0
 minor_version=1
-build_version=00131
+build_version=00149
 
 ui_resolutions=hd
 bs_libs_required=roku_ads_lib

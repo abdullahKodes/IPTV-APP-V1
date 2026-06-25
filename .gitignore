@@ -3,6 +3,10 @@ build/
 out/
 dist/
 .npm-cache/
+images/demo/hero/
+images/demo/downloaded_hero/
+images/demo/posters/neon_horizon.jpg
+images/demo/series_posters/signal_house.jpg
 *.pkg
 *.zip
 .env

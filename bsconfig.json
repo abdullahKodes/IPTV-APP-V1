@@ -4,7 +4,15 @@
     "manifest",
     "source/**/*",
     "components/**/*",
-    "images/**/*"
+    "images/**/*",
+    "!images/demo/hero/**/*",
+    "!images/demo/posters/**/*",
+    "!images/demo/posters_hd/neon_horizon.jpg",
+    "!images/demo/series_posters/**/*",
+    "!images/demo/series_posters_hd/signal_house.jpg",
+    "!images/demo/movie_backdrops/**/*",
+    "!images/demo/series_backdrops/**/*",
+    "!images/demo/downloaded_hero/**/*"
   ],
   "stagingDir": "build/staging",
   "outFile": "build/roku-iptv-app.zip",

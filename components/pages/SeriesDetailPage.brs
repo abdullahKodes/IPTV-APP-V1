@@ -67,11 +67,16 @@ function routeSeriesDetailFocus(dx as Integer, dy as Integer) as Boolean
             if item.col > 0 then m.focusIndex = 2
             return true
         end if
-        if action = "episode" then m.focusIndex = seasonFocusIndexForColumn(item.col) : return true
+        if action = "episode" then m.focusIndex = seasonFocusIndexForColumn(m.seasonIndex) : return true
     else if dy > 0 then
         if action = "back" then m.focusIndex = 1 : return true
         if action = "resume" or action = "favorite" then m.focusIndex = seasonFocusIndexForColumn(item.col) : return true
-        if action = "season" then m.focusIndex = episodeFocusIndexForColumn(item.col) : return true
+        if action = "season" then
+            m.episodeIndex = 0
+            m.episodeWindowStart = 0
+            m.focusIndex = episodeFocusIndexForColumn(0)
+            return true
+        end if
     else if dx <> 0 then
         if action = "resume" then if dx > 0 then m.focusIndex = 2 : return true
         if action = "favorite" then if dx < 0 then m.focusIndex = 1 : return true
@@ -79,13 +84,15 @@ function routeSeriesDetailFocus(dx as Integer, dy as Integer) as Boolean
             newSeason = m.seasonIndex + dx
             if newSeason >= 0 and newSeason < visibleSeasonCount() then
                 m.seasonIndex = newSeason
+                m.episodeIndex = 0
+                m.episodeWindowStart = 0
                 m.focusIndex = seasonFocusIndexForColumn(newSeason)
                 return true
             end if
         end if
         if action = "episode" then
             newEpisode = m.episodeIndex + dx
-            if newEpisode >= 0 and newEpisode < detailEpisodeCount() then
+            if newEpisode >= 0 and newEpisode < selectedSeasonEpisodeCount() then
                 m.episodeIndex = newEpisode
                 ensureEpisodeWindow()
                 m.focusIndex = episodeFocusIndexForColumn(m.episodeIndex - m.episodeWindowStart)
@@ -119,7 +126,7 @@ sub normalizeSeasonIndex()
 end sub
 
 sub normalizeEpisodeIndex()
-    maxIndex = detailEpisodeCount() - 1
+    maxIndex = selectedSeasonEpisodeCount() - 1
     if maxIndex < 0 then maxIndex = 0
     if m.episodeIndex > maxIndex then m.episodeIndex = maxIndex
     if m.episodeIndex < 0 then m.episodeIndex = 0
@@ -130,7 +137,7 @@ sub ensureEpisodeWindow()
     if m.episodeWindowStart = invalid then m.episodeWindowStart = 0
     if m.episodeIndex < m.episodeWindowStart then m.episodeWindowStart = m.episodeIndex
     if m.episodeIndex > m.episodeWindowStart + 3 then m.episodeWindowStart = m.episodeIndex - 3
-    maxStart = detailEpisodeCount() - visibleEpisodeCount()
+    maxStart = selectedSeasonEpisodeCount() - visibleEpisodeCount()
     if maxStart < 0 then maxStart = 0
     if m.episodeWindowStart > maxStart then m.episodeWindowStart = maxStart
     if m.episodeWindowStart < 0 then m.episodeWindowStart = 0
@@ -146,7 +153,7 @@ sub playDetail()
     url = m.top.detailPlaybackUrl
     if url = invalid or url = "" then return
     m.top.playbackTitle = detailTitle()
-    m.top.playbackSubtitle = "Episode " + (m.episodeIndex + 1).toStr() + " - " + detailSubtitle()
+    m.top.playbackSubtitle = "S" + (m.seasonIndex + 1).toStr() + " E" + selectedSeasonEpisodeNumber(m.episodeIndex).toStr() + " - " + detailHeaderMeta()
     m.top.playbackUrl = url
     m.top.playbackFormat = detailPlaybackFormat()
     m.top.playbackPosterUrl = m.top.detailPosterUrl
@@ -166,27 +173,23 @@ sub render()
 end sub
 
 sub drawBackdrop()
-    posterUrl = m.top.detailPosterUrl
-    bg = uiPoster(m.canvas, "pkg:/images/demo/backgrounds/iptv_max_art_backdrop.jpg", 0, 0, 1280, 720, 0.74)
-    bg.loadDisplayMode = "scaleToFill"
-    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.46)
-    uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.08)
-    if posterUrl <> invalid and posterUrl <> "" then
-        drawSeriesDetailHeroPoster(posterUrl)
-    else if posterUrl = invalid or posterUrl = "" then
-        drawSeriesFallbackArt(884, 126, 220, 330)
+    heroUrl = m.top.detailHeroUrl
+    if heroUrl = invalid or heroUrl = "" then
+        backdropUrl = m.top.detailBackdropUrl
+        if backdropUrl <> invalid and backdropUrl <> "" and not seriesDetailBackdropIsComposed(backdropUrl) then heroUrl = backdropUrl
+    end if
+    if heroUrl <> invalid and heroUrl <> "" then
+        drawSeriesDetailHeroPoster(heroUrl)
+    else
+        bg = uiPoster(m.canvas, "pkg:/images/demo/backgrounds/iptv_max_art_backdrop.jpg", 0, 0, 1280, 720, 0.74)
+        bg.loadDisplayMode = "scaleToFill"
+        uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.52)
+        uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.12)
     end if
 end sub
 
 sub drawTopBar()
     addFocusAction(48, 34, 112, 42, "back", 0, 0)
-    focused = m.focusIndex = m.focusItems.count() - 1
-    textColor = m.colors.textDim
-    if focused then textColor = m.colors.text
-    drawDetailSurface(48, 34, 112, 42, focused)
-    uiDrawIcon(m.canvas, "back", 64, 45, 18, 18, focused, textColor, 9)
-    uiLabel(m.canvas, "Back", 92, 40, 52, 28, 12, textColor)
-    uiLabel(m.canvas, "IPTV MAX", 1050, 36, 170, 32, 16, m.colors.textGreen, "right")
 end sub
 
 sub drawSeriesPosterAnchor(posterUrl as String)
@@ -201,83 +204,87 @@ sub drawSeriesPosterAnchor(posterUrl as String)
 end sub
 
 sub drawSeriesDetailHeroPoster(posterUrl as String)
-    x = 370
-    y = 28
-    w = 770
-    h = 664
-    poster = uiPoster(m.canvas, posterUrl, x, y, w, h, 0.36)
+    poster = uiPoster(m.canvas, posterUrl, 0, 0, 1280, 720, 1.0)
     poster.loadDisplayMode = "scaleToZoom"
-    drawSeriesDetailHeroEdgeBlend(x, y, w, h)
+    drawSeriesDetailSmokeBlend()
 end sub
 
-sub drawSeriesDetailHeroEdgeBlend(x as Integer, y as Integer, w as Integer, h as Integer)
-    uiRect(m.canvas, x, y, 22, h, m.colors.bg, 0.34)
-    uiRect(m.canvas, x + 22, y, 26, h, m.colors.bg, 0.20)
-    uiRect(m.canvas, x + 48, y, 32, h, m.colors.bg, 0.10)
-    uiRect(m.canvas, x + w - 22, y, 22, h, m.colors.bg, 0.34)
-    uiRect(m.canvas, x + w - 48, y, 26, h, m.colors.bg, 0.20)
-    uiRect(m.canvas, x + w - 80, y, 32, h, m.colors.bg, 0.10)
-    uiRect(m.canvas, x, y, w, 14, m.colors.bg, 0.12)
-    uiRect(m.canvas, x, y + h - 14, w, 14, m.colors.bg, 0.12)
+sub drawSeriesDetailSmokeBlend()
+    uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.18)
+    uiPoster(m.canvas, "pkg:/images/demo/overlays/detail_left_smoke.png", 0, 0, 900, 720, 1.0)
 end sub
 
 sub drawHeroCopy()
-    uiLabel(m.canvas, "WEB SERIES", 92, 126, 220, 24, 13, m.colors.textGreen)
-    uiLabel(m.canvas, detailTitle(), 92, 160, 620, 52, 30, m.colors.text)
-    uiLabel(m.canvas, detailSubtitle(), 94, 228, 600, 28, 14, m.colors.textDim)
-    uiLabel(m.canvas, detailMeta(), 94, 262, 600, 28, 13, m.colors.textPurple)
-    drawTwoLineText(detailDescription(), 94, 312, 574, 20, 13, m.colors.textMuted, 70)
+    uiScaledLabel(m.canvas, detailTitle(), 70, 104, 500, 46, 24, m.colors.text, "left", 1.38)
+    uiScaledLabel(m.canvas, detailHeaderMeta(), 72, 202, 520, 22, 12, m.colors.textDim, "left", 0.82)
+    drawTwoLineText(detailDescription(), 72, 246, 520, 24, 13, m.colors.textMuted, 54)
 end sub
 
 sub drawActions()
-    drawActionButton(94, 422, 166, "play", seriesPrimaryActionLabel(), "resume", 2, 0)
-    drawActionButton(278, 422, 156, "heart", "Favorite", "favorite", 2, 1)
+    drawActionButton(72, 394, 146, "play", seriesPrimaryActionLabel(), "resume", 2, 0)
+    drawActionButton(234, 394, 146, "heart", "Favorite", "favorite", 2, 1)
 end sub
 
 sub drawActionButton(x as Integer, y as Integer, w as Integer, icon as String, label as String, action as String, row as Integer, col as Integer)
     idx = m.focusItems.count()
     focused = idx = m.focusIndex
-    addFocusAction(x, y, w, 48, action, row, col)
-    textColor = m.colors.textDim
-    if focused then textColor = m.colors.text
-    drawDetailSurface(x, y, w, 48, focused)
-    drawDetailIcon(icon, focused, x + 22, y + 14, 20, 20, textColor)
-    uiLabel(m.canvas, label, x + 56, y + 9, w - 76, 28, 13, textColor)
+    h = 48
+    addFocusAction(x, y, w, h, action, row, col)
+    textColor = "0xE9F1FAFF"
+    fill = m.colors.panel
+    border = m.colors.whiteLine
+    opacity = 0.48
+    if focused then
+        textColor = "0xFFFFFFFF"
+        fill = m.colors.greenSoft
+        border = m.colors.greenFocus
+        opacity = 0.88
+    end if
+    uiRoundRect(m.canvas, x, y, w, h, fill, border, opacity)
+    uiRoundRect(m.canvas, x + 12, y + 9, 30, 30, "0xFFFFFF10", "0xFFFFFF10", 0.70)
+    drawDetailIcon(icon, focused, x + 19, y + 16, 16, 16, textColor)
+    uiScaledLabel(m.canvas, label, x + 52, y + 11, w - 66, 24, 12, textColor, "left", 0.90)
 end sub
 
 sub drawSeasonTabs()
     seasonCount = detailSeasonCount()
     visibleCount = visibleSeasonCount()
+    uiLabel(m.canvas, "SEASONS", 72, 472, 190, 22, 10, m.colors.textDim)
     for i = 0 to visibleCount - 1
-        x = 94 + i * 128
+        x = 72 + i * 116
         label = "Season " + (i + 1).toStr()
-        if i = 3 and seasonCount > 4 then label = seasonCount.toStr() + " Seasons"
+        if seasonCount > 4 and i = 3 then label = "Season 4+"
         itemIndex = m.focusItems.count()
-        addFocusAction(x, 512, 112, 36, "season", 3, i)
+        addFocusAction(x, 506, 112, 36, "season", 3, i)
         m.focusItems[itemIndex].seasonIndex = i
         focused = itemIndex = m.focusIndex
         textColor = m.colors.textDim
-        if i = m.seasonIndex then textColor = m.colors.text
-        if focused then textColor = m.colors.text
-        drawDetailSurface(x, 512, 112, 36, focused)
-        if i = m.seasonIndex and not focused then uiRectBorder(m.canvas, x, 512, 112, 36, m.colors.greenFocus, 1, 0.55)
-        uiLabel(m.canvas, label, x, 517, 112, 24, 10, textColor, "center")
+        fill = m.colors.panel
+        border = m.colors.whiteLine
+        opacity = 0.48
+        if i = m.seasonIndex then
+            textColor = m.colors.text
+            border = m.colors.greenFocus
+            opacity = 0.68
+        end if
+        if focused then
+            textColor = m.colors.text
+            fill = m.colors.greenSoft
+            border = m.colors.greenFocus
+            opacity = 0.88
+        end if
+        uiRoundRect(m.canvas, x, 506, 112, 36, fill, border, opacity)
+        uiLabel(m.canvas, label, x + 8, 511, 96, 24, 10, textColor, "center")
     end for
 end sub
 
 sub drawEpisodes()
     normalizeEpisodeIndex()
-    count = detailEpisodeCount()
     visibleCount = visibleEpisodeCount()
-    if count > visibleCount then
-        rangeText = (m.episodeWindowStart + 1).toStr() + "-" + (m.episodeWindowStart + visibleCount).toStr() + " of " + count.toStr()
-        uiLabel(m.canvas, rangeText, 826, 528, 170, 22, 9, m.colors.textDim, "right")
-        if m.episodeWindowStart > 0 then uiLabel(m.canvas, "<", 74, 598, 18, 28, 16, m.colors.textGreen, "center")
-        if m.episodeWindowStart + visibleCount < count then uiLabel(m.canvas, ">", 1010, 598, 18, 28, 16, m.colors.textGreen, "center")
-    end if
+    uiLabel(m.canvas, "EPISODES", 720, 284, 230, 24, 12, m.colors.textDim)
     for offset = 0 to visibleCount - 1
         episodeNumber = m.episodeWindowStart + offset
-        drawEpisodeCard(episodeNumber, episodeCardTitle(episodeNumber), 94 + offset * 232, 574, 210, 78, offset)
+        drawEpisodeCard(episodeNumber, episodeCardTitle(episodeNumber), 770, 314 + offset * 94, 392, 86, offset)
     end for
 end sub
 
@@ -288,10 +295,29 @@ sub drawEpisodeCard(index as Integer, title as String, x as Integer, y as Intege
     m.focusItems[itemIndex].episodeIndex = index
     titleColor = m.colors.text
     if focused then titleColor = m.colors.textGreen
-    drawDetailSurface(x, y, w, h, focused)
-    uiLabel(m.canvas, "E" + (index + 1).toStr(), x + 16, y + 12, 42, 24, 14, m.colors.textGreen)
-    uiLabel(m.canvas, title, x + 58, y + 10, w - 70, 26, 12, titleColor)
-    uiLabel(m.canvas, detailTitle(), x + 58, y + 40, w - 70, 22, 9, m.colors.textDim)
+    fill = m.colors.panel
+    border = m.colors.whiteLine
+    opacity = 0.50
+    if focused then
+        fill = m.colors.greenSoft
+        border = m.colors.greenFocus
+        opacity = 0.90
+    end if
+    uiRect(m.canvas, x, y, w, h, fill, opacity)
+    uiRectBorder(m.canvas, x, y, w, h, border, 2, 0.72)
+    drawEpisodeThumb(x + 12, y + 10, 72, 66)
+    uiRect(m.canvas, x + 12, y + 10, 72, 66, "0x000000FF", 0.18)
+    uiLabel(m.canvas, title, x + 108, y + 24, w - 128, 30, 15, titleColor)
+end sub
+
+sub drawEpisodeThumb(x as Integer, y as Integer, w as Integer, h as Integer)
+    thumbUrl = m.top.detailPosterUrl
+    if thumbUrl <> invalid and thumbUrl <> "" then
+        thumb = uiPoster(m.canvas, thumbUrl, x, y, w, h, 0.88)
+        thumb.loadDisplayMode = "scaleToZoom"
+    else
+        uiRect(m.canvas, x, y, w, h, m.colors.panelSoft, 0.76)
+    end if
 end sub
 
 sub drawSeriesFallbackArt(x as Integer, y as Integer, w as Integer, h as Integer)
@@ -343,6 +369,32 @@ function detailMeta() as String
     return meta
 end function
 
+function detailHeaderMeta() as String
+    seasons = detailSeasonLabel()
+    genre = detailGenreLabel()
+    if genre = "" then return seasons
+    return seasons + "    " + genre
+end function
+
+function detailSeasonLabel() as String
+    subtitle = detailSubtitle()
+    marker = Instr(1, subtitle, " - ")
+    if marker > 0 then return Left(subtitle, marker - 1)
+    return subtitle
+end function
+
+function detailGenreLabel() as String
+    meta = detailMeta()
+    if meta = invalid then return ""
+    marker = Instr(1, meta, " - TV-")
+    if marker > 0 then return Left(meta, marker - 1)
+    marker = Instr(1, meta, " - PG")
+    if marker > 0 then return Left(meta, marker - 1)
+    marker = Instr(1, meta, " - R")
+    if marker > 0 then return Left(meta, marker - 1)
+    return meta
+end function
+
 function detailDescription() as String
     text = m.top.detailDescription
     if text = invalid or text = "" then return "A premium IPTV Max series from the active playlist."
@@ -353,6 +405,12 @@ function detailPlaybackFormat() as String
     format = m.top.detailPlaybackFormat
     if format = invalid or format = "" then return "hls"
     return format
+end function
+
+function detailHeroUrl() as String
+    heroUrl = m.top.detailHeroUrl
+    if heroUrl = invalid then return ""
+    return heroUrl
 end function
 
 function detailText(item as Dynamic, key as String) as String
@@ -367,13 +425,13 @@ function seriesDetailBackdropIsComposed(url as String) as Boolean
 end function
 
 function seriesPrimaryActionLabel() as String
-    if detailEpisodeCount() > 1 then return "Resume"
+    if selectedSeasonEpisodeCount() > 1 then return "Resume"
     return "Watch"
 end function
 
 function episodeCardTitle(index as Integer) as String
-    if index = m.episodeIndex and detailEpisodeCount() > 1 then return "Continue"
-    return "Episode " + (index + 1).toStr()
+    if m.seasonIndex = 0 and index = 0 and selectedSeasonEpisodeCount() > 1 then return "Continue"
+    return "Episode " + selectedSeasonEpisodeNumber(index).toStr()
 end function
 
 function detailSeasonCount() as Integer
@@ -392,10 +450,41 @@ function visibleSeasonCount() as Integer
 end function
 
 function visibleEpisodeCount() as Integer
-    count = detailEpisodeCount()
+    count = selectedSeasonEpisodeCount()
     if count > 4 then return 4
     if count < 1 then return 1
     return count
+end function
+
+function selectedSeasonEpisodeCount() as Integer
+    seasons = detailSeasonCount()
+    total = detailEpisodeCount()
+    if seasons < 1 then seasons = 1
+    if total < 1 then total = 1
+    baseCount = Int(total / seasons)
+    if baseCount < 1 then baseCount = 1
+    extra = total - (baseCount * seasons)
+    if extra < 0 then extra = 0
+    count = baseCount
+    if m.seasonIndex < extra then count = count + 1
+    return count
+end function
+
+function selectedSeasonEpisodeNumber(localIndex as Integer) as Integer
+    seasons = detailSeasonCount()
+    total = detailEpisodeCount()
+    if seasons < 1 then seasons = 1
+    if total < 1 then total = 1
+    baseCount = Int(total / seasons)
+    if baseCount < 1 then baseCount = 1
+    extra = total - (baseCount * seasons)
+    if extra < 0 then extra = 0
+    number = 1
+    for i = 0 to m.seasonIndex - 1
+        number = number + baseCount
+        if i < extra then number = number + 1
+    end for
+    return number + localIndex
 end function
 
 function numberBeforeWord(text as String, word as String, fallback as Integer) as Integer

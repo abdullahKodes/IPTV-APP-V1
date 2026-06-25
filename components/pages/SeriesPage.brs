@@ -61,6 +61,7 @@ sub openSeriesDetail(series as Object)
     m.top.detailMeta = seriesText(series, "genre") + " - " + seriesText(series, "rating")
     m.top.detailDescription = seriesDescription(series)
     m.top.detailPosterUrl = seriesText(series, "posterUrl")
+    m.top.detailHeroUrl = seriesHeroArtworkUrl(series)
     m.top.detailBackdropUrl = seriesBackdropUrl(series)
     m.top.detailPlaybackUrl = mediaPlaybackUrl(series)
     m.top.detailPlaybackFormat = mediaPlaybackFormat(series)
@@ -424,35 +425,28 @@ sub drawSelectedSeriesBackdrop(visible as Object)
     series = selectedSeriesForBackdrop(visible)
     if series = invalid then return
 
-    bgUrl = seriesBackgroundUrl(series)
-    if bgUrl <> "" then
-        backdrop = uiPoster(m.canvas, bgUrl, 0, 0, 1280, 720, 0.62)
-        backdrop.loadDisplayMode = "scaleToFill"
-    end if
-    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.38)
-    uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.08)
-
     heroUrl = seriesHeroArtworkUrl(series)
     if heroUrl <> "" then
         drawSeriesBackdropPosterAnchor(heroUrl, 370, 28, 770, 664)
+    else
+        bgUrl = seriesBackgroundUrl(series)
+        if bgUrl <> "" then
+            backdrop = uiPoster(m.canvas, bgUrl, 0, 0, 1280, 720, 0.74)
+            backdrop.loadDisplayMode = "scaleToFill"
+        end if
+        uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.38)
+        uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.08)
     end if
 end sub
 
 sub drawSeriesBackdropPosterAnchor(heroUrl as String, x as Integer, y as Integer, w as Integer, h as Integer)
-    hero = uiPoster(m.canvas, heroUrl, x, y, w, h, 0.36)
+    hero = uiPoster(m.canvas, heroUrl, 0, 0, 1280, 720, 0.66)
     hero.loadDisplayMode = "scaleToZoom"
-    drawSeriesHeroEdgeBlend(x, y, w, h)
+    drawSeriesListHeroSmoke()
 end sub
 
-sub drawSeriesHeroEdgeBlend(x as Integer, y as Integer, w as Integer, h as Integer)
-    uiRect(m.canvas, x, y, 22, h, m.colors.bg, 0.34)
-    uiRect(m.canvas, x + 22, y, 26, h, m.colors.bg, 0.20)
-    uiRect(m.canvas, x + 48, y, 32, h, m.colors.bg, 0.10)
-    uiRect(m.canvas, x + w - 22, y, 22, h, m.colors.bg, 0.34)
-    uiRect(m.canvas, x + w - 48, y, 26, h, m.colors.bg, 0.20)
-    uiRect(m.canvas, x + w - 80, y, 32, h, m.colors.bg, 0.10)
-    uiRect(m.canvas, x, y, w, 14, m.colors.bg, 0.12)
-    uiRect(m.canvas, x, y + h - 14, w, 14, m.colors.bg, 0.12)
+sub drawSeriesListHeroSmoke()
+    uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.08)
 end sub
 
 function seriesBackdropIsComposed(url as String) as Boolean
@@ -494,11 +488,15 @@ function seriesBackgroundUrl(series as Object) as String
 end function
 
 function seriesHeroArtworkUrl(series as Object) as String
-    posterUrl = seriesText(series, "posterUrl")
-    if posterUrl <> "" then return posterUrl
-    cardUrl = seriesText(series, "cardUrl")
-    if cardUrl <> "" then return cardUrl
-    return seriesBackdropUrl(series)
+    heroUrl = seriesText(series, "heroUrl")
+    if heroUrl <> "" then return heroUrl
+
+    backdropUrl = seriesBackdropUrl(series)
+    if backdropUrl <> "" then
+        if Instr(1, LCase(backdropUrl), "/series_backdrops/") > 0 then return ""
+        return backdropUrl
+    end if
+    return ""
 end function
 
 function seriesAssetFileName(url as String) as String

@@ -59,6 +59,7 @@ sub openMovieDetail(movie as Object)
     m.top.detailMeta = movieText(movie, "genre")
     m.top.detailDescription = movieDescription(movie)
     m.top.detailPosterUrl = movieText(movie, "posterUrl")
+    m.top.detailHeroUrl = movieHeroArtworkUrl(movie)
     m.top.detailBackdropUrl = movieBackdropUrl(movie)
     m.top.detailPlaybackUrl = mediaPlaybackUrl(movie)
     m.top.detailPlaybackFormat = mediaPlaybackFormat(movie)
@@ -388,35 +389,28 @@ sub drawSelectedBackdrop(visible as Object)
     movie = selectedMovieForBackdrop(visible)
     if movie = invalid then return
 
-    bgUrl = movieBackgroundUrl(movie)
-    if bgUrl <> "" then
-        backdrop = uiPoster(m.canvas, bgUrl, 0, 0, 1280, 720, 0.62)
-        backdrop.loadDisplayMode = "scaleToFill"
-    end if
-    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.38)
-    uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.08)
-
     heroUrl = movieHeroArtworkUrl(movie)
     if heroUrl <> "" then
         drawMovieBackdropPosterAnchor(heroUrl, 370, 28, 770, 664)
+    else
+        bgUrl = movieBackgroundUrl(movie)
+        if bgUrl <> "" then
+            backdrop = uiPoster(m.canvas, bgUrl, 0, 0, 1280, 720, 0.74)
+            backdrop.loadDisplayMode = "scaleToFill"
+        end if
+        uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.38)
+        uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.08)
     end if
 end sub
 
 sub drawMovieBackdropPosterAnchor(heroUrl as String, x as Integer, y as Integer, w as Integer, h as Integer)
-    hero = uiPoster(m.canvas, heroUrl, x, y, w, h, 0.36)
+    hero = uiPoster(m.canvas, heroUrl, 0, 0, 1280, 720, 0.66)
     hero.loadDisplayMode = "scaleToZoom"
-    drawMovieHeroEdgeBlend(x, y, w, h)
+    drawMovieListHeroSmoke()
 end sub
 
-sub drawMovieHeroEdgeBlend(x as Integer, y as Integer, w as Integer, h as Integer)
-    uiRect(m.canvas, x, y, 22, h, m.colors.bg, 0.34)
-    uiRect(m.canvas, x + 22, y, 26, h, m.colors.bg, 0.20)
-    uiRect(m.canvas, x + 48, y, 32, h, m.colors.bg, 0.10)
-    uiRect(m.canvas, x + w - 22, y, 22, h, m.colors.bg, 0.34)
-    uiRect(m.canvas, x + w - 48, y, 26, h, m.colors.bg, 0.20)
-    uiRect(m.canvas, x + w - 80, y, 32, h, m.colors.bg, 0.10)
-    uiRect(m.canvas, x, y, w, 14, m.colors.bg, 0.12)
-    uiRect(m.canvas, x, y + h - 14, w, 14, m.colors.bg, 0.12)
+sub drawMovieListHeroSmoke()
+    uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.08)
 end sub
 
 function movieBackdropIsComposed(url as String) as Boolean
@@ -443,11 +437,15 @@ function movieBackgroundUrl(movie as Object) as String
 end function
 
 function movieHeroArtworkUrl(movie as Object) as String
-    posterUrl = movieText(movie, "posterUrl")
-    if posterUrl <> "" then return posterUrl
-    cardUrl = movieText(movie, "cardUrl")
-    if cardUrl <> "" then return cardUrl
-    return movieBackdropUrl(movie)
+    heroUrl = movieText(movie, "heroUrl")
+    if heroUrl <> "" then return heroUrl
+
+    backdropUrl = movieBackdropUrl(movie)
+    if backdropUrl <> "" then
+        if Instr(1, LCase(backdropUrl), "/movie_backdrops/") > 0 then return ""
+        return backdropUrl
+    end if
+    return ""
 end function
 
 function movieAssetFileName(url as String) as String

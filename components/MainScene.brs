@@ -42,6 +42,7 @@ sub showPage(componentName as String)
         m.currentPage.detailMeta = m.pendingDetail.meta
         m.currentPage.detailDescription = m.pendingDetail.description
         m.currentPage.detailPosterUrl = m.pendingDetail.posterUrl
+        if m.currentPage.hasField("detailHeroUrl") then m.currentPage.detailHeroUrl = m.pendingDetail.heroUrl
         m.currentPage.detailBackdropUrl = m.pendingDetail.backdropUrl
         m.currentPage.detailPlaybackUrl = m.pendingDetail.playbackUrl
         m.currentPage.detailPlaybackFormat = m.pendingDetail.playbackFormat
@@ -72,6 +73,7 @@ sub onPageNavigation()
                 meta: m.currentPage.detailMeta,
                 description: m.currentPage.detailDescription,
                 posterUrl: m.currentPage.detailPosterUrl,
+                heroUrl: m.currentPage.detailHeroUrl,
                 backdropUrl: m.currentPage.detailBackdropUrl,
                 playbackUrl: m.currentPage.detailPlaybackUrl,
                 playbackFormat: m.currentPage.detailPlaybackFormat,

@@ -2,7 +2,7 @@ sub init()
     m.colors = appColors()
     m.canvas = m.top.findNode("movieDetailCanvas")
     m.focusItems = []
-    m.focusIndex = 1
+    m.focusIndex = 0
     render()
 end sub
 
@@ -66,35 +66,22 @@ sub render()
 end sub
 
 sub drawBackdrop()
-    posterUrl = m.top.detailPosterUrl
-    bg = uiPoster(m.canvas, "pkg:/images/demo/backgrounds/iptv_max_art_backdrop.jpg", 0, 0, 1280, 720, 0.74)
-    bg.loadDisplayMode = "scaleToFill"
-    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.46)
-    uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.08)
-    if posterUrl <> invalid and posterUrl <> "" then
-        drawMovieDetailHeroPoster(posterUrl)
-    else if posterUrl = invalid or posterUrl = "" then
-        drawMovieFallbackArt(884, 126, 220, 330)
+    heroUrl = m.top.detailHeroUrl
+    if heroUrl = invalid or heroUrl = "" then
+        backdropUrl = m.top.detailBackdropUrl
+        if backdropUrl <> invalid and backdropUrl <> "" and not movieDetailBackdropIsComposed(backdropUrl) then heroUrl = backdropUrl
+    end if
+    if heroUrl <> invalid and heroUrl <> "" then
+        drawMovieDetailHeroPoster(heroUrl)
+    else
+        bg = uiPoster(m.canvas, "pkg:/images/demo/backgrounds/iptv_max_art_backdrop.jpg", 0, 0, 1280, 720, 0.74)
+        bg.loadDisplayMode = "scaleToFill"
+        uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.52)
+        uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.12)
     end if
 end sub
 
 sub drawTopBar()
-    addFocusAction(48, 36, 100, 34, "back", 0, 0)
-    focused = m.focusIndex = m.focusItems.count() - 1
-    textColor = m.colors.textDim
-    if focused then textColor = m.colors.text
-    backFill = m.colors.panel
-    backBorder = m.colors.whiteLine
-    backOpacity = 0.72
-    if focused then
-        backFill = m.colors.greenSoft
-        backBorder = m.colors.greenFocus
-        backOpacity = 0.92
-    end if
-    uiRoundRect(m.canvas, 48, 36, 100, 34, backFill, backBorder, backOpacity)
-    uiDrawIcon(m.canvas, "back", 62, 46, 14, 14, focused, textColor, 8)
-    uiLabel(m.canvas, "Back", 84, 39, 48, 26, 11, textColor)
-    uiLabel(m.canvas, "IPTV MAX", 1050, 36, 170, 32, 16, m.colors.textGreen, "right")
 end sub
 
 sub drawMoviePosterAnchor(posterUrl as String)
@@ -109,47 +96,46 @@ sub drawMoviePosterAnchor(posterUrl as String)
 end sub
 
 sub drawMovieDetailHeroPoster(posterUrl as String)
-    x = 370
-    y = 28
-    w = 770
-    h = 664
-    poster = uiPoster(m.canvas, posterUrl, x, y, w, h, 0.36)
+    poster = uiPoster(m.canvas, posterUrl, 0, 0, 1280, 720, 1.0)
     poster.loadDisplayMode = "scaleToZoom"
-    drawMovieDetailHeroEdgeBlend(x, y, w, h)
+    drawMovieDetailSmokeBlend()
 end sub
 
-sub drawMovieDetailHeroEdgeBlend(x as Integer, y as Integer, w as Integer, h as Integer)
-    uiRect(m.canvas, x, y, 22, h, m.colors.bg, 0.34)
-    uiRect(m.canvas, x + 22, y, 26, h, m.colors.bg, 0.20)
-    uiRect(m.canvas, x + 48, y, 32, h, m.colors.bg, 0.10)
-    uiRect(m.canvas, x + w - 22, y, 22, h, m.colors.bg, 0.34)
-    uiRect(m.canvas, x + w - 48, y, 26, h, m.colors.bg, 0.20)
-    uiRect(m.canvas, x + w - 80, y, 32, h, m.colors.bg, 0.10)
-    uiRect(m.canvas, x, y, w, 14, m.colors.bg, 0.12)
-    uiRect(m.canvas, x, y + h - 14, w, 14, m.colors.bg, 0.12)
+sub drawMovieDetailSmokeBlend()
+    uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.18)
+    uiPoster(m.canvas, "pkg:/images/demo/overlays/detail_left_smoke.png", 0, 0, 900, 720, 1.0)
 end sub
 
 sub drawHeroCopy()
-    uiLabel(m.canvas, "MOVIE", 92, 132, 180, 24, 13, m.colors.textGreen)
-    uiLabel(m.canvas, detailTitle(), 92, 166, 600, 52, 30, m.colors.text)
-    uiLabel(m.canvas, detailSubtitle(), 94, 236, 560, 28, 15, m.colors.textDim)
-    uiLabel(m.canvas, detailMeta(), 94, 272, 560, 28, 13, m.colors.textPurple)
-    drawTwoLineText(detailDescription(), 94, 322, 574, 22, 13, m.colors.textMuted, 66)
+    uiScaledLabel(m.canvas, detailTitle(), 70, 104, 520, 46, 24, m.colors.text, "left", 1.42)
+    uiScaledLabel(m.canvas, detailSubtitle() + "    " + detailMeta(), 72, 202, 520, 22, 12, m.colors.textDim, "left", 0.82)
+    drawTwoLineText(detailDescription(), 72, 246, 520, 24, 13, m.colors.textMuted, 54)
 end sub
 
 sub drawActions()
-    drawActionButton(94, 446, 176, "play", "Watch now", "watch", 2, 0)
-    drawActionButton(292, 446, 166, "heart", "Favorite", "favorite", 2, 1)
+    drawActionButton(72, 394, 146, "play", "Play Now", "watch", 2, 0)
+    drawActionButton(234, 394, 146, "heart", "Favorite", "favorite", 2, 1)
 end sub
 
 sub drawActionButton(x as Integer, y as Integer, w as Integer, icon as String, label as String, action as String, row as Integer, col as Integer)
     idx = m.focusItems.count()
     focused = idx = m.focusIndex
-    addFocusAction(x, y, w, 40, action, row, col)
-    textColor = "0xFFFFFFFF"
-    drawDetailSurface(x, y, w, 40, focused)
-    uiDrawIcon(m.canvas, icon, x + 22, y + 10, 20, 20, focused, textColor, 12)
-    uiLabel(m.canvas, label, x + 52, y + 5, w - 62, 28, 13, textColor)
+    h = 48
+    addFocusAction(x, y, w, h, action, row, col)
+    textColor = "0xE9F1FAFF"
+    fill = m.colors.panel
+    border = m.colors.whiteLine
+    opacity = 0.48
+    if focused then
+        textColor = "0xFFFFFFFF"
+        fill = m.colors.greenSoft
+        border = m.colors.greenFocus
+        opacity = 0.88
+    end if
+    uiRoundRect(m.canvas, x, y, w, h, fill, border, opacity)
+    uiRoundRect(m.canvas, x + 12, y + 9, 30, 30, "0xFFFFFF10", "0xFFFFFF10", 0.70)
+    uiDrawIcon(m.canvas, icon, x + 19, y + 16, 16, 16, focused, textColor, 11)
+    uiScaledLabel(m.canvas, label, x + 52, y + 11, w - 66, 24, 12, textColor, "left", 0.90)
 end sub
 
 sub drawMovieFallbackArt(x as Integer, y as Integer, w as Integer, h as Integer)
@@ -194,9 +180,7 @@ function detailMeta() as String
 end function
 
 function detailDescription() as String
-    text = m.top.detailDescription
-    if text = invalid or text = "" then return "A premium IPTV Max title from the active playlist."
-    return text
+    return "A premium title from the active playlist, ready with artwork and playback metadata for a polished IPTV Max viewing experience."
 end function
 
 function detailPlaybackFormat() as String

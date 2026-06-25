@@ -1,6 +1,6 @@
 # IPTV App Progress
 
-Last updated: 2026-06-24
+Last updated: 2026-06-25
 
 Read this file before starting a new session. Update it only after a meaningful milestone is completed, such as finishing a screen, fixing a major workflow, committing/pushing, or changing project structure. Do not update it for every tiny visual tweak.
 
@@ -18,6 +18,40 @@ Read this file before starting a new session. Update it only after a meaningful 
   `C:\Users\M Abdullah\Documents\GitHub\IPTV-APP-V1\build\roku-iptv-app.zip`
 
 ## Current Design Progress
+
+### Demo Artwork And Detail Pages
+
+Status: ready for Roku review build.
+
+Completed:
+- Replaced demo Movies/Series card artwork paths with HD poster-card assets and added local real HD landscape hero art for key demo Movies and Series titles.
+- Movies and Series list pages now read explicit `heroUrl` artwork first and no longer promote old low-resolution `movie_backdrops` or `series_backdrops` assets into hero backgrounds.
+- Movie and Series detail pages now use a single HD landscape hero layer with a smoky left-side readability blend instead of duplicating a vertical poster over another poster background.
+- Backend/provider playlist behavior remains dynamic: external entries can still use their supplied backdrop/hero art, while poster-only entries fall back to the IPTV MAX art backdrop rather than stretching a vertical poster full-screen.
+- `bsconfig.json` excludes the rejected low-res demo poster/backdrop folders plus `images/demo/downloaded_hero/` from Roku packaging, and `.gitignore` keeps the raw download cache local.
+- Bumped manifest build version to `00137`, confirmed `npm.cmd run check` and `npm.cmd run build` pass, and verified the packaged zip manifest contains `build_version=00137` with no raw download-cache files.
+- Follow-up review pass: Movies/Series list and detail pages now show the IPTV MAX art backdrop only when no item hero art is available, use the selected item's own hero by itself when present, and replace visible rectangle smoke bands with reusable alpha-gradient overlay masks.
+- Bumped manifest build version to `00138` for the backdrop/smoke-mask follow-up.
+- Follow-up review pass: removed the generated-only Neon Horizon movie and Signal House series entries, removed top/bottom detail/list dark bands, simplified Movie detail content to title-first metadata with compact Watch/Favorite actions, and resized shipped demo hero/poster art to Roku display sizes for a smaller package.
+- Bumped manifest build version to `00139` for the detail-content and package-size pass.
+- Follow-up review pass: lowered Movies/Series list hero opacity only, kept detail hero opacity unchanged, enlarged Movie detail title text, reduced the metadata line, removed the metadata underline, changed Movie detail actions to compact model-style Watch/Favorite pills, removed the visible Movie detail Back control, and replaced right-side detail text branding with the top-left logo.
+- Bumped manifest build version to `00140` for the list-opacity and Movie detail polish pass.
+- Follow-up correction: made Movie detail layout more visibly different by removing all visible top-bar branding from the detail screen, increasing title size again, moving metadata/description/actions upward, and reducing action-pill fill opacity for a closer reference-style button treatment.
+- Bumped manifest build version to `00141` for the stronger Movie detail correction.
+- Follow-up correction: made shared labels honor their requested font sizes, enlarged Movie detail title/meta/description text, and changed Movie detail actions to two taller reference-style action tiles with centered icons.
+- Series detail now uses the same taller action-tile language and renders episodes per selected season by deriving the selected season's episode count from available series metadata.
+- Bumped manifest build version to `00143` for the Movie/Series detail typography and season-wise episode correction.
+- Hotfix: reverted the shared Font-node assignment that blanked text on Roku, kept Movie/Series detail emphasis through per-screen label scaling, and bumped manifest build version to `00144`.
+- Follow-up detail polish: replaced the square Movie/Series action tiles with horizontal glass action buttons, removed the visible Series detail logo, and restyled Series seasons/episodes as right-side glass panels with chips and episode rows instead of skeleton-looking blocks.
+- Bumped manifest build version to `00145` for the detail button and Series detail layout polish.
+- Follow-up Series detail redesign: replaced boxed season/episode sections with reference-inspired floating season cards and cinematic episode strips with artwork thumbnails, compact metadata pills, and less visible container chrome.
+- Bumped manifest build version to `00146` for the Series detail reference-style redesign.
+- Follow-up detail refinement: changed Movie/Series action controls to smaller transparent home-style boxes with green focused styling, moved Series season chips under Resume/Favorite, removed the episode range count, and simplified episode rows to thumbnail plus episode badge/title only.
+- Bumped manifest build version to `00147` for the transparent detail controls and simplified Series detail structure.
+- Follow-up Series detail correction: reduced Movie/Series action buttons to smaller transparent boxes, aligned Season chips to the app's panel/green-focus color pattern, made Episode rows taller/narrower, changed Episode badges from `E1` to numeric-only labels, switched thumbnails to poster/card artwork, and routed Season-down focus to the first Episode row.
+- Bumped manifest build version to `00148` for the Series detail focus and episode-card correction.
+- Follow-up Series detail correction: removed episode count and TV rating from the header metadata, changed episode rows to sharp-corner taller/narrower palettes, removed the numeric badge entirely, and made episode titles use season-derived global numbers so changing seasons visibly changes the rendered episodes.
+- Bumped manifest build version to `00149` for the Series header and episode rendering correction.
 
 ### Demo Playlist Foundation
 
@@ -397,6 +431,11 @@ Completed:
 - Updated build `00129` after Roku review: enlarged the selected poster hero vertically to touch top/bottom while narrowing it so the IPTV background remains visible on both sides, switched Movies demo cards away from `card_fill` assets to real posters, and applied the same IPTV/poster background treatment to detail pages.
 - Updated build `00130` after Roku review: changed the hero poster position to `390,24,730,672` on Movies/Series and both detail pages, removed the dark side/top/bottom masks that created visible bands, and kept only a light whole-poster blend overlay for softer integration.
 - Updated build `00131` after Roku review: widened the list/detail hero poster slightly to `370,28,770,664`, removed the remaining center dark background slab, and replaced hard poster edges with narrow fade strips so the poster sits over the IPTV backdrop instead of looking pasted on.
+- Updated build `00132` after Roku review: increased list hero poster opacity to `0.44`, increased detail hero poster opacity to `0.46`, and centered the detail-page poster at `255,28,770,664` while keeping the dynamic selected-item poster source.
+- Updated build `00133` after Roku review: made the Movies/Series list and detail hero poster body opaque enough to stop the IPTV background bleeding through it, while retaining the edge fade treatment.
+- Updated build `00134` after Roku review: moved the Movie/Series detail hero poster to a right-biased position at `400,28,770,664`, leaving visible space on the right while keeping the list-page hero position unchanged.
+- Updated build `00135` after demo-art review: added dedicated `1920x1080` demo hero assets under `images/demo/hero`, added original demo titles `Neon Horizon` and `Signal House`, and wired `heroUrl` through Movies/Series list and detail navigation so demo heroes no longer stretch the small poster-card artwork.
+- Updated build `00136` after demo-art review: replaced demo movie/series card URLs with `720x1080` HD poster assets, regenerated demo heroes from those HD posters plus the IPTV backdrop instead of the old duplicate-composed backdrop folders, and changed list/detail hero rendering to full-screen smoke-blended artwork so visible poster rectangle edges are not drawn.
 
 Needs future review:
 - Test Movies page focus movement on actual Roku.
