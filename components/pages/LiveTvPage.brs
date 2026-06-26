@@ -420,9 +420,8 @@ function drawLiveSideNav() as Integer
     uiRect(m.canvas, 0, 86, 226, 634, m.colors.panel, 0.66)
     uiRect(m.canvas, 225, 86, 1, 634, "0xFFFFFF14")
 
-    liveActive = (m.focusIndex = 1) or (m.focusIndex > 5)
     addLiveNavItem(12, 112, "list", "My Playlists", "MyPlaylistsPage", 0, false)
-    addLiveNavItem(12, 168, "tv", "Live TV", "LiveTvPage", 1, liveActive)
+    addLiveNavItem(12, 168, "tv", "Live TV", "LiveTvPage", 1, true)
     addLiveNavItem(12, 224, "series", "Series", "SeriesPage", 2, false)
     addLiveNavItem(12, 280, "movies", "Movies", "MoviesPage", 3, false)
     addLiveNavItem(12, 336, "heart", "Favorites", "FavoritesPage", 4, false)
@@ -437,14 +436,16 @@ sub addLiveNavItem(x as Integer, y as Integer, icon as String, label as String, 
         x: x, y: y, w: 204, h: 52,
         icon: icon, label: label, subtitle: "",
         iconSize: 12, titleSize: 12, subSize: 10,
-        bg: m.colors.bg, border: m.colors.bg, textColor: m.colors.textGreen, subColor: m.colors.textDim,
+        bg: m.colors.bg, border: m.colors.whiteLine, textColor: m.colors.textPurple, subColor: m.colors.textDim,
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        opacity: 0.42, focusOpacity: 0.66,
         row: row, col: 0, page: page, mode: "row", noFocusShift: true
     }
     if active then
         item.bg = m.colors.purpleSoft
         item.border = m.colors.greenFocus
         item.textColor = m.colors.text
+        item.opacity = 0.58
     end if
     m.focusItems.push(item)
 end sub
@@ -454,8 +455,9 @@ sub addLiveProfileItem()
         x: 12, y: 640, w: 204, h: 52,
         icon: "profile", label: "My Profile", subtitle: "",
         iconSize: 14, iconW: 32, iconH: 32, iconX: 18, titleSize: 11, subSize: 7,
-        bg: "0xFFFFFF10", border: m.colors.panel, textColor: m.colors.text, subColor: m.colors.textDim,
+        bg: m.colors.bg, border: m.colors.whiteLine, textColor: m.colors.textPurple, subColor: m.colors.textDim,
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        opacity: 0.42, focusOpacity: 0.66,
         row: 6, col: 0, page: "ProfilePage", mode: "row", noFocusShift: true
     }
     m.focusItems.push(item)

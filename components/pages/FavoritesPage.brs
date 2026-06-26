@@ -235,9 +235,9 @@ sub addFavoriteNavItem(x as Integer, y as Integer, icon as String, label as Stri
     itemIndex = m.focusItems.count()
     focused = itemIndex = m.focusIndex
     fill = m.colors.bg
-    border = m.colors.bg
-    opacity = 0.24
-    textColor = m.colors.textGreen
+    border = m.colors.whiteLine
+    opacity = 0.42
+    textColor = m.colors.textPurple
     if active then
         fill = m.colors.purpleSoft
         border = m.colors.greenFocus
@@ -259,6 +259,7 @@ sub addFavoriteNavItem(x as Integer, y as Integer, icon as String, label as Stri
         iconSize: 12, titleSize: 12, subSize: 10,
         bg: fill, border: border, textColor: textColor, subColor: m.colors.textDim,
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        opacity: opacity, focusOpacity: 0.66,
         row: row, col: 0, page: page, mode: "manual", noFocusShift: true
     })
 end sub
@@ -267,22 +268,25 @@ sub addFavoriteProfileItem()
     itemIndex = m.focusItems.count()
     focused = itemIndex = m.focusIndex
     fill = m.colors.bg
-    border = m.colors.bg
-    opacity = 0.26
+    border = m.colors.whiteLine
+    opacity = 0.42
+    textColor = m.colors.textPurple
     if focused then
         fill = m.colors.greenSoft
         border = m.colors.greenFocus
-        opacity = 0.58
+        opacity = 0.66
+        textColor = m.colors.text
     end if
     uiRoundRect(m.canvas, 12, 640, 204, 52, fill, border, opacity)
-    uiDrawIcon(m.canvas, "profile", 30, 652, 24, 24, focused, m.colors.text, 14)
-    uiLabel(m.canvas, "My Profile", 70, 652, 126, 28, 11, m.colors.text)
+    uiDrawIcon(m.canvas, "profile", 30, 652, 24, 24, focused, textColor, 14)
+    uiLabel(m.canvas, "My Profile", 70, 652, 126, 28, 11, textColor)
     m.focusItems.push({
         x: 12, y: 640, w: 204, h: 52,
         icon: "profile", label: "My Profile", subtitle: "",
         iconSize: 14, iconW: 32, iconH: 32, iconX: 18, titleSize: 11, subSize: 7,
-        bg: "0xFFFFFF10", border: m.colors.panel, textColor: m.colors.text, subColor: m.colors.textDim,
+        bg: m.colors.bg, border: m.colors.whiteLine, textColor: m.colors.textPurple, subColor: m.colors.textDim,
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        opacity: 0.42, focusOpacity: 0.66,
         row: 6, col: 0, page: "ProfilePage", mode: "manual", noFocusShift: true
     })
 end sub
@@ -316,7 +320,7 @@ end sub
 sub drawSection(section as Integer, title as String, items as Object, y as Integer)
     normalizeSectionWindow(section, items.count())
     uiLabel(m.canvas, title, 244, y, 260, 26, 13, m.colors.text)
-    uiLabel(m.canvas, items.count().toStr() + " saved", 934, y, 190, 26, 11, m.colors.textDim, "right")
+    if m.searchQuery = "" then uiLabel(m.canvas, items.count().toStr() + " saved", 934, y, 190, 26, 11, m.colors.textDim, "right")
     if items.count() = 0 then
         emptyText = "No " + LCase(title) + " favorites in " + m.activePlaylistTitle
         uiRoundRect(m.canvas, 244, y + 38, 860, 126, m.colors.panel, m.colors.whiteLine, 0.34)

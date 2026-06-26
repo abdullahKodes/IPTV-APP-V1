@@ -265,10 +265,13 @@ function uiButton(parent as Object, item as Object, focused as Boolean) as Objec
     bg = item.bg
     border = item.border
     textColor = item.textColor
+    opacity = 1.0
+    if item.doesExist("opacity") then opacity = item.opacity
     if focused then
         bg = item.focusBg
         border = item.focusBorder
         textColor = item.focusTextColor
+        if item.doesExist("focusOpacity") then opacity = item.focusOpacity
     end if
 
     mode = ""
@@ -285,9 +288,9 @@ function uiButton(parent as Object, item as Object, focused as Boolean) as Objec
     thin = false
     if item.doesExist("thin") then thin = item.thin
     if thin then
-        uiThinRoundRect(g, 0, 0, item.w, item.h, bg, border)
+        uiThinRoundRect(g, 0, 0, item.w, item.h, bg, border, opacity)
     else
-        uiRoundRect(g, 0, 0, item.w, item.h, bg, border)
+        uiRoundRect(g, 0, 0, item.w, item.h, bg, border, opacity)
     end if
     if mode = "blank" then return g
 
@@ -344,7 +347,7 @@ end function
 function uiTopBar(parent as Object, colors as Object) as Object
     uiRect(parent, 0, 0, 1280, 86, colors.bg, 0.52)
     uiRect(parent, 0, 85, 1280, 1, "0xFFFFFF14", 0.48)
-    uiPoster(parent, "pkg:/images/logo_full_dark_modified.png", 28, 10, 205, 64)
+    uiPoster(parent, "pkg:/images/logo_full_dark_modified.png", 26, 13, 206, 64)
     clock = uiLabel(parent, "--:--", 1115, 12, 130, 32, 25, colors.text, "right")
     date = uiLabel(parent, "---", 994, 48, 251, 24, 13, colors.textMuted, "right")
     return { clock: clock, date: date }
@@ -362,14 +365,16 @@ function uiSideNav(parent as Object, colors as Object, activeKey as String, focu
             x: 14, y: y, w: 206, h: 50,
             icon: nav.icon, label: nav.label, subtitle: "",
             iconSize: 13, titleSize: 15, subSize: 10,
-            bg: colors.bg, border: colors.bg, textColor: colors.textGreen, subColor: colors.textDim,
+            bg: colors.bg, border: colors.whiteLine, textColor: colors.textPurple, subColor: colors.textDim,
             focusBg: colors.greenSoft, focusBorder: colors.greenFocus, focusTextColor: colors.text,
+            opacity: 0.42, focusOpacity: 0.66,
             row: row, col: 0, page: nav.page, mode: "row", noFocusShift: true
         }
         if nav.active then
             item.bg = colors.purpleSoft
             item.border = colors.greenFocus
             item.textColor = colors.text
+            item.opacity = 0.58
         end if
         item.node = uiButton(parent, item, false)
         focusItems.push(item)

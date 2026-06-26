@@ -2,7 +2,7 @@ sub init()
     m.colors = appColors()
     m.canvas = m.top.findNode("seriesCanvas")
     m.focusItems = []
-    m.focusIndex = 7
+    m.focusIndex = 2
     m.selectedGenre = "All"
     m.searchQuery = ""
     m.searchEditing = false
@@ -136,10 +136,9 @@ function drawSeriesSideNav() as Integer
     uiRect(m.canvas, 0, 86, 226, 634, m.colors.panel, 0.24)
     uiRect(m.canvas, 225, 86, 1, 634, "0xFFFFFF14", 0.26)
 
-    seriesActive = (m.focusIndex = 2) or (m.focusIndex > 5)
     addSeriesNavItem(12, 112, "list", "My Playlists", "MyPlaylistsPage", 0, false)
     addSeriesNavItem(12, 168, "tv", "Live TV", "LiveTvPage", 1, false)
-    addSeriesNavItem(12, 224, "series", "Series", "SeriesPage", 2, seriesActive)
+    addSeriesNavItem(12, 224, "series", "Series", "SeriesPage", 2, true)
     addSeriesNavItem(12, 280, "movies", "Movies", "MoviesPage", 3, false)
     addSeriesNavItem(12, 336, "heart", "Favorites", "FavoritesPage", 4, false)
     addSeriesNavItem(12, 392, "settings", "Settings", "SettingsPage", 5, false)
@@ -158,9 +157,9 @@ sub addSeriesNavItem(x as Integer, y as Integer, icon as String, label as String
     itemIndex = m.focusItems.count()
     focused = itemIndex = m.focusIndex
     fill = m.colors.bg
-    border = m.colors.bg
-    opacity = 0.24
-    textColor = m.colors.textGreen
+    border = m.colors.whiteLine
+    opacity = 0.42
+    textColor = m.colors.textPurple
     if active then
         fill = m.colors.purpleSoft
         border = m.colors.greenFocus
@@ -181,14 +180,16 @@ sub addSeriesNavItem(x as Integer, y as Integer, icon as String, label as String
         x: x, y: y, w: 204, h: 52,
         icon: icon, label: label, subtitle: "",
         iconSize: 12, titleSize: 12, subSize: 10,
-        bg: m.colors.bg, border: m.colors.bg, textColor: m.colors.textGreen, subColor: m.colors.textDim,
+        bg: m.colors.bg, border: m.colors.whiteLine, textColor: m.colors.textPurple, subColor: m.colors.textDim,
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        opacity: 0.42, focusOpacity: 0.66,
         row: row, col: 0, page: page, mode: "manual", noFocusShift: true
     }
     if active then
         item.bg = m.colors.purpleSoft
         item.border = m.colors.greenFocus
         item.textColor = m.colors.text
+        item.opacity = 0.58
     end if
     m.focusItems.push(item)
 end sub
@@ -197,13 +198,14 @@ sub addSeriesProfileItem()
     itemIndex = m.focusItems.count()
     focused = itemIndex = m.focusIndex
     fill = m.colors.bg
-    border = m.colors.bg
-    opacity = 0.26
-    textColor = m.colors.text
+    border = m.colors.whiteLine
+    opacity = 0.42
+    textColor = m.colors.textPurple
     if focused then
         fill = m.colors.greenSoft
         border = m.colors.greenFocus
-        opacity = 0.58
+        opacity = 0.66
+        textColor = m.colors.text
     end if
     uiRoundRect(m.canvas, 12, 640, 204, 52, fill, border, opacity)
     uiDrawIcon(m.canvas, "profile", 30, 652, 24, 24, focused, textColor, 14)
@@ -213,8 +215,9 @@ sub addSeriesProfileItem()
         x: 12, y: 640, w: 204, h: 52,
         icon: "profile", label: "My Profile", subtitle: "",
         iconSize: 14, iconW: 32, iconH: 32, iconX: 18, titleSize: 11, subSize: 7,
-        bg: "0xFFFFFF10", border: m.colors.panel, textColor: m.colors.text, subColor: m.colors.textDim,
+        bg: m.colors.bg, border: m.colors.whiteLine, textColor: m.colors.textPurple, subColor: m.colors.textDim,
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        opacity: 0.42, focusOpacity: 0.66,
         row: 6, col: 0, page: "ProfilePage", mode: "manual", noFocusShift: true
     }
     m.focusItems.push(item)

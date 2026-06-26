@@ -2,7 +2,7 @@ sub init()
     m.colors = appColors()
     m.canvas = m.top.findNode("profileCanvas")
     m.focusItems = []
-    m.focusIndex = 7
+    m.focusIndex = 0
     m.settings = settingsStoreLoad()
     m.signOutDialog = invalid
     render()
@@ -54,8 +54,7 @@ sub render()
     m.clock = clockParts.clock
     m.date = clockParts.date
     refreshClock()
-    row = drawProfileSideNav()
-    drawProfileHeader(row)
+    drawProfileHeader()
     drawProfileSummary()
     drawProfileActions()
 end sub
@@ -78,14 +77,16 @@ sub addProfileNavItem(x as Integer, y as Integer, icon as String, label as Strin
         x: x, y: y, w: 204, h: 52,
         icon: icon, label: label, subtitle: "",
         iconSize: 12, titleSize: 12, subSize: 10,
-        bg: m.colors.bg, border: m.colors.bg, textColor: m.colors.textGreen, subColor: m.colors.textDim,
+        bg: m.colors.bg, border: m.colors.whiteLine, textColor: m.colors.textPurple, subColor: m.colors.textDim,
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        opacity: 0.42, focusOpacity: 0.66,
         row: row, col: 0, page: page, mode: "row", noFocusShift: true
     }
     if active then
         item.bg = m.colors.purpleSoft
         item.border = m.colors.greenFocus
         item.textColor = m.colors.text
+        item.opacity = 0.58
     end if
     m.focusItems.push(item)
 end sub
@@ -97,84 +98,62 @@ sub addProfileProfileItem()
         iconSize: 14, iconW: 32, iconH: 32, iconX: 18, titleSize: 11, subSize: 7,
         bg: m.colors.purpleSoft, border: m.colors.greenFocus, textColor: m.colors.text, subColor: m.colors.textDim,
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        opacity: 0.58, focusOpacity: 0.66,
         row: 5, col: 0, page: "ProfilePage", mode: "row", noFocusShift: true
     }
     m.focusItems.push(item)
 end sub
 
-sub drawProfileHeader(row as Integer)
-    uiLabel(m.canvas, "My Profile", 270, 108, 360, 36, 26, m.colors.text)
-    uiLabel(m.canvas, "Account identity and subscription status", 270, 140, 520, 24, 13, m.colors.textDim)
-    addProfileBackButton(row)
-end sub
-
-sub addProfileBackButton(row as Integer)
-    index = m.focusItems.count()
-    focused = index = m.focusIndex
-    bg = "0xFFFFFF10"
-    border = m.colors.whiteLine
-    textColor = m.colors.textPurple
-    if focused then
-        bg = m.colors.purpleSoft
-        border = m.colors.greenFocus
-        textColor = m.colors.text
-    end if
-    uiRoundRect(m.canvas, 1030, 118, 150, 40, bg, border)
-    uiDrawIcon(m.canvas, "back", 1060, 128, 18, 18, focused, textColor, 12)
-    uiLabel(m.canvas, "Back", 1090, 121, 64, 30, 15, textColor)
-    m.focusItems.push({ x: 1030, y: 118, w: 150, h: 40, icon: "back", label: "Back", subtitle: "", iconSize: 12, titleSize: 15, subSize: 10, bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: 4, page: "HomePage", action: "", mode: "manual", noFocusShift: true })
+sub drawProfileHeader()
+    uiLabel(m.canvas, "My Profile", 280, 100, 520, 64, 42, m.colors.text)
 end sub
 
 sub drawProfileSummary()
-    x = 270
-    y = 198
-    uiRect(m.canvas, x, y, 840, 168, m.colors.panel, 0.94)
-    uiRectBorder(m.canvas, x, y, 840, 168, m.colors.whiteLine, 1, 0.58)
-    uiRect(m.canvas, x + 34, y + 42, 82, 82, m.colors.purple)
-    uiRectBorder(m.canvas, x + 34, y + 42, 82, 82, m.colors.purpleLine, 2)
+    x = 280
+    y = 184
+    w = 720
+    uiRoundRect(m.canvas, x, y, w, 168, m.colors.panel, m.colors.whiteLine, 0.94)
+    uiRoundRect(m.canvas, x + 34, y + 42, 82, 82, m.colors.purple, m.colors.purpleLine)
     initials = profileInitials(settingsStoreText(m.settings, "userName", "John Doe"))
     uiLabel(m.canvas, initials, x + 34, y + 49, 82, 58, 26, m.colors.text, "center")
     uiLabel(m.canvas, settingsStoreText(m.settings, "userName", "John Doe"), x + 146, y + 44, 360, 34, 23, m.colors.text)
     uiLabel(m.canvas, settingsStoreText(m.settings, "userEmail", "john.doe@email.com"), x + 146, y + 82, 380, 28, 15, m.colors.purpleLine)
-    uiRect(m.canvas, x + 670, y + 66, 104, 26, m.colors.greenSoft)
-    uiRectBorder(m.canvas, x + 670, y + 66, 104, 26, m.colors.green, 1)
-    uiLabel(m.canvas, settingsStoreText(m.settings, "subscription", "Premium"), x + 674, y + 63, 96, 26, 13, m.colors.textGreen, "center")
+    badge = profileStatusLabel()
+    badgeW = profileBadgeWidth(badge)
+    badgeX = x + w - badgeW - 58
+    uiRoundRect(m.canvas, badgeX, y + 64, badgeW, 34, m.colors.greenSoft, m.colors.greenFocus)
+    uiScaledLabel(m.canvas, badge, badgeX + 8, y + 71, badgeW - 16, 18, 9, m.colors.textGreen, "center", profileBadgeScale(badge))
     status = "Signed in"
     if not settingsStoreBool(m.settings, "signedIn", true) then status = "Signed out locally"
     uiLabel(m.canvas, status, x + 146, y + 116, 360, 24, 13, m.colors.textDim)
 end sub
 
 sub drawProfileActions()
-    x = 270
-    y = 400
-    uiRect(m.canvas, x, y, 840, 168, m.colors.panel, 0.94)
-    uiRectBorder(m.canvas, x, y, 840, 168, m.colors.whiteLine, 1, 0.58)
-    uiLabel(m.canvas, "PROFILE ACTIONS", x + 32, y + 18, 260, 24, 14, m.colors.textDim)
-    drawProfileAction(x + 32, y + 54, "info", "Manage subscription", "Open billing provider portal when connected", "manage", "", 3)
-    drawProfileAction(x + 32, y + 92, "settings", "App settings", "Playback and account preferences", "settings", "", 4)
-    drawProfileAction(x + 32, y + 130, "out", "Sign out", "Clear local account session", "signout", "", 5)
+    x = 280
+    y = 394
+    w = 720
+    uiRoundRect(m.canvas, x, y, w, 218, m.colors.panel, m.colors.whiteLine, 0.94)
+    uiLabel(m.canvas, "PROFILE ACTIONS", x + 32, y + 22, 260, 24, 14, m.colors.textDim)
+    drawProfileAction(x + 34, y + 66, 520, "Manage Subscription", "manage", "", 0)
+    drawProfileAction(x + 34, y + 116, 520, "App Settings", "settings", "", 1)
+    drawProfileAction(x + 34, y + 166, 520, "Sign Out", "signout", "", 2)
 end sub
 
-sub drawProfileAction(x as Integer, y as Integer, icon as String, label as String, value as String, action as String, page as String, row as Integer)
+sub drawProfileAction(x as Integer, y as Integer, w as Integer, label as String, action as String, page as String, row as Integer)
     index = m.focusItems.count()
     focused = index = m.focusIndex
-    bg = m.colors.panel
-    border = m.colors.panel
+    bg = m.colors.bg2
+    border = m.colors.bg2
     textColor = m.colors.textPurple
-    valueColor = m.colors.textDim
     if action = "signout" then textColor = "0xFFB2A8FF"
     if focused then
         bg = m.colors.purpleSoft
         border = m.colors.greenFocus
         textColor = m.colors.text
-        valueColor = m.colors.textPurple
     end if
-    uiRect(m.canvas, x, y - 2, 784, 36, bg, 0.88)
-    if focused then uiRectBorder(m.canvas, x, y - 2, 784, 36, border, 2)
-    uiDrawIcon(m.canvas, icon, x + 18, y + 7, 18, 18, focused, textColor, 12)
-    uiLabel(m.canvas, label, x + 54, y - 1, 246, 28, 14, textColor)
-    uiLabel(m.canvas, value, x + 350, y - 1, 408, 28, 11, valueColor, "right")
-    m.focusItems.push({ x: x, y: y - 2, w: 784, h: 36, icon: icon, label: label, subtitle: value, iconSize: 12, titleSize: 14, subSize: 11, bg: bg, border: border, textColor: textColor, subColor: valueColor, focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: 3, page: page, action: action, mode: "manual", noFocusShift: true })
+    uiRoundRect(m.canvas, x, y, w, 42, bg, border, 0.92)
+    uiLabel(m.canvas, label, x + 22, y + 5, w - 44, 30, 14, textColor)
+    m.focusItems.push({ x: x, y: y, w: w, h: 42, icon: "", label: label, subtitle: "", iconSize: 1, titleSize: 14, subSize: 10, bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: 0, page: page, action: action, mode: "manual", noFocusShift: true })
 end sub
 
 sub openProfileDialog()
@@ -208,4 +187,46 @@ function profileInitials(name as String) as String
     parts = name.Tokenize(" ")
     if parts.count() = 1 then return UCase(Left(parts[0], 2))
     return UCase(Left(parts[0], 1) + Left(parts[1], 1))
+end function
+
+function profileSubscriptionLabel(value as String) as String
+    if value = invalid or value = "" then return "Demo"
+    lower = LCase(value)
+    if Instr(1, lower, "trial") > 0 then return "Trial"
+    if Instr(1, lower, "demo") > 0 then return "Demo"
+    return value
+end function
+
+function profileStatusLabel() as String
+    activePlaylist = playlistStoreActive()
+    playlistId = playlistStoreText(activePlaylist, "id")
+    playlistType = playlistStoreText(activePlaylist, "type")
+    profile = playlistStoreText(activePlaylist, "contentProfile")
+    status = playlistStoreText(activePlaylist, "status")
+    title = playlistStoreText(activePlaylist, "title")
+    combined = LCase(playlistId + " " + playlistType + " " + profile + " " + title)
+    if playlistStoreIsDemoId(playlistId) then return "Demo"
+    if Instr(1, combined, "demo") > 0 then return "Demo"
+    if Instr(1, LCase(status), "trial") > 0 then return "Trial"
+    subscription = profileSubscriptionLabel(settingsStoreText(m.settings, "subscription", ""))
+    if LCase(subscription) = "premium" then return "Premium"
+    if subscription <> "" then return subscription
+    if status <> "" then return status
+    if playlistType <> "" then return playlistType
+    return "Demo"
+end function
+
+function profileBadgeWidth(label as String) as Integer
+    length = label.len()
+    if length <= 4 then return 70
+    if length <= 5 then return 76
+    if length <= 7 then return 100
+    if length <= 12 then return 150
+    return 190
+end function
+
+function profileBadgeScale(label as String) as Float
+    if label.len() > 12 then return 0.72
+    if label.len() > 7 then return 0.82
+    return 0.92
 end function
