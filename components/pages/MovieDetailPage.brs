@@ -35,7 +35,7 @@ sub activate()
     action = detailText(item, "action")
     if action = "back" then goBack() : return
     if action = "watch" then playDetail() : return
-    if action = "favorite" then render() : return
+    if action = "favorite" then toggleFavorite() : return
 end sub
 
 sub goBack()
@@ -113,29 +113,83 @@ sub drawHeroCopy()
 end sub
 
 sub drawActions()
-    drawActionButton(72, 394, 146, "play", "Play Now", "watch", 2, 0)
-    drawActionButton(234, 394, 146, "heart", "Favorite", "favorite", 2, 1)
+    drawActionButton(72, 338, 176, "play", "Play Now", "watch", 2, 0)
+    drawActionButton(264, 338, 176, "heart", favoriteActionLabel(), "favorite", 2, 1)
 end sub
 
 sub drawActionButton(x as Integer, y as Integer, w as Integer, icon as String, label as String, action as String, row as Integer, col as Integer)
     idx = m.focusItems.count()
     focused = idx = m.focusIndex
-    h = 48
+    h = 40
     addFocusAction(x, y, w, h, action, row, col)
     textColor = "0xE9F1FAFF"
-    fill = m.colors.panel
-    border = m.colors.whiteLine
-    opacity = 0.48
+    opacity = 0.70
     if focused then
         textColor = "0xFFFFFFFF"
-        fill = m.colors.greenSoft
-        border = m.colors.greenFocus
-        opacity = 0.88
+        opacity = 0.90
     end if
-    uiRoundRect(m.canvas, x, y, w, h, fill, border, opacity)
-    uiRoundRect(m.canvas, x + 12, y + 9, 30, 30, "0xFFFFFF10", "0xFFFFFF10", 0.70)
-    uiDrawIcon(m.canvas, icon, x + 19, y + 16, 16, 16, focused, textColor, 11)
-    uiScaledLabel(m.canvas, label, x + 52, y + 11, w - 66, 24, 12, textColor, "left", 0.90)
+    drawActionButtonSurface(x, y, w, h, focused, opacity)
+    drawActionIcon(icon, focused, x + 22, y + 10, 20, 20, textColor)
+    uiScaledLabel(m.canvas, label, x + 56, y + 6, w - 72, 24, 12, textColor, "left", 0.96)
+end sub
+
+sub toggleFavorite()
+    favoriteStoreToggle("movie", movieDetailFavoriteItem(), detailPlaylistId())
+    render()
+end sub
+
+function movieDetailFavoriteItem() as Object
+    return {
+        id: m.top.detailId,
+        playlistId: detailPlaylistId(),
+        title: detailTitle(),
+        year: movieDetailYear(),
+        duration: movieDetailDuration(),
+        genre: detailMeta(),
+        posterUrl: m.top.detailPosterUrl,
+        cardUrl: m.top.detailPosterUrl,
+        heroUrl: m.top.detailHeroUrl,
+        backdropUrl: m.top.detailBackdropUrl,
+        streamUrl: m.top.detailPlaybackUrl,
+        streamFormat: detailPlaybackFormat(),
+        description: detailDescription()
+    }
+end function
+
+function favoriteActionLabel() as String
+    if favoriteStoreIsFavorite("movie", movieDetailFavoriteItem(), detailPlaylistId()) then return "Favorited"
+    return "Favorite"
+end function
+
+function detailPlaylistId() as String
+    playlistId = m.top.detailPlaylistId
+    if playlistId = invalid or playlistId = "" then return playlistStoreActiveId()
+    return playlistId
+end function
+
+function movieDetailYear() as String
+    parts = detailSubtitle().Tokenize(" - ")
+    if parts.count() > 0 then return parts[0]
+    return ""
+end function
+
+function movieDetailDuration() as String
+    parts = detailSubtitle().Tokenize(" - ")
+    if parts.count() > 1 then return parts[1]
+    return ""
+end function
+
+sub drawActionButtonSurface(x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean, opacity as Float)
+    uri = "pkg:/images/ui/movie_watch_" + w.toStr() + "x40_panel_greenFocus.png"
+    if focused then uri = "pkg:/images/ui/movie_watch_" + w.toStr() + "x40_greenSoft_greenFocus.png"
+    uiPoster(m.canvas, uri, x, y, w, h, opacity)
+end sub
+
+sub drawActionIcon(icon as String, focused as Boolean, x as Integer, y as Integer, w as Integer, h as Integer, tint as String)
+    uri = "pkg:/images/ui/detail_action_" + icon + ".png"
+    if focused then uri = "pkg:/images/ui/detail_action_" + icon + "_focus.png"
+    poster = uiPoster(m.canvas, uri, x, y, w, h, 0.96)
+    poster.blendColor = tint
 end sub
 
 sub drawMovieFallbackArt(x as Integer, y as Integer, w as Integer, h as Integer)
@@ -180,6 +234,8 @@ function detailMeta() as String
 end function
 
 function detailDescription() as String
+    text = m.top.detailDescription
+    if text <> invalid and text <> "" then return text
     return "A premium title from the active playlist, ready with artwork and playback metadata for a polished IPTV Max viewing experience."
 end function
 

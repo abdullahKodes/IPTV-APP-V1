@@ -63,6 +63,8 @@ sub openMovieDetail(movie as Object)
     m.top.detailBackdropUrl = movieBackdropUrl(movie)
     m.top.detailPlaybackUrl = mediaPlaybackUrl(movie)
     m.top.detailPlaybackFormat = mediaPlaybackFormat(movie)
+    m.top.detailPlaylistId = m.activePlaylistId
+    m.top.detailMediaType = "movie"
     m.top.detailReturnPage = "MoviesPage"
     m.top.navigateTo = "MovieDetailPage"
 end sub
@@ -134,7 +136,8 @@ function drawMoviesSideNav() as Integer
     addMoviesNavItem(12, 168, "tv", "Live TV", "LiveTvPage", 1, false)
     addMoviesNavItem(12, 224, "series", "Series", "SeriesPage", 2, false)
     addMoviesNavItem(12, 280, "movies", "Movies", "MoviesPage", 3, moviesActive)
-    addMoviesNavItem(12, 336, "settings", "Settings", "SettingsPage", 4, false)
+    addMoviesNavItem(12, 336, "heart", "Favorites", "FavoritesPage", 4, false)
+    addMoviesNavItem(12, 392, "settings", "Settings", "SettingsPage", 5, false)
 
     addMoviesProfileItem()
     return 6
@@ -153,10 +156,16 @@ sub addMoviesNavItem(x as Integer, y as Integer, icon as String, label as String
     border = m.colors.bg
     opacity = 0.24
     textColor = m.colors.textGreen
-    if active or focused then
+    if active then
         fill = m.colors.purpleSoft
         border = m.colors.greenFocus
         opacity = 0.58
+        textColor = m.colors.text
+    end if
+    if focused then
+        fill = m.colors.greenSoft
+        border = m.colors.greenFocus
+        opacity = 0.66
         textColor = m.colors.text
     end if
     uiRoundRect(m.canvas, x, y, 204, 52, fill, border, opacity)
@@ -168,7 +177,7 @@ sub addMoviesNavItem(x as Integer, y as Integer, icon as String, label as String
         icon: icon, label: label, subtitle: "",
         iconSize: 12, titleSize: 12, subSize: 10,
         bg: m.colors.bg, border: m.colors.bg, textColor: m.colors.textGreen, subColor: m.colors.textDim,
-        focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         row: row, col: 0, page: page, mode: "manual", noFocusShift: true
     }
     if active then
@@ -187,7 +196,7 @@ sub addMoviesProfileItem()
     opacity = 0.26
     textColor = m.colors.text
     if focused then
-        fill = m.colors.purpleSoft
+        fill = m.colors.greenSoft
         border = m.colors.greenFocus
         opacity = 0.58
     end if
@@ -200,8 +209,8 @@ sub addMoviesProfileItem()
         icon: "profile", label: "My Profile", subtitle: "",
         iconSize: 14, iconW: 32, iconH: 32, iconX: 18, titleSize: 11, subSize: 7,
         bg: "0xFFFFFF10", border: m.colors.panel, textColor: m.colors.text, subColor: m.colors.textDim,
-        focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
-        row: 5, col: 0, page: "ProfilePage", mode: "manual", noFocusShift: true
+        focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        row: 6, col: 0, page: "ProfilePage", mode: "manual", noFocusShift: true
     }
     m.focusItems.push(item)
 end sub
@@ -232,7 +241,7 @@ sub drawSearchBox()
         icon: "search", label: label, subtitle: "",
         iconSize: 11, titleSize: 13, subSize: 10,
         bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim,
-        focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         row: 0, col: 1, page: "", action: "search", mode: "manual"
     })
 end sub

@@ -14,5 +14,6 @@
   <script type="text/brightscript" uri="pkg:/components/shared/AppUi.brs" />
   <script type="text/brightscript" uri="pkg:/components/shared/PlaylistStore.brs" />
   <script type="text/brightscript" uri="pkg:/components/shared/MediaData.brs" />
+  <script type="text/brightscript" uri="pkg:/components/shared/FavoriteStore.brs" />
   <script type="text/brightscript" uri="pkg:/components/pages/LiveTvPage.brs" />
 </component>

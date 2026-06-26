@@ -46,6 +46,10 @@ sub showPage(componentName as String)
         m.currentPage.detailBackdropUrl = m.pendingDetail.backdropUrl
         m.currentPage.detailPlaybackUrl = m.pendingDetail.playbackUrl
         m.currentPage.detailPlaybackFormat = m.pendingDetail.playbackFormat
+        if m.currentPage.hasField("detailPlaylistId") then m.currentPage.detailPlaylistId = m.pendingDetail.playlistId
+        if m.currentPage.hasField("detailMediaType") then m.currentPage.detailMediaType = m.pendingDetail.mediaType
+        if m.currentPage.hasField("detailEpisodeNames") then m.currentPage.detailEpisodeNames = m.pendingDetail.episodeNames
+        if m.currentPage.hasField("detailActiveEpisodeTitle") then m.currentPage.detailActiveEpisodeTitle = m.pendingDetail.activeEpisodeTitle
         m.currentPage.detailReturnPage = m.pendingDetail.returnPage
         m.currentPage.callFunc("syncDetail")
     end if
@@ -77,6 +81,10 @@ sub onPageNavigation()
                 backdropUrl: m.currentPage.detailBackdropUrl,
                 playbackUrl: m.currentPage.detailPlaybackUrl,
                 playbackFormat: m.currentPage.detailPlaybackFormat,
+                playlistId: detailPendingText(m.currentPage, "detailPlaylistId"),
+                mediaType: detailPendingText(m.currentPage, "detailMediaType"),
+                episodeNames: detailPendingText(m.currentPage, "detailEpisodeNames"),
+                activeEpisodeTitle: detailPendingText(m.currentPage, "detailActiveEpisodeTitle"),
                 returnPage: m.currentPage.detailReturnPage
             }
         end if
@@ -100,4 +108,13 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
     end if
 
     return false
+end function
+
+function detailPendingText(page as Object, fieldName as String) as String
+    if page = invalid then return ""
+    if fieldName = "detailPlaylistId" and page.hasField(fieldName) then return page.detailPlaylistId
+    if fieldName = "detailMediaType" and page.hasField(fieldName) then return page.detailMediaType
+    if fieldName = "detailEpisodeNames" and page.hasField(fieldName) then return page.detailEpisodeNames
+    if fieldName = "detailActiveEpisodeTitle" and page.hasField(fieldName) then return page.detailActiveEpisodeTitle
+    return ""
 end function

@@ -42,62 +42,91 @@ sub activate()
     action = detailText(item, "action")
     if action = "back" then goBack() : return
     if action = "resume" or action = "episode" then playDetail() : return
-    if action = "favorite" then render() : return
-    if action = "season" then syncDetailFocus() : render() : return
+    if action = "favorite" then toggleFavorite() : return
+    if action = "season" then
+        if item.doesExist("seasonIndex") then m.seasonIndex = item.seasonIndex
+        selectSeasonEpisodes()
+        render()
+        return
+    end if
 end sub
 
 sub syncDetailFocus()
     if m.focusIndex < 0 or m.focusIndex >= m.focusItems.count() then return
     item = m.focusItems[m.focusIndex]
-    if item.doesExist("seasonIndex") then m.seasonIndex = item.seasonIndex
     if item.doesExist("episodeIndex") then m.episodeIndex = item.episodeIndex
+end sub
+
+sub selectSeasonEpisodes()
+    m.episodeIndex = 0
+    m.episodeWindowStart = 0
+    m.focusIndex = episodeFocusIndexForColumn(0)
 end sub
 
 function routeSeriesDetailFocus(dx as Integer, dy as Integer) as Boolean
     if m.focusIndex < 0 or m.focusIndex >= m.focusItems.count() then return false
     item = m.focusItems[m.focusIndex]
-    if item.doesExist("seasonIndex") then m.seasonIndex = item.seasonIndex
     if item.doesExist("episodeIndex") then m.episodeIndex = item.episodeIndex
     action = detailText(item, "action")
 
     if dy < 0 then
         if action = "resume" or action = "favorite" then m.focusIndex = 0 : return true
         if action = "season" then
-            m.focusIndex = 1
-            if item.col > 0 then m.focusIndex = 2
+            if item.doesExist("seasonIndex") and item.seasonIndex >= 4 then
+                m.focusIndex = seasonFocusIndexForColumn(item.seasonIndex - 4)
+            else
+                m.focusIndex = 1
+                if item.col > 0 then m.focusIndex = 2
+            end if
             return true
         end if
-        if action = "episode" then m.focusIndex = seasonFocusIndexForColumn(m.seasonIndex) : return true
+        if action = "episode" then
+            if m.episodeIndex > 0 then
+                m.episodeIndex = m.episodeIndex - 1
+                ensureEpisodeWindow()
+                m.focusIndex = episodeFocusIndexForColumn(m.episodeIndex - m.episodeWindowStart)
+            else
+                m.focusIndex = seasonFocusIndexForColumn(m.seasonIndex)
+            end if
+            return true
+        end if
     else if dy > 0 then
         if action = "back" then m.focusIndex = 1 : return true
         if action = "resume" or action = "favorite" then m.focusIndex = seasonFocusIndexForColumn(item.col) : return true
         if action = "season" then
-            m.episodeIndex = 0
-            m.episodeWindowStart = 0
-            m.focusIndex = episodeFocusIndexForColumn(0)
+            focusedSeason = m.seasonIndex
+            if item.doesExist("seasonIndex") then focusedSeason = item.seasonIndex
+            if focusedSeason + 4 < visibleSeasonCount() then
+                m.focusIndex = seasonFocusIndexForColumn(focusedSeason + 4)
+            else
+                m.seasonIndex = focusedSeason
+                selectSeasonEpisodes()
+            end if
+            return true
+        end if
+        if action = "episode" then
+            newEpisode = m.episodeIndex + 1
+            if newEpisode < selectedSeasonEpisodeCount() then
+                m.episodeIndex = newEpisode
+                ensureEpisodeWindow()
+                m.focusIndex = episodeFocusIndexForColumn(m.episodeIndex - m.episodeWindowStart)
+            end if
             return true
         end if
     else if dx <> 0 then
         if action = "resume" then if dx > 0 then m.focusIndex = 2 : return true
         if action = "favorite" then if dx < 0 then m.focusIndex = 1 : return true
         if action = "season" then
-            newSeason = m.seasonIndex + dx
+            focusedSeason = m.seasonIndex
+            if item.doesExist("seasonIndex") then focusedSeason = item.seasonIndex
+            newSeason = focusedSeason + dx
             if newSeason >= 0 and newSeason < visibleSeasonCount() then
-                m.seasonIndex = newSeason
-                m.episodeIndex = 0
-                m.episodeWindowStart = 0
                 m.focusIndex = seasonFocusIndexForColumn(newSeason)
                 return true
             end if
         end if
         if action = "episode" then
-            newEpisode = m.episodeIndex + dx
-            if newEpisode >= 0 and newEpisode < selectedSeasonEpisodeCount() then
-                m.episodeIndex = newEpisode
-                ensureEpisodeWindow()
-                m.focusIndex = episodeFocusIndexForColumn(m.episodeIndex - m.episodeWindowStart)
-                return true
-            end if
+            if dx < 0 then m.focusIndex = seasonFocusIndexForColumn(m.seasonIndex) : return true
         end if
     end if
 
@@ -136,7 +165,7 @@ end sub
 sub ensureEpisodeWindow()
     if m.episodeWindowStart = invalid then m.episodeWindowStart = 0
     if m.episodeIndex < m.episodeWindowStart then m.episodeWindowStart = m.episodeIndex
-    if m.episodeIndex > m.episodeWindowStart + 3 then m.episodeWindowStart = m.episodeIndex - 3
+    if m.episodeIndex > m.episodeWindowStart + 4 then m.episodeWindowStart = m.episodeIndex - 4
     maxStart = selectedSeasonEpisodeCount() - visibleEpisodeCount()
     if maxStart < 0 then maxStart = 0
     if m.episodeWindowStart > maxStart then m.episodeWindowStart = maxStart
@@ -221,49 +250,86 @@ sub drawHeroCopy()
 end sub
 
 sub drawActions()
-    drawActionButton(72, 394, 146, "play", seriesPrimaryActionLabel(), "resume", 2, 0)
-    drawActionButton(234, 394, 146, "heart", "Favorite", "favorite", 2, 1)
+    drawActionButton(72, 338, 176, "play", seriesPrimaryActionLabel(), "resume", 2, 0)
+    drawActionButton(264, 338, 176, "heart", favoriteActionLabel(), "favorite", 2, 1)
 end sub
 
 sub drawActionButton(x as Integer, y as Integer, w as Integer, icon as String, label as String, action as String, row as Integer, col as Integer)
     idx = m.focusItems.count()
     focused = idx = m.focusIndex
-    h = 48
+    h = 40
     addFocusAction(x, y, w, h, action, row, col)
     textColor = "0xE9F1FAFF"
-    fill = m.colors.panel
-    border = m.colors.whiteLine
-    opacity = 0.48
+    opacity = 0.70
     if focused then
         textColor = "0xFFFFFFFF"
-        fill = m.colors.greenSoft
-        border = m.colors.greenFocus
-        opacity = 0.88
+        opacity = 0.90
     end if
-    uiRoundRect(m.canvas, x, y, w, h, fill, border, opacity)
-    uiRoundRect(m.canvas, x + 12, y + 9, 30, 30, "0xFFFFFF10", "0xFFFFFF10", 0.70)
-    drawDetailIcon(icon, focused, x + 19, y + 16, 16, 16, textColor)
-    uiScaledLabel(m.canvas, label, x + 52, y + 11, w - 66, 24, 12, textColor, "left", 0.90)
+    drawActionButtonSurface(x, y, w, h, focused, opacity)
+    drawActionIcon(icon, focused, x + 22, y + 10, 20, 20, textColor)
+    uiScaledLabel(m.canvas, label, x + 56, y + 6, w - 72, 24, 12, textColor, "left", 0.96)
 end sub
+
+sub toggleFavorite()
+    favoriteStoreToggle("series", seriesDetailFavoriteItem(), detailPlaylistId())
+    render()
+end sub
+
+function seriesDetailFavoriteItem() as Object
+    return {
+        id: m.top.detailId,
+        playlistId: detailPlaylistId(),
+        title: detailTitle(),
+        seasons: detailSeasonLabel(),
+        episodeCount: detailEpisodeLabel(),
+        genre: detailGenreLabel(),
+        rating: detailRatingLabel(),
+        posterUrl: m.top.detailPosterUrl,
+        cardUrl: m.top.detailPosterUrl,
+        heroUrl: m.top.detailHeroUrl,
+        backdropUrl: m.top.detailBackdropUrl,
+        streamUrl: m.top.detailPlaybackUrl,
+        streamFormat: detailPlaybackFormat(),
+        episodeNames: m.top.detailEpisodeNames,
+        activeEpisodeTitle: m.top.detailActiveEpisodeTitle,
+        description: detailDescription()
+    }
+end function
+
+function favoriteActionLabel() as String
+    if favoriteStoreIsFavorite("series", seriesDetailFavoriteItem(), detailPlaylistId()) then return "Favorited"
+    return "Favorite"
+end function
+
+function detailPlaylistId() as String
+    playlistId = m.top.detailPlaylistId
+    if playlistId = invalid or playlistId = "" then return playlistStoreActiveId()
+    return playlistId
+end function
 
 sub drawSeasonTabs()
     seasonCount = detailSeasonCount()
     visibleCount = visibleSeasonCount()
-    uiLabel(m.canvas, "SEASONS", 72, 472, 190, 22, 10, m.colors.textDim)
+    uiLabel(m.canvas, "SEASONS", 72, 410, 190, 22, 10, m.colors.text)
     for i = 0 to visibleCount - 1
-        x = 72 + i * 116
+        col = i mod 4
+        row = Int(i / 4)
+        x = 72 + col * 148
+        y = 456 + row * 46
         label = "Season " + (i + 1).toStr()
-        if seasonCount > 4 and i = 3 then label = "Season 4+"
+        if i = 7 and seasonCount > 8 then label = "Season 8+"
         itemIndex = m.focusItems.count()
-        addFocusAction(x, 506, 112, 36, "season", 3, i)
+        addFocusAction(x, y, 140, 40, "season", 3 + row, i)
         m.focusItems[itemIndex].seasonIndex = i
         focused = itemIndex = m.focusIndex
         textColor = m.colors.textDim
         fill = m.colors.panel
         border = m.colors.whiteLine
-        opacity = 0.48
+        opacity = 0.58
+        selected = i = m.seasonIndex
         if i = m.seasonIndex then
             textColor = m.colors.text
+            fill = m.colors.purpleSoft
             border = m.colors.greenFocus
             opacity = 0.68
         end if
@@ -271,21 +337,22 @@ sub drawSeasonTabs()
             textColor = m.colors.text
             fill = m.colors.greenSoft
             border = m.colors.greenFocus
-            opacity = 0.88
+            opacity = 0.84
         end if
-        uiRoundRect(m.canvas, x, 506, 112, 36, fill, border, opacity)
-        uiLabel(m.canvas, label, x + 8, 511, 96, 24, 10, textColor, "center")
+        drawSeasonButtonSurface(x, y, focused, selected, opacity)
+        uiLabel(m.canvas, label, x + 8, y + 7, 124, 24, 11, textColor, "center")
     end for
 end sub
 
 sub drawEpisodes()
     normalizeEpisodeIndex()
     visibleCount = visibleEpisodeCount()
-    uiLabel(m.canvas, "EPISODES", 720, 284, 230, 24, 12, m.colors.textDim)
+    uiLabel(m.canvas, "EPISODES", 846, 232, 230, 24, 12, m.colors.text)
     for offset = 0 to visibleCount - 1
         episodeNumber = m.episodeWindowStart + offset
-        drawEpisodeCard(episodeNumber, episodeCardTitle(episodeNumber), 770, 314 + offset * 94, 392, 86, offset)
+        drawEpisodeCard(episodeNumber, episodeCardTitle(episodeNumber), 846, 262 + offset * 82, 300, 74, offset)
     end for
+    drawEpisodeScrollbar(1184, 262, 402)
 end sub
 
 sub drawEpisodeCard(index as Integer, title as String, x as Integer, y as Integer, w as Integer, h as Integer, visibleCol as Integer)
@@ -296,28 +363,60 @@ sub drawEpisodeCard(index as Integer, title as String, x as Integer, y as Intege
     titleColor = m.colors.text
     if focused then titleColor = m.colors.textGreen
     fill = m.colors.panel
-    border = m.colors.whiteLine
-    opacity = 0.50
+    border = m.colors.whiteSoft
+    opacity = 0.56
     if focused then
         fill = m.colors.greenSoft
         border = m.colors.greenFocus
-        opacity = 0.90
+        opacity = 0.92
     end if
-    uiRect(m.canvas, x, y, w, h, fill, opacity)
-    uiRectBorder(m.canvas, x, y, w, h, border, 2, 0.72)
-    drawEpisodeThumb(x + 12, y + 10, 72, 66)
-    uiRect(m.canvas, x + 12, y + 10, 72, 66, "0x000000FF", 0.18)
-    uiLabel(m.canvas, title, x + 108, y + 24, w - 128, 30, 15, titleColor)
+    drawEpisodeSurface(x, y, w, h, focused, opacity)
+    drawEpisodeThumb(x + 16, y + 10, 54, 54)
+    uiScaledLabel(m.canvas, title, x + 90, y + 12, w - 106, 30, 14, titleColor, "left", 1.06)
+    uiScaledLabel(m.canvas, "Season " + (m.seasonIndex + 1).toStr(), x + 90, y + 43, w - 106, 20, 10, m.colors.textMuted, "left", 0.88)
 end sub
 
 sub drawEpisodeThumb(x as Integer, y as Integer, w as Integer, h as Integer)
     thumbUrl = m.top.detailPosterUrl
     if thumbUrl <> invalid and thumbUrl <> "" then
-        thumb = uiPoster(m.canvas, thumbUrl, x, y, w, h, 0.88)
+        thumb = uiPoster(m.canvas, thumbUrl, x, y, w, h, 0.92)
         thumb.loadDisplayMode = "scaleToZoom"
     else
         uiRect(m.canvas, x, y, w, h, m.colors.panelSoft, 0.76)
     end if
+end sub
+
+sub drawActionButtonSurface(x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean, opacity as Float)
+    uri = "pkg:/images/ui/movie_watch_" + w.toStr() + "x40_panel_greenFocus.png"
+    if focused then uri = "pkg:/images/ui/movie_watch_" + w.toStr() + "x40_greenSoft_greenFocus.png"
+    uiPoster(m.canvas, uri, x, y, w, h, opacity)
+end sub
+
+sub drawSeasonButtonSurface(x as Integer, y as Integer, focused as Boolean, selected as Boolean, opacity as Float)
+    uri = "pkg:/images/ui/rr_140x40_bg_whiteLine.png"
+    if selected then uri = "pkg:/images/ui/rr_140x40_purpleSoft_greenFocus.png"
+    if focused then uri = "pkg:/images/ui/rr_140x40_greenSoft_greenFocus.png"
+    uiPoster(m.canvas, uri, x, y, 140, 40, opacity)
+end sub
+
+sub drawEpisodeSurface(x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean, opacity as Float)
+    uri = "pkg:/images/ui/rr_365x112_panel_whiteSoft.png"
+    if focused then uri = "pkg:/images/ui/rr_365x112_greenSoft_greenFocus.png"
+    uiPoster(m.canvas, uri, x, y, w, h, opacity)
+end sub
+
+sub drawEpisodeScrollbar(x as Integer, y as Integer, h as Integer)
+    total = selectedSeasonEpisodeCount()
+    visible = visibleEpisodeCount()
+    if total <= visible then return
+    uiVerticalPill(m.canvas, x, y, 3, h, "0xFFFFFF18", "pkg:/images/ui/scroll_cap_4_whiteLine.png", 0.12)
+    thumbH = Int(h * visible / total)
+    if thumbH < 36 then thumbH = 36
+    maxStart = total - visible
+    thumbTravel = h - thumbH
+    thumbY = y
+    if maxStart > 0 then thumbY = y + Int(thumbTravel * m.episodeWindowStart / maxStart)
+    uiVerticalPill(m.canvas, x - 1, thumbY, 6, thumbH, m.colors.greenFocus, "pkg:/images/ui/scroll_cap_6_greenFocus.png", 0.16)
 end sub
 
 sub drawSeriesFallbackArt(x as Integer, y as Integer, w as Integer, h as Integer)
@@ -348,6 +447,13 @@ sub drawDetailIcon(icon as String, focused as Boolean, x as Integer, y as Intege
     uri = "pkg:/images/icons/detail_" + icon + ".png"
     if focused then uri = "pkg:/images/icons/detail_" + icon + "_focus.png"
     poster = uiPoster(m.canvas, uri, x, y, w, h)
+    poster.blendColor = tint
+end sub
+
+sub drawActionIcon(icon as String, focused as Boolean, x as Integer, y as Integer, w as Integer, h as Integer, tint as String)
+    uri = "pkg:/images/ui/detail_action_" + icon + ".png"
+    if focused then uri = "pkg:/images/ui/detail_action_" + icon + "_focus.png"
+    poster = uiPoster(m.canvas, uri, x, y, w, h, 0.96)
     poster.blendColor = tint
 end sub
 
@@ -395,6 +501,23 @@ function detailGenreLabel() as String
     return meta
 end function
 
+function detailEpisodeLabel() as String
+    subtitle = detailSubtitle()
+    marker = Instr(1, subtitle, " - ")
+    if marker > 0 then return Mid(subtitle, marker + 3)
+    return ""
+end function
+
+function detailRatingLabel() as String
+    meta = detailMeta()
+    markers = [" - TV-", " - PG", " - R"]
+    for each marker in markers
+        markerPos = Instr(1, meta, marker)
+        if markerPos > 0 then return Mid(meta, markerPos + 3)
+    end for
+    return ""
+end function
+
 function detailDescription() as String
     text = m.top.detailDescription
     if text = invalid or text = "" then return "A premium IPTV Max series from the active playlist."
@@ -430,8 +553,39 @@ function seriesPrimaryActionLabel() as String
 end function
 
 function episodeCardTitle(index as Integer) as String
-    if m.seasonIndex = 0 and index = 0 and selectedSeasonEpisodeCount() > 1 then return "Continue"
-    return "Episode " + selectedSeasonEpisodeNumber(index).toStr()
+    explicitTitle = episodeTitleFromData(index)
+    if explicitTitle <> "" then return explicitTitle
+    return "Episode " + (index + 1).toStr()
+end function
+
+function episodeTitleFromData(localIndex as Integer) as String
+    names = m.top.detailEpisodeNames
+    if names <> invalid and names <> "" then
+        delimiter = "|"
+        if Instr(1, names, delimiter) = 0 then delimiter = ";"
+        if Instr(1, names, delimiter) = 0 then delimiter = ","
+        tokens = names.Tokenize(delimiter)
+        tokenIndex = localIndex
+        if tokens.count() >= detailEpisodeCount() then tokenIndex = selectedSeasonEpisodeOffset() + localIndex
+        if tokenIndex >= 0 and tokenIndex < tokens.count() then
+            candidate = trimLeftText(tokens[tokenIndex])
+            if candidate <> "" then return candidate
+        end if
+    end if
+
+    if localIndex = 0 then
+        activeTitle = m.top.detailActiveEpisodeTitle
+        if activeTitle <> invalid and activeTitle <> "" and not isEpisodeCodeLabel(activeTitle) then return activeTitle
+    end if
+
+    return ""
+end function
+
+function isEpisodeCodeLabel(text as String) as Boolean
+    normalized = LCase(text)
+    hasSeason = Instr(1, normalized, "s") > 0 or Instr(1, normalized, "season") > 0
+    hasEpisode = Instr(1, normalized, "e") > 0 or Instr(1, normalized, "episode") > 0
+    return hasSeason and hasEpisode and text.len() <= 14
 end function
 
 function detailSeasonCount() as Integer
@@ -444,14 +598,14 @@ end function
 
 function visibleSeasonCount() as Integer
     count = detailSeasonCount()
-    if count > 4 then return 4
+    if count > 8 then return 8
     if count < 1 then return 1
     return count
 end function
 
 function visibleEpisodeCount() as Integer
     count = selectedSeasonEpisodeCount()
-    if count > 4 then return 4
+    if count > 5 then return 5
     if count < 1 then return 1
     return count
 end function
@@ -471,6 +625,10 @@ function selectedSeasonEpisodeCount() as Integer
 end function
 
 function selectedSeasonEpisodeNumber(localIndex as Integer) as Integer
+    return localIndex + 1
+end function
+
+function selectedSeasonEpisodeOffset() as Integer
     seasons = detailSeasonCount()
     total = detailEpisodeCount()
     if seasons < 1 then seasons = 1
@@ -479,12 +637,12 @@ function selectedSeasonEpisodeNumber(localIndex as Integer) as Integer
     if baseCount < 1 then baseCount = 1
     extra = total - (baseCount * seasons)
     if extra < 0 then extra = 0
-    number = 1
+    offset = 0
     for i = 0 to m.seasonIndex - 1
-        number = number + baseCount
-        if i < extra then number = number + 1
+        offset = offset + baseCount
+        if i < extra then offset = offset + 1
     end for
-    return number + localIndex
+    return offset
 end function
 
 function numberBeforeWord(text as String, word as String, fallback as Integer) as Integer

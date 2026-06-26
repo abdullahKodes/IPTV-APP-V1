@@ -512,3 +512,37 @@ Do not update this file for:
 - Keep `build/` generated output uncommitted unless the user explicitly asks otherwise.
 - Before committing, check `git status --short` and avoid staging unrelated files.
 - The user may have local dirty files in the working/scratch folder. Do not revert unrelated user changes.
+
+## 2026-06-26 Series Detail Polish
+
+- Reworked Movie and Series detail action buttons into larger transparent card-style controls using the app green focus treatment.
+- Reworked Series detail seasons into stronger app-colored buttons and made OK/down on a season move focus directly into the first episode row.
+- Reworked Series episode rows into narrower rounded palettes with larger episode titles, rounded thumbnail frames, season-wise episode numbering, and vertical up/down episode navigation.
+- Bumped Roku manifest build version to `00150` for the detail-page focus and styling pass.
+
+## 2026-06-26 Series Detail Selection Follow-up
+
+- Added the pasted play and heart icons as UI detail action assets and wired them into Movie and Series detail action buttons.
+- Changed Series season behavior so moving across season buttons only moves focus; pressing OK or Down commits the selected season and then jumps to the first episode.
+- Adjusted Series episode rows upward and rightward, reduced row height, kept rounded row/thumb treatment, added a small season subtitle, and reset each season to `Episode 1`.
+- Bumped Roku manifest build version to `00151` for the season-selection and episode-row follow-up.
+
+## 2026-06-26 Detail Rhythm Follow-up
+
+- Moved Movie and Series detail action buttons upward, reduced them back to rounded pill controls, and removed the inner icon chip so the pasted icons sit alone.
+- Reworked Series season focus so season movement does not rerender episodes until OK/Down commits the season; season buttons can now wrap onto a second row for larger season counts.
+- Shifted Series episode rows farther right and upward, brightened the `EPISODES` heading, reduced row height, removed thumbnail outline frames, and kept the small season subtitle under each episode title.
+- Bumped Roku manifest build version to `00152` for the detail rhythm and remote-focus update.
+
+## 2026-06-26 Series Detail Spacing Follow-up
+
+- Lowered the Series seasons block to create clearer spacing below the Resume/Favorite buttons.
+- Split selected-season styling from focused-season styling, with selected seasons using a subtler purple treatment and focus using the app green treatment.
+- Increased visible Series episode rows from four to five and added a sleek transparent episode scrollbar for longer seasons.
+- Bumped Roku manifest build version to `00153` for the season spacing and episode scrollbar pass.
+
+## 2026-06-26 Series Episode Data Follow-up
+
+- Moved Series season buttons farther below the `SEASONS` heading and pushed the episode scrollbar farther away from the episode cards with lower opacity.
+- Added `detailEpisodeNames` and `detailActiveEpisodeTitle` detail fields so backend-provided episode names can render in episode rows, with `Episode 1`, `Episode 2`, etc. as fallback labels.
+- Bumped Roku manifest build version to `00154` for the season spacing, scrollbar opacity, and episode-title data hook.

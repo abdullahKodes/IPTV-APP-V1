@@ -148,7 +148,7 @@ sub addSettingsNavItem(x as Integer, y as Integer, icon as String, label as Stri
         icon: icon, label: label, subtitle: "",
         iconSize: 12, titleSize: 12, subSize: 10,
         bg: m.colors.bg, border: m.colors.bg, textColor: m.colors.textGreen, subColor: m.colors.textDim,
-        focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         row: row, col: 0, page: page, mode: "row", noFocusShift: true
     }
     if active then
@@ -165,7 +165,7 @@ sub addSettingsProfileItem()
         icon: "profile", label: "My Profile", subtitle: "",
         iconSize: 14, iconW: 32, iconH: 32, iconX: 18, titleSize: 11, subSize: 7,
         bg: "0xFFFFFF10", border: m.colors.panel, textColor: m.colors.text, subColor: m.colors.textDim,
-        focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         row: 5, col: 0, page: "ProfilePage", mode: "row", noFocusShift: true
     }
     m.focusItems.push(item)
@@ -305,7 +305,7 @@ sub drawAccountRow(x as Integer, y as Integer, w as Integer, icon as String, lab
     uiRoundRect(m.canvas, x + 16, y - 2, w - 32, 46, bg, border, 1.0)
     uiDrawIcon(m.canvas, icon, x + 34, y + 12, 18, 18, focused, textColor, 11)
     uiLabel(m.canvas, label, x + 66, y + 4, 205, 30, 13, textColor)
-    m.focusItems.push({ x: x + 16, y: y - 2, w: w - 32, h: 46, icon: icon, label: label, subtitle: "", iconSize: 11, titleSize: 13, subSize: 8, bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: 4, page: "", action: action, mode: "manual", noFocusShift: true })
+    m.focusItems.push({ x: x + 16, y: y - 2, w: w - 32, h: 46, icon: icon, label: label, subtitle: "", iconSize: 11, titleSize: 13, subSize: 8, bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: 4, page: "", action: action, mode: "manual", noFocusShift: true })
 end sub
 
 sub drawHeaderAction(x as Integer, y as Integer, w as Integer, h as Integer, icon as String, label as String, page as String, action as String, row as Integer, col as Integer)
@@ -322,7 +322,7 @@ sub drawHeaderAction(x as Integer, y as Integer, w as Integer, h as Integer, ico
     uiRoundRect(m.canvas, x, y, w, h, bg, border)
     uiDrawIcon(m.canvas, icon, x + 18, y + 9, 18, 18, focused, textColor, 12)
     uiLabel(m.canvas, label, x + 42, y + 2, w - 54, 30, 14, textColor)
-    m.focusItems.push({ x: x, y: y, w: w, h: h, icon: icon, label: label, subtitle: "", iconSize: 12, titleSize: 15, subSize: 10, bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: col, page: page, action: action, mode: "manual", noFocusShift: true })
+    m.focusItems.push({ x: x, y: y, w: w, h: h, icon: icon, label: label, subtitle: "", iconSize: 12, titleSize: 15, subSize: 10, bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: col, page: page, action: action, mode: "manual", noFocusShift: true })
 end sub
 
 sub cycleSetting(key as String, options as Object, delta as Integer)

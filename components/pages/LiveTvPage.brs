@@ -25,6 +25,7 @@ sub init()
     m.activePlaylistId = playlistStoreText(m.activePlaylist, "id", playlistStoreDemoId())
     m.activePlaylistTitle = playlistStoreText(m.activePlaylist, "title", "Demo Playlist")
     m.channels = mediaLiveCatalogForPlaylist(m.activePlaylistId)
+    applyLiveFavoriteState()
     m.categories = liveCategoriesFromChannels(m.channels)
     setupVideo()
     render()
@@ -340,7 +341,7 @@ sub onVideoError()
 end sub
 
 sub handlePlayerControl(control as String)
-    if control = "favorite" then return
+    if control = "favorite" then toggleLiveFavorite() : return
     if control = "volume" then return
     if control = "restart" then seekPlayer(0, true) : return
     if control = "rewind" then seekPlayer(-15, false) : return
@@ -368,6 +369,20 @@ sub seekPlayer(offset as Integer, absolute as Boolean)
         if target < 0 then target = 0
     end if
     m.video.seek = target
+end sub
+
+sub toggleLiveFavorite()
+    ch = selectedChannel()
+    if ch = invalid then return
+    isFavorite = favoriteStoreToggle("live", ch, m.activePlaylistId)
+    if m.channelIndex >= 0 and m.channelIndex < m.channels.count() then m.channels[m.channelIndex].favorite = isFavorite
+end sub
+
+sub applyLiveFavoriteState()
+    if m.channels = invalid then return
+    for i = 0 to m.channels.count() - 1
+        m.channels[i].favorite = favoriteStoreIsFavorite("live", m.channels[i], m.activePlaylistId)
+    end for
 end sub
 
 sub updateVideoLayout()
@@ -410,7 +425,8 @@ function drawLiveSideNav() as Integer
     addLiveNavItem(12, 168, "tv", "Live TV", "LiveTvPage", 1, liveActive)
     addLiveNavItem(12, 224, "series", "Series", "SeriesPage", 2, false)
     addLiveNavItem(12, 280, "movies", "Movies", "MoviesPage", 3, false)
-    addLiveNavItem(12, 336, "settings", "Settings", "SettingsPage", 4, false)
+    addLiveNavItem(12, 336, "heart", "Favorites", "FavoritesPage", 4, false)
+    addLiveNavItem(12, 392, "settings", "Settings", "SettingsPage", 5, false)
 
     addLiveProfileItem()
     return 6
@@ -422,7 +438,7 @@ sub addLiveNavItem(x as Integer, y as Integer, icon as String, label as String, 
         icon: icon, label: label, subtitle: "",
         iconSize: 12, titleSize: 12, subSize: 10,
         bg: m.colors.bg, border: m.colors.bg, textColor: m.colors.textGreen, subColor: m.colors.textDim,
-        focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         row: row, col: 0, page: page, mode: "row", noFocusShift: true
     }
     if active then
@@ -439,8 +455,8 @@ sub addLiveProfileItem()
         icon: "profile", label: "My Profile", subtitle: "",
         iconSize: 14, iconW: 32, iconH: 32, iconX: 18, titleSize: 11, subSize: 7,
         bg: "0xFFFFFF10", border: m.colors.panel, textColor: m.colors.text, subColor: m.colors.textDim,
-        focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
-        row: 5, col: 0, page: "ProfilePage", mode: "row", noFocusShift: true
+        focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        row: 6, col: 0, page: "ProfilePage", mode: "row", noFocusShift: true
     }
     m.focusItems.push(item)
 end sub
@@ -466,7 +482,7 @@ sub drawSearchBox()
         icon: "search", label: label, subtitle: "",
         iconSize: 11, titleSize: 13, subSize: 10,
         bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim,
-        focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         row: 0, col: 1, page: "", action: "search", mode: "manual"
     })
 end sub
@@ -796,7 +812,7 @@ sub drawPlayer()
     if liveFlag(ch, "live") then titleX = panelX + 94
     uiLabel(m.canvas, channelTitle, titleX, panelY + 18, 246, 24, 13, m.colors.text)
     uiLabel(m.canvas, nowText, panelX + 24, panelY + 50, 380, 26, 14, m.colors.text)
-    addPlayerControl(panelX + panelW - 76, panelY + 28, 50, "player_heart", "Favorite", "favorite", 8, 6, 32)
+    addPlayerControl(panelX + panelW - 76, panelY + 28, 50, "player_heart", "Favorite", "favorite", 8, 6, 32, invalid, liveFlag(ch, "favorite"))
 
     uiRoundRect(m.canvas, videoX, videoY, videoW, videoH, m.colors.black, m.colors.black, 0.94)
     if not m.playing then addPlayerControl(videoX + 244, videoY + Int((videoH - 64) / 2), 64, "player_play", "Play", "playpause", 9, 5, 64, m.overlay)
@@ -834,13 +850,15 @@ sub drawPlayerPanelBrand(ch as Dynamic, x as Integer, y as Integer, w as Integer
     uiRect(m.canvas, x + 2, y + 2, w - 4, h - 4, m.colors.bg, 0.16)
 end sub
 
-sub addPlayerControl(x as Integer, y as Integer, w as Integer, icon as String, label as String, control as String, row as Integer, col as Integer, iconSize = 18 as Integer, target = invalid as Object)
+sub addPlayerControl(x as Integer, y as Integer, w as Integer, icon as String, label as String, control as String, row as Integer, col as Integer, iconSize = 18 as Integer, target = invalid as Object, active = false as Boolean)
     itemIndex = m.focusItems.count()
     focused = itemIndex = m.focusIndex
     if target = invalid then target = m.canvas
     textColor = m.colors.textMuted
+    if active then textColor = m.colors.amber
     if focused then
         textColor = m.colors.text
+        if active then textColor = m.colors.amber
     end if
     iconX = x + Int((w - iconSize) / 2)
     iconY = y + Int((36 - iconSize) / 2)

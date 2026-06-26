@@ -79,7 +79,7 @@ sub addProfileNavItem(x as Integer, y as Integer, icon as String, label as Strin
         icon: icon, label: label, subtitle: "",
         iconSize: 12, titleSize: 12, subSize: 10,
         bg: m.colors.bg, border: m.colors.bg, textColor: m.colors.textGreen, subColor: m.colors.textDim,
-        focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         row: row, col: 0, page: page, mode: "row", noFocusShift: true
     }
     if active then
@@ -96,7 +96,7 @@ sub addProfileProfileItem()
         icon: "profile", label: "My Profile", subtitle: "",
         iconSize: 14, iconW: 32, iconH: 32, iconX: 18, titleSize: 11, subSize: 7,
         bg: m.colors.purpleSoft, border: m.colors.greenFocus, textColor: m.colors.text, subColor: m.colors.textDim,
-        focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         row: 5, col: 0, page: "ProfilePage", mode: "row", noFocusShift: true
     }
     m.focusItems.push(item)
@@ -122,7 +122,7 @@ sub addProfileBackButton(row as Integer)
     uiRoundRect(m.canvas, 1030, 118, 150, 40, bg, border)
     uiDrawIcon(m.canvas, "back", 1060, 128, 18, 18, focused, textColor, 12)
     uiLabel(m.canvas, "Back", 1090, 121, 64, 30, 15, textColor)
-    m.focusItems.push({ x: 1030, y: 118, w: 150, h: 40, icon: "back", label: "Back", subtitle: "", iconSize: 12, titleSize: 15, subSize: 10, bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: 4, page: "HomePage", action: "", mode: "manual", noFocusShift: true })
+    m.focusItems.push({ x: 1030, y: 118, w: 150, h: 40, icon: "back", label: "Back", subtitle: "", iconSize: 12, titleSize: 15, subSize: 10, bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: 4, page: "HomePage", action: "", mode: "manual", noFocusShift: true })
 end sub
 
 sub drawProfileSummary()
@@ -174,7 +174,7 @@ sub drawProfileAction(x as Integer, y as Integer, icon as String, label as Strin
     uiDrawIcon(m.canvas, icon, x + 18, y + 7, 18, 18, focused, textColor, 12)
     uiLabel(m.canvas, label, x + 54, y - 1, 246, 28, 14, textColor)
     uiLabel(m.canvas, value, x + 350, y - 1, 408, 28, 11, valueColor, "right")
-    m.focusItems.push({ x: x, y: y - 2, w: 784, h: 36, icon: icon, label: label, subtitle: value, iconSize: 12, titleSize: 14, subSize: 11, bg: bg, border: border, textColor: textColor, subColor: valueColor, focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: 3, page: page, action: action, mode: "manual", noFocusShift: true })
+    m.focusItems.push({ x: x, y: y - 2, w: 784, h: 36, icon: icon, label: label, subtitle: value, iconSize: 12, titleSize: 14, subSize: 11, bg: bg, border: border, textColor: textColor, subColor: valueColor, focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: 3, page: page, action: action, mode: "manual", noFocusShift: true })
 end sub
 
 sub openProfileDialog()

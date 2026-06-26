@@ -375,7 +375,7 @@ sub addPlaylistNavItem(x as Integer, y as Integer, icon as String, label as Stri
         icon: icon, label: label, subtitle: "",
         iconSize: 12, titleSize: 12, subSize: 10,
         bg: m.colors.bg, border: m.colors.bg, textColor: m.colors.textGreen, subColor: m.colors.textDim,
-        focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         row: row, col: 0, page: page, mode: "row", noFocusShift: true
     }
     if active then
@@ -392,7 +392,7 @@ sub addPlaylistProfileItem()
         icon: "profile", label: "My Profile", subtitle: "",
         iconSize: 14, iconW: 32, iconH: 32, iconX: 18, titleSize: 11, subSize: 7,
         bg: "0xFFFFFF10", border: m.colors.panel, textColor: m.colors.text, subColor: m.colors.textDim,
-        focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
+        focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         row: 5, col: 0, page: "ProfilePage", mode: "row", noFocusShift: true
     }
     m.focusItems.push(item)
@@ -440,7 +440,7 @@ sub addSearchAction(x as Integer, y as Integer, w as Integer, h as Integer, row 
     uiRoundRect(m.canvas, x, y, w, h, bg, border)
     uiDrawIcon(m.canvas, "search", x + 22, y + 13, 18, 18, focused, textColor, 11)
     uiLabel(m.canvas, label, x + 52, y + 7, w - 66, 30, 14, textColor)
-    m.focusItems.push({ x: x, y: y, w: w, h: h, icon: "search", label: label, subtitle: "", iconSize: 11, titleSize: 14, subSize: 10, bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.purpleSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: col, page: "", action: "search", mode: "manual" })
+    m.focusItems.push({ x: x, y: y, w: w, h: h, icon: "search", label: label, subtitle: "", iconSize: 11, titleSize: 14, subSize: 10, bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: col, page: "", action: "search", mode: "manual" })
 end sub
 
 sub drawPlaylistGrid(visible as Object, rowStart as Integer)

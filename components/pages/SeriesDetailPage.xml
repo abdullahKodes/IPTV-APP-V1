@@ -15,6 +15,10 @@
     <field id="detailBackdropUrl" type="string" />
     <field id="detailPlaybackUrl" type="string" />
     <field id="detailPlaybackFormat" type="string" />
+    <field id="detailEpisodeNames" type="string" />
+    <field id="detailActiveEpisodeTitle" type="string" />
+    <field id="detailPlaylistId" type="string" />
+    <field id="detailMediaType" type="string" />
     <field id="detailReturnPage" type="string" />
     <field id="playbackTitle" type="string" />
     <field id="playbackSubtitle" type="string" />
@@ -27,5 +31,8 @@
     <function name="syncDetail" />
   </interface>
   <script type="text/brightscript" uri="pkg:/components/shared/AppUi.brs" />
+  <script type="text/brightscript" uri="pkg:/components/shared/PlaylistStore.brs" />
+  <script type="text/brightscript" uri="pkg:/components/shared/MediaData.brs" />
+  <script type="text/brightscript" uri="pkg:/components/shared/FavoriteStore.brs" />
   <script type="text/brightscript" uri="pkg:/components/pages/SeriesDetailPage.brs" />
 </component>

@@ -39,6 +39,7 @@ function appPageMap() as Object
         live: "LiveTvPage",
         series: "SeriesPage",
         movies: "MoviesPage",
+        favorites: "FavoritesPage",
         settings: "SettingsPage",
         profile: "ProfilePage"
     }
@@ -50,6 +51,7 @@ function appNavItems(activeKey as String) as Object
         { key: "live", label: "Live TV", icon: "TV", page: "LiveTvPage", active: activeKey = "live" },
         { key: "series", label: "Series", icon: "S", page: "SeriesPage", active: activeKey = "series" },
         { key: "movies", label: "Movies", icon: "M", page: "MoviesPage", active: activeKey = "movies" },
+        { key: "favorites", label: "Favorites", icon: "heart", page: "FavoritesPage", active: activeKey = "favorites" },
         { key: "settings", label: "Settings", icon: "GEAR", page: "SettingsPage", active: activeKey = "settings" }
     ]
 end function
@@ -361,13 +363,13 @@ function uiSideNav(parent as Object, colors as Object, activeKey as String, focu
             icon: nav.icon, label: nav.label, subtitle: "",
             iconSize: 13, titleSize: 15, subSize: 10,
             bg: colors.bg, border: colors.bg, textColor: colors.textGreen, subColor: colors.textDim,
-            focusBg: colors.purpleSoft, focusBorder: colors.purpleLine, focusTextColor: colors.textPurple,
+            focusBg: colors.greenSoft, focusBorder: colors.greenFocus, focusTextColor: colors.text,
             row: row, col: 0, page: nav.page, mode: "row", noFocusShift: true
         }
         if nav.active then
             item.bg = colors.purpleSoft
-            item.border = colors.purpleLine
-            item.textColor = colors.textPurple
+            item.border = colors.greenFocus
+            item.textColor = colors.text
         end if
         item.node = uiButton(parent, item, false)
         focusItems.push(item)
