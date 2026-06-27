@@ -246,6 +246,11 @@ function uiPosterCard(parent as Object, x as Integer, y as Integer, w as Integer
     return g
 end function
 
+sub uiCardFocusTint(parent as Object, x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean)
+    if not focused then return
+    uiRect(parent, x + 1, y + 1, w - 2, h - 2, "0x1EE0CAFF", 0.08)
+end sub
+
 sub uiClear(parent as Object)
     while parent.getChildCount() > 0
         parent.removeChild(parent.getChild(0))
@@ -287,7 +292,15 @@ function uiButton(parent as Object, item as Object, focused as Boolean) as Objec
 
     thin = false
     if item.doesExist("thin") then thin = item.thin
-    if thin then
+    artUri = ""
+    if item.doesExist("artUri") then artUri = item.artUri
+    if focused and item.doesExist("artFocusUri") then artUri = item.artFocusUri
+    if artUri <> "" then
+        uiPoster(g, artUri, 0, 0, item.w, item.h, opacity)
+        if focused and item.doesExist("artFocusOverlayUri") then
+            uiPoster(g, item.artFocusOverlayUri, 0, 0, item.w, item.h, opacity)
+        end if
+    else if thin then
         uiThinRoundRect(g, 0, 0, item.w, item.h, bg, border, opacity)
     else
         uiRoundRect(g, 0, 0, item.w, item.h, bg, border, opacity)
@@ -298,6 +311,10 @@ function uiButton(parent as Object, item as Object, focused as Boolean) as Objec
         uiDrawIcon(g, item.icon, Int((item.w - 58) / 2), 18, 58, 58, focused, textColor, item.iconSize)
         tileTitleY = 92
         tileTitleH = 42
+        if artUri <> "" and (item.icon = invalid or item.icon = "") then
+            tileTitleY = 106
+            tileTitleH = 36
+        end if
         if item.subtitle <> invalid and item.subtitle <> "" then
             tileTitleY = 82
             tileTitleH = 30

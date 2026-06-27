@@ -381,7 +381,7 @@ sub drawPosterFavoriteCard(fav as Object, section as Integer, visibleIndex as In
         uiRoundRect(m.canvas, x, y, w, h, m.colors.purpleSoft, m.colors.whiteLine, 0.64)
         uiDrawIcon(m.canvas, "heart", x + 54, y + 46, 36, 36, focused, m.colors.text, 15)
     end if
-    if focused then uiRect(m.canvas, x, y, w, h, m.colors.greenSoft, 0.12)
+    uiCardFocusTint(m.canvas, x, y, w, h, focused)
     uiRectBorder(m.canvas, x, y, w, h, favoriteBorderColor(focused), favoriteBorderWidth(focused), 1.0)
     m.focusItems.push({
         x: x, y: y, w: w, h: h,
@@ -418,6 +418,7 @@ sub drawLiveFavoriteCard(fav as Object, section as Integer, visibleIndex as Inte
     else
         uiDrawIcon(m.canvas, "tv", x + 39, y + 52, 38, 38, focused, m.colors.text, 14)
     end if
+    uiCardFocusTint(m.canvas, x, y, w, h, focused)
     uiRectBorder(m.canvas, x, y, w, h, border, favoriteBorderWidth(focused), 1.0)
     uiScaledLabel(m.canvas, liveCardShortTitle(fav), x + 10, y + h - 36, w - 20, 22, 9, m.colors.text, "center", 0.78)
     m.focusItems.push({

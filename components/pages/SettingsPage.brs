@@ -2,7 +2,7 @@ sub init()
     m.colors = appColors()
     m.canvas = m.top.findNode("settingsCanvas")
     m.focusItems = []
-    m.focusIndex = 1
+    m.focusIndex = 0
     m.settings = settingsStoreLoad()
     m.qualityOptions = ["Auto", "1080p", "720p", "480p"]
     m.captionOptions = ["System", "On", "Off", "Replay", "Mute"]
@@ -175,8 +175,8 @@ sub addSettingsProfileItem()
 end sub
 
 sub drawPageHeader()
-    uiLabel(m.canvas, "Settings", 258, 108, 420, 46, 34, m.colors.text)
-    drawHeaderBackButton()
+    title = uiLabel(m.canvas, "Settings", 258, 108, 420, 46, 32, m.colors.text)
+    title.font.size = 32
 end sub
 
 sub drawHeaderBackButton()
@@ -188,9 +188,9 @@ sub drawPlaybackPanel()
     y = 176
     w = 590
     drawPanel(x, y, w, 206, "PLAYBACK", m.colors.textGreen)
-    drawSettingRow(x, y + 44, w, "Default quality", "", settingsStoreText(m.settings, "defaultQuality", "Auto"), "quality", "select", true, 1, 1)
-    drawSettingRow(x, y + 98, w, "Autoplay next", "", "", "autoplay", "toggle", settingsStoreBool(m.settings, "autoplay", true), 2, 1)
-    drawSettingRow(x, y + 152, w, "Caption mode", "", captionDisplayText(settingsStoreText(m.settings, "captionMode", "System")), "captions", "select", true, 3, 1)
+    drawSettingRow(x, y + 52, w, "Default quality", "", settingsStoreText(m.settings, "defaultQuality", "Auto"), "quality", "select", true, 1, 1)
+    drawSettingRow(x, y + 104, w, "Autoplay next", "", "", "autoplay", "toggle", settingsStoreBool(m.settings, "autoplay", true), 2, 1)
+    drawSettingRow(x, y + 156, w, "Caption mode", "", captionDisplayText(settingsStoreText(m.settings, "captionMode", "System")), "captions", "select", true, 3, 1)
 end sub
 
 sub drawAppPanel()
@@ -198,9 +198,9 @@ sub drawAppPanel()
     y = 404
     w = 590
     drawPanel(x, y, w, 206, "APP", m.colors.textGreen)
-    drawSettingRow(x, y + 44, w, "Notifications", "", "", "notifications", "toggle", settingsStoreBool(m.settings, "notifications", true), 4, 1)
-    drawSettingRow(x, y + 98, w, "App language", "", settingsStoreText(m.settings, "appLanguage", "English"), "language", "select", true, 5, 1)
-    drawSettingRow(x, y + 152, w, "Parental lock", "", "", "parental", "toggle", settingsStoreBool(m.settings, "parentalLock", false), 6, 1)
+    drawSettingRow(x, y + 52, w, "Notifications", "", "", "notifications", "toggle", settingsStoreBool(m.settings, "notifications", true), 4, 1)
+    drawSettingRow(x, y + 104, w, "App language", "", settingsStoreText(m.settings, "appLanguage", "English"), "language", "select", true, 5, 1)
+    drawSettingRow(x, y + 156, w, "Parental lock", "", "", "parental", "toggle", settingsStoreBool(m.settings, "parentalLock", false), 6, 1)
 end sub
 
 sub drawAccountPanel()
@@ -208,15 +208,15 @@ sub drawAccountPanel()
     y = 176
     w = 330
     drawPanel(x, y, w, 206, "ACCOUNT", m.colors.amber)
-    drawAccountRow(x, y + 46, w, "sync_account", "Sync playlists", "sync", 1)
-    drawAccountRow(x, y + 98, w, "cache_account", "Clear cache", "clearcache", 2)
-    drawAccountRow(x, y + 150, w, "logout_account", "Sign out", "signout", 3)
+    drawAccountRow(x, y + 52, w, "sync_account", "Sync playlists", "sync", 1)
+    drawAccountRow(x, y + 104, w, "cache_account", "Clear cache", "clearcache", 2)
+    drawAccountRow(x, y + 156, w, "logout_account", "Sign out", "signout", 3)
 end sub
 
 sub drawDropdown()
     if m.dropdownOptions = invalid or m.dropdownOptions.count() = 0 then return
-    rowH = 34
-    w = 178
+    rowH = 40
+    w = 126
     x = m.dropdownX
     y = m.dropdownY
     totalH = rowH * m.dropdownOptions.count()
@@ -232,28 +232,31 @@ sub drawDropdown()
             border = m.colors.greenFocus
             textColor = m.colors.text
         end if
-        uiRoundRect(m.canvas, x, optionY, w, 34, bg, border)
-        uiLabel(m.canvas, dropdownDisplayText(m.dropdownKey, m.dropdownOptions[i]), x + 10, optionY + 1, w - 20, 26, 12, textColor, "center")
+        uiRoundRect(m.canvas, x, optionY, w, 40, bg, border)
+        optionLabel = uiLabel(m.canvas, dropdownDisplayText(m.dropdownKey, m.dropdownOptions[i]), x + 4, optionY, w - 8, 40, 14, textColor, "center")
+        optionLabel.font.size = 14
     end for
 end sub
 
 sub drawPanel(x as Integer, y as Integer, w as Integer, h as Integer, title as String, titleColor as String)
     uiRoundRect(m.canvas, x, y, w, h, m.colors.panel, m.colors.whiteLine, 0.96)
-    uiLabel(m.canvas, title, x + 22, y + 13, w - 44, 22, 15, titleColor)
+    panelTitle = uiLabel(m.canvas, title, x + 22, y + 3, w - 44, 38, 22, titleColor)
+    panelTitle.font.size = 22
 end sub
 
 sub drawSettingRow(x as Integer, y as Integer, w as Integer, title as String, subtitle as String, value as String, action as String, kind as String, enabled as Boolean, row as Integer, col as Integer)
     if y > 0 then uiRect(m.canvas, x + 22, y - 8, w - 44, 1, "0xFFFFFF0C")
     drawRowText(x + 24, y, 300, title, subtitle)
     if kind = "toggle" then
-        drawCompactToggle(x + w - 84, y + 8, enabled, action, row, col)
+        drawCompactToggle(x + w - 104, y + 8, enabled, action, row, col)
     else
-        drawCompactSelect(x + w - 210, y + 4, 178, value, action, row, col)
+        drawCompactSelect(x + w - 178, y + 1, 126, value, action, row, col)
     end if
 end sub
 
 sub drawRowText(x as Integer, y as Integer, w as Integer, title as String, subtitle as String)
-    uiLabel(m.canvas, title, x, y + 3, w, 30, 14, m.colors.text)
+    rowLabel = uiLabel(m.canvas, title, x, y + 3, w, 30, 18, m.colors.text)
+    rowLabel.font.size = 18
 end sub
 
 sub drawCompactSelect(x as Integer, y as Integer, w as Integer, value as String, action as String, row as Integer, col as Integer)
@@ -267,30 +270,25 @@ sub drawCompactSelect(x as Integer, y as Integer, w as Integer, value as String,
         border = m.colors.greenFocus
         textColor = m.colors.text
     end if
-    uiRoundRect(m.canvas, x, y, w, 34, bg, border, 1.0)
-    uiLabel(m.canvas, value, x + 12, y + 2, w - 44, 28, 12, textColor, "center")
+    uiRoundRect(m.canvas, x, y, w, 40, bg, border, 1.0)
+    valueLabel = uiLabel(m.canvas, value, x + 4, y, w - 8, 40, 14, textColor, "center")
+    valueLabel.font.size = 14
     chevronUri = "pkg:/images/ui/select_chevron_down.png"
     if focused then chevronUri = "pkg:/images/ui/select_chevron_down_focus.png"
-    uiPoster(m.canvas, chevronUri, x + w - 31, y + 8, 18, 18)
-    m.focusItems.push({ x: x, y: y, w: w, h: 34, icon: "", label: value, subtitle: "", iconSize: 1, titleSize: 12, subSize: 10, bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim, focusBg: bg, focusBorder: border, focusTextColor: textColor, row: row, col: col, page: "", action: action, mode: "manual", noFocusShift: true })
+    uiPoster(m.canvas, chevronUri, x + w - 29, y + 11, 18, 18)
+    m.focusItems.push({ x: x, y: y, w: w, h: 40, icon: "", label: value, subtitle: "", iconSize: 1, titleSize: 14, subSize: 10, bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim, focusBg: bg, focusBorder: border, focusTextColor: textColor, row: row, col: col, page: "", action: action, mode: "manual", noFocusShift: true })
 end sub
 
 sub drawCompactToggle(x as Integer, y as Integer, enabled as Boolean, action as String, row as Integer, col as Integer)
     index = m.focusItems.count()
     focused = index = m.focusIndex
-    track = m.colors.bg2
-    border = m.colors.whiteLine
-    knob = m.colors.text
-    knobX = x + 1
-    if enabled then
-        track = m.colors.greenSoft
-        border = m.colors.green
-        knobX = x + 25
-    end if
-    if focused then border = m.colors.greenFocus
-    uiRoundRect(m.canvas, x, y, 50, 26, track, border, 1.0)
-    uiRoundRect(m.canvas, knobX, y + 1, 24, 24, knob, knob, 1.0)
-    m.focusItems.push({ x: x, y: y, w: 50, h: 26, icon: "", label: boolText(enabled), subtitle: "", iconSize: 1, titleSize: 10, subSize: 10, bg: track, border: border, textColor: m.colors.text, subColor: m.colors.textDim, focusBg: track, focusBorder: border, focusTextColor: m.colors.text, row: row, col: col, page: "", action: action, mode: "manual", noFocusShift: true })
+    state = "off"
+    if enabled then state = "on"
+    focusSuffix = ""
+    if focused then focusSuffix = "_focus"
+    uri = "pkg:/images/ui/settings_toggle_" + state + focusSuffix + ".png"
+    uiPoster(m.canvas, uri, x, y, 52, 26)
+    m.focusItems.push({ x: x, y: y, w: 52, h: 26, icon: "", label: boolText(enabled), subtitle: "", iconSize: 1, titleSize: 10, subSize: 10, bg: m.colors.bg2, border: m.colors.whiteLine, textColor: m.colors.text, subColor: m.colors.textDim, focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: col, page: "", action: action, mode: "manual", noFocusShift: true })
 end sub
 
 sub drawAccountRow(x as Integer, y as Integer, w as Integer, icon as String, label as String, action as String, row as Integer)
@@ -307,8 +305,9 @@ sub drawAccountRow(x as Integer, y as Integer, w as Integer, icon as String, lab
     end if
     uiRoundRect(m.canvas, x + 16, y - 2, w - 32, 46, bg, border, 1.0)
     uiDrawIcon(m.canvas, icon, x + 34, y + 12, 18, 18, focused, textColor, 11)
-    uiLabel(m.canvas, label, x + 66, y + 4, 205, 30, 13, textColor)
-    m.focusItems.push({ x: x + 16, y: y - 2, w: w - 32, h: 46, icon: icon, label: label, subtitle: "", iconSize: 11, titleSize: 13, subSize: 8, bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: 4, page: "", action: action, mode: "manual", noFocusShift: true })
+    accountLabel = uiLabel(m.canvas, label, x + 66, y + 4, 205, 30, 18, textColor)
+    accountLabel.font.size = 18
+    m.focusItems.push({ x: x + 16, y: y - 2, w: w - 32, h: 46, icon: icon, label: label, subtitle: "", iconSize: 11, titleSize: 18, subSize: 8, bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: 4, page: "", action: action, mode: "manual", noFocusShift: true })
 end sub
 
 sub drawHeaderAction(x as Integer, y as Integer, w as Integer, h as Integer, icon as String, label as String, page as String, action as String, row as Integer, col as Integer)

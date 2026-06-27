@@ -115,13 +115,19 @@ sub addTile(x as Integer, y as Integer, w as Integer, h as Integer, icon as Stri
         focusBg = m.colors.greenActive
         focusBorder = m.colors.greenDeep
     end if
+    artKey = "add"
+    if icon = "card_tv" then artKey = "tv"
+    if icon = "card_series" then artKey = "series"
+    if icon = "card_movies" then artKey = "movies"
     item = {
         x: x, y: y, w: w, h: h,
-        icon: icon, label: label, subtitle: subText,
+        icon: "", label: label, subtitle: subText,
         iconSize: 18, titleSize: 25, subSize: 12,
         bg: focusBg, border: focusBg, textColor: textColor, subColor: m.colors.textMuted,
         focusBg: normalBg, focusBorder: border, focusTextColor: m.colors.text,
-        row: row, col: col, page: page, mode: "tile", thin: true
+        artUri: "pkg:/images/home/cards/home_card_" + artKey + ".png",
+        artFocusOverlayUri: "pkg:/images/home/cards/home_card_focus_border.png",
+        row: row, col: col, page: page, mode: "tile", thin: true, noFocusShift: true
     }
     m.focusItems.push(item)
 end sub

@@ -46,6 +46,7 @@ sub activate()
 end sub
 
 sub render()
+    m.settings = settingsStoreLoad()
     uiClear(m.canvas)
     m.focusItems = []
     uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg)
@@ -105,38 +106,43 @@ sub addProfileProfileItem()
 end sub
 
 sub drawProfileHeader()
-    uiLabel(m.canvas, "My Profile", 280, 100, 520, 64, 42, m.colors.text)
+    title = uiLabel(m.canvas, "My Profile", 300, 96, 520, 64, 32, m.colors.text)
+    title.font.size = 32
 end sub
 
 sub drawProfileSummary()
-    x = 280
+    x = 300
     y = 184
-    w = 720
+    w = 680
     uiRoundRect(m.canvas, x, y, w, 168, m.colors.panel, m.colors.whiteLine, 0.94)
-    uiRoundRect(m.canvas, x + 34, y + 42, 82, 82, m.colors.purple, m.colors.purpleLine)
+    uiPoster(m.canvas, "pkg:/images/ui/profile_avatar_circle.png", x + 34, y + 40, 88, 88)
     initials = profileInitials(settingsStoreText(m.settings, "userName", "John Doe"))
-    uiLabel(m.canvas, initials, x + 34, y + 49, 82, 58, 26, m.colors.text, "center")
-    uiLabel(m.canvas, settingsStoreText(m.settings, "userName", "John Doe"), x + 146, y + 44, 360, 34, 23, m.colors.text)
-    uiLabel(m.canvas, settingsStoreText(m.settings, "userEmail", "john.doe@email.com"), x + 146, y + 82, 380, 28, 15, m.colors.purpleLine)
+    initialsLabel = uiLabel(m.canvas, initials, x + 34, y + 40, 88, 88, 32, m.colors.text, "center")
+    initialsLabel.font.size = 32
+    uiLabel(m.canvas, settingsStoreText(m.settings, "userName", "John Doe"), x + 150, y + 44, 340, 34, 23, m.colors.text)
+    uiLabel(m.canvas, settingsStoreText(m.settings, "userEmail", "john.doe@email.com"), x + 150, y + 82, 360, 28, 15, m.colors.purpleLine)
     badge = profileStatusLabel()
     badgeW = profileBadgeWidth(badge)
-    badgeX = x + w - badgeW - 58
-    uiRoundRect(m.canvas, badgeX, y + 64, badgeW, 34, m.colors.greenSoft, m.colors.greenFocus)
-    uiScaledLabel(m.canvas, badge, badgeX + 8, y + 71, badgeW - 16, 18, 9, m.colors.textGreen, "center", profileBadgeScale(badge))
+    badgeX = x + w - badgeW - 76
+    uiRoundRect(m.canvas, badgeX, y + 64, badgeW, 38, m.colors.greenSoft, m.colors.greenFocus)
+    badgeLabel = uiLabel(m.canvas, badge, badgeX + 4, y + 64, badgeW - 8, 38, 17, m.colors.textGreen, "center")
+    badgeLabel.font.size = 17
     status = "Signed in"
     if not settingsStoreBool(m.settings, "signedIn", true) then status = "Signed out locally"
-    uiLabel(m.canvas, status, x + 146, y + 116, 360, 24, 13, m.colors.textDim)
+    uiLabel(m.canvas, status, x + 150, y + 116, 340, 24, 13, m.colors.textDim)
 end sub
 
 sub drawProfileActions()
-    x = 280
-    y = 394
-    w = 720
-    uiRoundRect(m.canvas, x, y, w, 218, m.colors.panel, m.colors.whiteLine, 0.94)
-    uiLabel(m.canvas, "PROFILE ACTIONS", x + 32, y + 22, 260, 24, 14, m.colors.textDim)
-    drawProfileAction(x + 34, y + 66, 520, "Manage Subscription", "manage", "", 0)
-    drawProfileAction(x + 34, y + 116, 520, "App Settings", "settings", "", 1)
-    drawProfileAction(x + 34, y + 166, 520, "Sign Out", "signout", "", 2)
+    x = 300
+    y = 392
+    w = 680
+    uiRoundRect(m.canvas, x, y, w, 236, m.colors.panel, m.colors.whiteLine, 0.94)
+    buttonX = x + 90
+    actionsTitle = uiLabel(m.canvas, "PROFILE ACTIONS", buttonX + 4, y + 16, 280, 34, 21, m.colors.textGreen)
+    actionsTitle.font.size = 21
+    drawProfileAction(buttonX, y + 62, 500, "Manage Subscription", "manage", "", 0)
+    drawProfileAction(buttonX, y + 116, 500, "App Settings", "settings", "", 1)
+    drawProfileAction(buttonX, y + 170, 500, "Sign Out", "signout", "", 2)
 end sub
 
 sub drawProfileAction(x as Integer, y as Integer, w as Integer, label as String, action as String, page as String, row as Integer)
@@ -151,9 +157,9 @@ sub drawProfileAction(x as Integer, y as Integer, w as Integer, label as String,
         border = m.colors.greenFocus
         textColor = m.colors.text
     end if
-    uiRoundRect(m.canvas, x, y, w, 42, bg, border, 0.92)
-    uiLabel(m.canvas, label, x + 22, y + 5, w - 44, 30, 14, textColor)
-    m.focusItems.push({ x: x, y: y, w: w, h: 42, icon: "", label: label, subtitle: "", iconSize: 1, titleSize: 14, subSize: 10, bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: 0, page: page, action: action, mode: "manual", noFocusShift: true })
+    uiRoundRect(m.canvas, x, y, w, 44, bg, border, 0.92)
+    uiLabel(m.canvas, label, x + 22, y + 6, w - 44, 30, 14, textColor)
+    m.focusItems.push({ x: x, y: y, w: w, h: 44, icon: "", label: label, subtitle: "", iconSize: 1, titleSize: 14, subSize: 10, bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: 0, page: page, action: action, mode: "manual", noFocusShift: true })
 end sub
 
 sub openProfileDialog()
@@ -199,34 +205,21 @@ end function
 
 function profileStatusLabel() as String
     activePlaylist = playlistStoreActive()
-    playlistId = playlistStoreText(activePlaylist, "id")
     playlistType = playlistStoreText(activePlaylist, "type")
-    profile = playlistStoreText(activePlaylist, "contentProfile")
     status = playlistStoreText(activePlaylist, "status")
-    title = playlistStoreText(activePlaylist, "title")
-    combined = LCase(playlistId + " " + playlistType + " " + profile + " " + title)
-    if playlistStoreIsDemoId(playlistId) then return "Demo"
-    if Instr(1, combined, "demo") > 0 then return "Demo"
     if Instr(1, LCase(status), "trial") > 0 then return "Trial"
     subscription = profileSubscriptionLabel(settingsStoreText(m.settings, "subscription", ""))
     if LCase(subscription) = "premium" then return "Premium"
+    if status <> "" then return profileSubscriptionLabel(status)
     if subscription <> "" then return subscription
-    if status <> "" then return status
     if playlistType <> "" then return playlistType
     return "Demo"
 end function
 
 function profileBadgeWidth(label as String) as Integer
     length = label.len()
-    if length <= 4 then return 70
-    if length <= 5 then return 76
-    if length <= 7 then return 100
-    if length <= 12 then return 150
-    return 190
-end function
-
-function profileBadgeScale(label as String) as Float
-    if label.len() > 12 then return 0.72
-    if label.len() > 7 then return 0.82
-    return 0.92
+    if length <= 5 then return 100
+    if length <= 7 then return 120
+    if length <= 12 then return 160
+    return 200
 end function

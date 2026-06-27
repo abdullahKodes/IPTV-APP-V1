@@ -371,6 +371,7 @@ sub drawEpisodeCard(index as Integer, title as String, x as Integer, y as Intege
         opacity = 0.92
     end if
     drawEpisodeSurface(x, y, w, h, focused, opacity)
+    uiCardFocusTint(m.canvas, x, y, w, h, focused)
     drawEpisodeThumb(x + 16, y + 10, 54, 54)
     uiScaledLabel(m.canvas, title, x + 90, y + 12, w - 106, 30, 14, titleColor, "left", 1.06)
     uiScaledLabel(m.canvas, "Season " + (m.seasonIndex + 1).toStr(), x + 90, y + 43, w - 106, 20, 10, m.colors.textMuted, "left", 0.88)

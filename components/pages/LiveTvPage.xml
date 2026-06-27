@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <component name="LiveTvPage" extends="Group">
   <children>
-    <!-- Live TV renders channel categories, channel list, player mock, controls, and EPG strip. -->
+    <!-- Live TV is a browse-first channel grid. Playback opens in PlayerPage. -->
     <Group id="liveTvCanvas" />
-    <Video id="livePlayerVideo" />
-    <Group id="liveTvOverlay" />
   </children>
   <interface>
     <field id="navigateTo" type="string" alwaysNotify="true" />
+    <field id="playbackTitle" type="string" />
+    <field id="playbackSubtitle" type="string" />
+    <field id="playbackUrl" type="string" />
+    <field id="playbackFormat" type="string" />
+    <field id="playbackPosterUrl" type="string" />
+    <field id="returnPage" type="string" />
     <function name="handleKey" />
     <function name="refreshClock" />
   </interface>

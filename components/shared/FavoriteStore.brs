@@ -9,9 +9,39 @@ function favoriteStoreList(playlistId as String) as Object
     raw = section.Read(key)
     if raw <> invalid and raw <> "" then
         parsed = ParseJson(raw)
-        if parsed <> invalid and Type(parsed) = "roArray" then return favoriteStoreNormalizeList(parsed, playlistId)
+        if parsed <> invalid and Type(parsed) = "roArray" then return favoriteStoreHydrateList(parsed, playlistId)
     end if
     return favoriteStoreDemoItems(playlistId)
+end function
+
+function favoriteStoreHydrateList(items as Object, playlistId as String) as Object
+    out = []
+    if items = invalid then return out
+    for each item in items
+        if item <> invalid then
+            kind = favoriteStoreText(item, "favoriteKind", "item")
+            catalogItem = favoriteStoreFindCatalogItem(kind, item, playlistId)
+            if catalogItem <> invalid then
+                out.push(favoriteStoreNormalizeItem(kind, catalogItem, playlistId))
+            else
+                normalized = favoriteStoreNormalizeList([item], playlistId)
+                if normalized.count() > 0 then out.push(normalized[0])
+            end if
+        end if
+    end for
+    return out
+end function
+
+function favoriteStoreFindCatalogItem(kind as String, item as Object, playlistId as String) as Dynamic
+    catalog = []
+    if kind = "movie" then catalog = mediaMovieCatalogForPlaylist(playlistId)
+    if kind = "series" then catalog = mediaSeriesCatalogForPlaylist(playlistId)
+    if kind = "live" then catalog = mediaLiveCatalogForPlaylist(playlistId)
+    key = favoriteStoreItemKey(item, kind)
+    for each candidate in catalog
+        if favoriteStoreItemKey(candidate, kind) = key then return candidate
+    end for
+    return invalid
 end function
 
 function favoriteStoreNormalizeList(items as Object, playlistId as String) as Object
@@ -30,11 +60,37 @@ end function
 
 function favoriteStoreSave(playlistId as String, items as Object) as Boolean
     section = CreateObject("roRegistrySection", "iptv_max_favorites")
-    raw = FormatJson(items)
+    raw = FormatJson(favoriteStoreCompactList(items, playlistId))
     if raw = "" then raw = "[]"
-    section.Write(favoriteStoreRegistryKey(playlistId), raw)
-    section.Flush()
-    return true
+    written = section.Write(favoriteStoreRegistryKey(playlistId), raw)
+    if not written then
+        print "FavoriteStore: registry write failed for "; playlistId
+        return false
+    end if
+    flushed = section.Flush()
+    if not flushed then print "FavoriteStore: registry flush failed for "; playlistId
+    return flushed
+end function
+
+function favoriteStoreCompactList(items as Object, playlistId as String) as Object
+    out = []
+    if items = invalid then return out
+    for each item in items
+        if item <> invalid then
+            kind = favoriteStoreText(item, "favoriteKind", "item")
+            compact = {
+                favoriteKind: kind,
+                favoriteKey: favoriteStoreItemKey(item, kind),
+                playlistId: playlistId,
+                favorite: true
+            }
+            favoriteStoreCopyField(compact, item, "id")
+            favoriteStoreCopyField(compact, item, "title")
+            favoriteStoreCopyField(compact, item, "name")
+            out.push(compact)
+        end if
+    end for
+    return out
 end function
 
 function favoriteStoreToggle(kind as String, item as Object, playlistId as String) as Boolean
@@ -55,13 +111,13 @@ function favoriteStoreToggle(kind as String, item as Object, playlistId as Strin
     end for
 
     if removed then
-        favoriteStoreSave(playlistId, kept)
-        return false
+        if favoriteStoreSave(playlistId, kept) then return false
+        return true
     end if
 
     kept.push(favoriteStoreNormalizeItem(kind, item, playlistId))
-    favoriteStoreSave(playlistId, kept)
-    return true
+    if favoriteStoreSave(playlistId, kept) then return true
+    return false
 end function
 
 function favoriteStoreIsFavorite(kind as String, item as Object, playlistId as String) as Boolean

@@ -350,6 +350,7 @@ sub drawContinueCard(series as Object, sourceIndex as Integer, resumeIndex as In
         cardOpacity = 0.64
     end if
     uiPoster(m.canvas, cardUri, x, y, w, h, cardOpacity)
+    uiCardFocusTint(m.canvas, x, y, w, h, focused)
     drawContinuePoster(series, x + 20, y + 17, 76, 102)
     uiLabel(m.canvas, title, x + 116, y + 20, w - 138, 28, 17, textColor)
     uiScaledLabel(m.canvas, meta, x + 116, y + 54, w - 138, 20, 9, subColor, "left", 0.76)
@@ -391,7 +392,7 @@ sub drawMediaCard(series as Object, mediaIndex as Integer, sourceIndex as Intege
     end if
     uiRect(m.canvas, x, y, w, h, m.colors.panel, 0.32)
     drawSeriesPoster(series, x, y, w, h, focused)
-    if focused then uiRect(m.canvas, x, y, w, h, m.colors.greenSoft, 0.10)
+    uiCardFocusTint(m.canvas, x, y, w, h, focused)
     title = seriesText(series, "title", "Untitled")
     meta = seriesText(series, "seasons")
     if meta = "" then meta = seriesText(series, "episodeCount")

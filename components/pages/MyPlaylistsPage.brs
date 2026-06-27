@@ -481,10 +481,11 @@ sub drawPlaylistCard(p as Object, x as Integer, y as Integer, w as Integer, h as
     overlayOpacity = 0.18
     shellOpacity = 0.46
     if cardFocused then
-        overlayOpacity = 0.36
+        overlayOpacity = 0.16
         shellOpacity = 0.52
     end if
     uiRect(m.canvas, x, y, w, h, fill, overlayOpacity)
+    uiCardFocusTint(m.canvas, x, y, w, h, cardFocused)
     uiRect(m.canvas, x + 1, y + h - 58, w - 2, 54, m.colors.bg, 0.66)
     drawPlaylistCardShell(x, y, w, h, fill, border, shellOpacity)
     drawStatusPill(p, x + 18, y + 18, cardFocused)

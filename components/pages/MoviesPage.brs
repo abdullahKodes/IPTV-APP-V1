@@ -343,7 +343,7 @@ sub drawMovieCard(movie as Object, mediaIndex as Integer, sourceIndex as Integer
 
     uiRect(m.canvas, x, y, w, h, m.colors.panel, 0.32)
     drawMoviePoster(movie, x, y, w, h)
-    if focused then uiRect(m.canvas, x, y, w, h, m.colors.greenSoft, 0.10)
+    uiCardFocusTint(m.canvas, x, y, w, h, focused)
     drawMovieCardBorder(x, y, w, h, focused)
 
     m.focusItems.push({
