@@ -265,9 +265,15 @@ sub drawActionButton(x as Integer, y as Integer, w as Integer, icon as String, l
         textColor = "0xFFFFFFFF"
         opacity = 0.90
     end if
-    drawActionButtonSurface(x, y, w, h, focused, opacity)
-    drawActionIcon(icon, focused, x + 22, y + 10, 20, 20, textColor)
-    uiScaledLabel(m.canvas, label, x + 56, y + 6, w - 72, 24, 12, textColor, "left", 0.96)
+    buttonCanvas = CreateObject("roSGNode", "Group")
+    buttonCanvas.id = "seriesDetailAction" + idx.toStr()
+    buttonCanvas.translation = [x, y]
+    buttonCanvas.scaleRotateCenter = [w / 2, h / 2]
+    m.canvas.appendChild(buttonCanvas)
+    drawActionButtonSurface(buttonCanvas, 0, 0, w, h, focused, opacity)
+    drawActionIcon(buttonCanvas, icon, focused, 22, 10, 20, 20, textColor)
+    uiScaledLabel(buttonCanvas, label, 56, 6, w - 72, 24, 12, textColor, "left", 0.96)
+    if focused then uiAnimateActionFocus(m.canvas, buttonCanvas)
 end sub
 
 sub toggleFavorite()
@@ -339,8 +345,14 @@ sub drawSeasonTabs()
             border = m.colors.greenFocus
             opacity = 0.84
         end if
-        drawSeasonButtonSurface(x, y, focused, selected, opacity)
-        uiLabel(m.canvas, label, x + 8, y + 7, 124, 24, 11, textColor, "center")
+        seasonCanvas = CreateObject("roSGNode", "Group")
+        seasonCanvas.id = "seriesSeasonButton" + i.toStr()
+        seasonCanvas.translation = [x, y]
+        seasonCanvas.scaleRotateCenter = [70, 20]
+        m.canvas.appendChild(seasonCanvas)
+        drawSeasonButtonSurface(seasonCanvas, 0, 0, focused, selected, opacity)
+        uiLabel(seasonCanvas, label, 8, 7, 124, 24, 11, textColor, "center")
+        if focused then uiAnimateActionFocus(m.canvas, seasonCanvas)
     end for
 end sub
 
@@ -370,40 +382,45 @@ sub drawEpisodeCard(index as Integer, title as String, x as Integer, y as Intege
         border = m.colors.greenFocus
         opacity = 0.92
     end if
-    drawEpisodeSurface(x, y, w, h, focused, opacity)
-    uiCardFocusTint(m.canvas, x, y, w, h, focused)
-    drawEpisodeThumb(x + 16, y + 10, 54, 54)
-    uiScaledLabel(m.canvas, title, x + 90, y + 12, w - 106, 30, 14, titleColor, "left", 1.06)
-    uiScaledLabel(m.canvas, "Season " + (m.seasonIndex + 1).toStr(), x + 90, y + 43, w - 106, 20, 10, m.colors.textMuted, "left", 0.88)
+    episodeCanvas = CreateObject("roSGNode", "Group")
+    episodeCanvas.id = "seriesEpisodeCard" + index.toStr()
+    episodeCanvas.translation = [x, y]
+    m.canvas.appendChild(episodeCanvas)
+    drawEpisodeSurface(episodeCanvas, 0, 0, w, h, focused, opacity)
+    uiCardFocusTint(episodeCanvas, 0, 0, w, h, focused)
+    drawEpisodeThumb(episodeCanvas, 16, 10, 54, 54)
+    uiScaledLabel(episodeCanvas, title, 90, 12, w - 106, 30, 14, titleColor, "left", 1.06)
+    uiScaledLabel(episodeCanvas, "Season " + (m.seasonIndex + 1).toStr(), 90, 43, w - 106, 20, 10, m.colors.textMuted, "left", 0.88)
+    if focused then uiAnimateCardFocus(m.canvas, episodeCanvas, x, y)
 end sub
 
-sub drawEpisodeThumb(x as Integer, y as Integer, w as Integer, h as Integer)
+sub drawEpisodeThumb(parent as Object, x as Integer, y as Integer, w as Integer, h as Integer)
     thumbUrl = m.top.detailPosterUrl
     if thumbUrl <> invalid and thumbUrl <> "" then
-        thumb = uiPoster(m.canvas, thumbUrl, x, y, w, h, 0.92)
+        thumb = uiPoster(parent, thumbUrl, x, y, w, h, 0.92)
         thumb.loadDisplayMode = "scaleToZoom"
     else
-        uiRect(m.canvas, x, y, w, h, m.colors.panelSoft, 0.76)
+        uiRect(parent, x, y, w, h, m.colors.panelSoft, 0.76)
     end if
 end sub
 
-sub drawActionButtonSurface(x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean, opacity as Float)
+sub drawActionButtonSurface(parent as Object, x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean, opacity as Float)
     uri = "pkg:/images/ui/movie_watch_" + w.toStr() + "x40_panel_greenFocus.png"
     if focused then uri = "pkg:/images/ui/movie_watch_" + w.toStr() + "x40_greenSoft_greenFocus.png"
-    uiPoster(m.canvas, uri, x, y, w, h, opacity)
+    uiPoster(parent, uri, x, y, w, h, opacity)
 end sub
 
-sub drawSeasonButtonSurface(x as Integer, y as Integer, focused as Boolean, selected as Boolean, opacity as Float)
+sub drawSeasonButtonSurface(parent as Object, x as Integer, y as Integer, focused as Boolean, selected as Boolean, opacity as Float)
     uri = "pkg:/images/ui/rr_140x40_bg_whiteLine.png"
     if selected then uri = "pkg:/images/ui/rr_140x40_purpleSoft_greenFocus.png"
     if focused then uri = "pkg:/images/ui/rr_140x40_greenSoft_greenFocus.png"
-    uiPoster(m.canvas, uri, x, y, 140, 40, opacity)
+    uiPoster(parent, uri, x, y, 140, 40, opacity)
 end sub
 
-sub drawEpisodeSurface(x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean, opacity as Float)
+sub drawEpisodeSurface(parent as Object, x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean, opacity as Float)
     uri = "pkg:/images/ui/rr_365x112_panel_whiteSoft.png"
     if focused then uri = "pkg:/images/ui/rr_365x112_greenSoft_greenFocus.png"
-    uiPoster(m.canvas, uri, x, y, w, h, opacity)
+    uiPoster(parent, uri, x, y, w, h, opacity)
 end sub
 
 sub drawEpisodeScrollbar(x as Integer, y as Integer, h as Integer)
@@ -451,10 +468,10 @@ sub drawDetailIcon(icon as String, focused as Boolean, x as Integer, y as Intege
     poster.blendColor = tint
 end sub
 
-sub drawActionIcon(icon as String, focused as Boolean, x as Integer, y as Integer, w as Integer, h as Integer, tint as String)
+sub drawActionIcon(parent as Object, icon as String, focused as Boolean, x as Integer, y as Integer, w as Integer, h as Integer, tint as String)
     uri = "pkg:/images/ui/detail_action_" + icon + ".png"
     if focused then uri = "pkg:/images/ui/detail_action_" + icon + "_focus.png"
-    poster = uiPoster(m.canvas, uri, x, y, w, h, 0.96)
+    poster = uiPoster(parent, uri, x, y, w, h, 0.96)
     poster.blendColor = tint
 end sub
 

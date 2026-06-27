@@ -128,9 +128,15 @@ sub drawActionButton(x as Integer, y as Integer, w as Integer, icon as String, l
         textColor = "0xFFFFFFFF"
         opacity = 0.90
     end if
-    drawActionButtonSurface(x, y, w, h, focused, opacity)
-    drawActionIcon(icon, focused, x + 22, y + 10, 20, 20, textColor)
-    uiScaledLabel(m.canvas, label, x + 56, y + 6, w - 72, 24, 12, textColor, "left", 0.96)
+    buttonCanvas = CreateObject("roSGNode", "Group")
+    buttonCanvas.id = "movieDetailAction" + idx.toStr()
+    buttonCanvas.translation = [x, y]
+    buttonCanvas.scaleRotateCenter = [w / 2, h / 2]
+    m.canvas.appendChild(buttonCanvas)
+    drawActionButtonSurface(buttonCanvas, 0, 0, w, h, focused, opacity)
+    drawActionIcon(buttonCanvas, icon, focused, 22, 10, 20, 20, textColor)
+    uiScaledLabel(buttonCanvas, label, 56, 6, w - 72, 24, 12, textColor, "left", 0.96)
+    if focused then uiAnimateActionFocus(m.canvas, buttonCanvas)
 end sub
 
 sub toggleFavorite()
@@ -179,16 +185,16 @@ function movieDetailDuration() as String
     return ""
 end function
 
-sub drawActionButtonSurface(x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean, opacity as Float)
+sub drawActionButtonSurface(parent as Object, x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean, opacity as Float)
     uri = "pkg:/images/ui/movie_watch_" + w.toStr() + "x40_panel_greenFocus.png"
     if focused then uri = "pkg:/images/ui/movie_watch_" + w.toStr() + "x40_greenSoft_greenFocus.png"
-    uiPoster(m.canvas, uri, x, y, w, h, opacity)
+    uiPoster(parent, uri, x, y, w, h, opacity)
 end sub
 
-sub drawActionIcon(icon as String, focused as Boolean, x as Integer, y as Integer, w as Integer, h as Integer, tint as String)
+sub drawActionIcon(parent as Object, icon as String, focused as Boolean, x as Integer, y as Integer, w as Integer, h as Integer, tint as String)
     uri = "pkg:/images/ui/detail_action_" + icon + ".png"
     if focused then uri = "pkg:/images/ui/detail_action_" + icon + "_focus.png"
-    poster = uiPoster(m.canvas, uri, x, y, w, h, 0.96)
+    poster = uiPoster(parent, uri, x, y, w, h, 0.96)
     poster.blendColor = tint
 end sub
 

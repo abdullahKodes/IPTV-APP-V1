@@ -402,8 +402,8 @@ end sub
 
 sub drawPageHeader(row as Integer)
     summary = playlistSummary(m.playlists)
-    uiLabel(m.canvas, "MY PLAYLISTS", 258, 112, 260, 26, 14, m.colors.textDim)
-    uiLabel(m.canvas, summary.countText + " - " + summary.totalText, 258, 138, 430, 28, 15, m.colors.purpleLine)
+    uiLabel(m.canvas, "MY PLAYLISTS", 258, 106, 300, 34, 18, m.colors.text)
+    uiLabel(m.canvas, summary.countText, 258, 140, 300, 26, 13, m.colors.purpleLine)
 
     addSearchAction(686, 24, 260, 40, 0, 3)
     addHeaderAction(920, 108, 230, 48, "plus", "Add Playlist", row, 3, "AddPlaylistPage", "")
@@ -415,13 +415,20 @@ sub addHeaderAction(x as Integer, y as Integer, w as Integer, h as Integer, icon
     bg = m.colors.purpleSoft
     border = m.colors.purpleLine
     textColor = m.colors.text
+    buttonOpacity = 1.0
     if focused then
         bg = m.colors.purpleSoft
         border = m.colors.greenFocus
     end if
-    uiRoundRect(m.canvas, x, y, w, h, bg, border)
-    uiDrawIcon(m.canvas, icon, x + 28, y + 13, 20, 20, focused, textColor, 12)
-    uiLabel(m.canvas, label, x + 58, y + 8, w - 72, 30, 15, textColor)
+    buttonCanvas = CreateObject("roSGNode", "Group")
+    buttonCanvas.id = "playlistHeaderAction" + itemIndex.toStr()
+    buttonCanvas.translation = [x, y]
+    buttonCanvas.scaleRotateCenter = [w / 2, h / 2]
+    m.canvas.appendChild(buttonCanvas)
+    uiRoundRect(buttonCanvas, 0, 0, w, h, bg, border, buttonOpacity)
+    uiDrawIcon(buttonCanvas, icon, 28, 13, 20, 20, focused, textColor, 12)
+    uiLabel(buttonCanvas, label, 58, 8, w - 72, 30, 15, textColor)
+    if focused then uiAnimateActionFocus(m.canvas, buttonCanvas)
     m.focusItems.push({ x: x, y: y, w: w, h: h, icon: icon, label: label, subtitle: "", iconSize: 12, titleSize: 15, subSize: 10, bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.greenFocus, focusBorder: m.colors.text, focusTextColor: m.colors.text, row: row, col: col, page: page, action: action, mode: "manual" })
 end sub
 
@@ -446,7 +453,7 @@ sub addSearchAction(x as Integer, y as Integer, w as Integer, h as Integer, row 
 end sub
 
 sub drawPlaylistGrid(visible as Object, rowStart as Integer)
-    x0 = 238
+    x0 = 250
     y0 = 186
     cardW = 300
     cardH = 174
@@ -477,22 +484,27 @@ sub drawPlaylistCard(p as Object, x as Integer, y as Integer, w as Integer, h as
         border = m.colors.greenFocus
     end if
 
-    drawCardArtwork(p, x, y, w, h)
+    cardCanvas = CreateObject("roSGNode", "Group")
+    cardCanvas.id = "playlistCard" + visibleIndex.toStr()
+    cardCanvas.translation = [x, y]
+    m.canvas.appendChild(cardCanvas)
+    drawCardArtwork(p, cardCanvas, 0, 0, w, h)
     overlayOpacity = 0.18
     shellOpacity = 0.46
     if cardFocused then
         overlayOpacity = 0.16
         shellOpacity = 0.52
     end if
-    uiRect(m.canvas, x, y, w, h, fill, overlayOpacity)
-    uiCardFocusTint(m.canvas, x, y, w, h, cardFocused)
-    uiRect(m.canvas, x + 1, y + h - 58, w - 2, 54, m.colors.bg, 0.66)
-    drawPlaylistCardShell(x, y, w, h, fill, border, shellOpacity)
-    drawStatusPill(p, x + 18, y + 18, cardFocused)
-    uiLabel(m.canvas, playlistStoreText(p, "title", "Playlist"), x + 18, y + 68, w - 36, 28, 14, titleColor)
-    uiLabel(m.canvas, playlistTypeLabel(p), x + 18, y + 94, w - 36, 22, 11, m.colors.textPurple)
-    uiRect(m.canvas, x + 18, y + 124, w - 152, 1, "0xFFFFFF14")
-    uiLabel(m.canvas, playlistStoreText(p, "time", "Ready"), x + 18, y + 127, 150, 22, 8, m.colors.textDim)
+    uiRect(cardCanvas, 0, 0, w, h, fill, overlayOpacity)
+    uiCardFocusTint(cardCanvas, 0, 0, w, h, cardFocused)
+    uiRect(cardCanvas, 1, h - 58, w - 2, 54, m.colors.bg, 0.66)
+    drawPlaylistCardShell(cardCanvas, 0, 0, w, h, fill, border, shellOpacity)
+    drawStatusPill(p, cardCanvas, 18, 18, cardFocused)
+    uiLabel(cardCanvas, playlistStoreText(p, "title", "Playlist"), 18, 68, w - 36, 28, 14, titleColor)
+    uiLabel(cardCanvas, playlistTypeLabel(p), 18, 94, w - 36, 22, 11, m.colors.textPurple)
+    uiRect(cardCanvas, 18, 124, w - 152, 1, "0xFFFFFF14")
+    uiLabel(cardCanvas, playlistStoreText(p, "time", "Ready"), 18, 127, 150, 22, 8, m.colors.textDim)
+    if cardFocused then uiAnimateCardFocus(m.canvas, cardCanvas, x, y)
 
     m.focusItems.push({ x: x, y: y, w: w, h: h, icon: playlistStoreText(p, "icon", "list"), label: playlistStoreText(p, "title", "Playlist"), subtitle: playlistStoreText(p, "meta"), iconSize: 13, titleSize: 16, subSize: 12, bg: fill, border: border, textColor: titleColor, subColor: m.colors.textDim, focusBg: fill, focusBorder: border, focusTextColor: titleColor, row: row, col: col, page: "", action: "playlist", playlistId: playlistStoreText(p, "id"), visibleIndex: visibleIndex, mode: "manual" })
 
@@ -501,21 +513,21 @@ sub drawPlaylistCard(p as Object, x as Integer, y as Integer, w as Integer, h as
     end if
 end sub
 
-sub drawPlaylistCardShell(x as Integer, y as Integer, w as Integer, h as Integer, fill as String, border as String, opacity = 1.0 as Float)
+sub drawPlaylistCardShell(parent as Object, x as Integer, y as Integer, w as Integer, h as Integer, fill as String, border as String, opacity = 1.0 as Float)
     fillKey = "purpleSoft"
     borderKey = "purpleLine"
     if fill = m.colors.greenSoft then fillKey = "greenSoft"
     if border = m.colors.green or border = m.colors.greenFocus then borderKey = "greenFocus"
     if border = m.colors.purpleLine then borderKey = "purpleLine"
     uri = "pkg:/images/ui/thin_280x152_" + fillKey + "_" + borderKey + ".png"
-    uiPoster(m.canvas, uri, x, y, w, h, opacity)
+    uiPoster(parent, uri, x, y, w, h, opacity)
 end sub
 
-sub drawCardArtwork(p as Object, x as Integer, y as Integer, w as Integer, h as Integer)
+sub drawCardArtwork(p as Object, parent as Object, x as Integer, y as Integer, w as Integer, h as Integer)
     art = playlistArtworkUri(p)
     if art <> "" then
-        poster = uiPosterZoom(m.canvas, art, x, y, w, h, 1.0)
-        uiRect(m.canvas, x, y, w, h, m.colors.bg, 0.08)
+        poster = uiPosterZoom(parent, art, x, y, w, h, 1.0)
+        uiRect(parent, x, y, w, h, m.colors.bg, 0.08)
     end if
 end sub
 
@@ -555,7 +567,7 @@ function playlistTypeLabel(p as Object) as String
     return "M3U Playlist"
 end function
 
-sub drawStatusPill(p as Object, x as Integer, y as Integer, focused as Boolean)
+sub drawStatusPill(p as Object, parent as Object, x as Integer, y as Integer, focused as Boolean)
     status = playlistStoreText(p, "status", "Active")
     textColor = "0xFFFFFFFF"
     uri = "pkg:/images/ui/movie_featured_badge_100x34_purpleDeep.png"
@@ -566,8 +578,8 @@ sub drawStatusPill(p as Object, x as Integer, y as Integer, focused as Boolean)
         label = "Expires"
         textColor = m.colors.amber
     end if
-    uiPoster(m.canvas, uri, x, y, 88, 30)
-    uiLabel(m.canvas, label, x + 4, y - 1, 80, 30, 9, textColor, "center")
+    uiPoster(parent, uri, x, y, 88, 30)
+    uiLabel(parent, label, x + 4, y - 1, 80, 30, 9, textColor, "center")
 end sub
 
 sub drawCardAction(label as String, action as String, playlistId as String, playlistTitle as String, x as Integer, y as Integer, row as Integer, col as Integer, visibleIndex as Integer)
@@ -591,7 +603,7 @@ end sub
 
 sub drawPlaylistScrollbar(totalCount as Integer)
     if totalCount <= m.playlistWindowSize then return
-    trackX = 1172
+    trackX = 1200
     trackY = 186
     trackH = 374
     uiVerticalPill(m.canvas, trackX, trackY, 3, trackH, "0xFFFFFF18", "pkg:/images/ui/scroll_cap_4_whiteLine.png", 0.42)

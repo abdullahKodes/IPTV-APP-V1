@@ -110,13 +110,13 @@ sub render()
     end if
     drawCategoryPills(row)
 
-    uiLabel(m.canvas, "CONTINUE WATCHING", 244, 166, 300, 26, 13, m.colors.textDim)
+    uiLabel(m.canvas, "CONTINUE WATCHING", 244, 166, 300, 26, 13, m.colors.text)
     drawResumeSeriesCards()
 
     sectionLabel = "POPULAR SERIES"
     if m.selectedGenre <> "All" then sectionLabel = m.selectedGenre + " series"
     countText = visible.count().toStr() + " titles"
-    uiLabel(m.canvas, sectionLabel, 244, 376, 250, 26, 13, m.colors.textDim)
+    uiLabel(m.canvas, sectionLabel, 244, 376, 250, 26, 13, m.colors.text)
     uiLabel(m.canvas, countText, 824, 376, 190, 26, 12, m.colors.textDim, "right")
     endIndex = m.seriesWindowStart + m.seriesWindowSize - 1
     if endIndex > visible.count() - 1 then endIndex = visible.count() - 1
@@ -349,13 +349,18 @@ sub drawContinueCard(series as Object, sourceIndex as Integer, resumeIndex as In
         cardUri = "pkg:/images/ui/continue_card_410x136_panel_greenFocus.png"
         cardOpacity = 0.64
     end if
-    uiPoster(m.canvas, cardUri, x, y, w, h, cardOpacity)
-    uiCardFocusTint(m.canvas, x, y, w, h, focused)
-    drawContinuePoster(series, x + 20, y + 17, 76, 102)
-    uiLabel(m.canvas, title, x + 116, y + 20, w - 138, 28, 17, textColor)
-    uiScaledLabel(m.canvas, meta, x + 116, y + 54, w - 138, 20, 9, subColor, "left", 0.76)
-    uiPoster(m.canvas, buttonUri, x + 116, y + 84, 126, 34, 0.74)
-    uiScaledLabel(m.canvas, "Watch now", x + 123, y + 91, 112, 18, 8, "0xFFFFFFFF", "center", 0.78)
+    cardCanvas = CreateObject("roSGNode", "Group")
+    cardCanvas.id = "seriesResumeCard" + resumeIndex.toStr()
+    cardCanvas.translation = [x, y]
+    m.canvas.appendChild(cardCanvas)
+    uiPoster(cardCanvas, cardUri, 0, 0, w, h, cardOpacity)
+    uiCardFocusTint(cardCanvas, 0, 0, w, h, focused)
+    drawContinuePoster(series, cardCanvas, 20, 17, 76, 102)
+    uiLabel(cardCanvas, title, 116, 20, w - 138, 28, 17, textColor)
+    uiScaledLabel(cardCanvas, meta, 116, 54, w - 138, 20, 9, subColor, "left", 0.76)
+    uiPoster(cardCanvas, buttonUri, 116, 84, 126, 34, 0.74)
+    uiScaledLabel(cardCanvas, "Watch now", 123, 91, 112, 18, 8, "0xFFFFFFFF", "center", 0.78)
+    if focused then uiAnimateCardFocus(m.canvas, cardCanvas, x, y)
 
     m.focusItems.push({
         x: x, y: y, w: w, h: h,
@@ -369,17 +374,17 @@ sub drawContinueCard(series as Object, sourceIndex as Integer, resumeIndex as In
     })
 end sub
 
-sub drawContinuePoster(series as Object, x as Integer, y as Integer, w as Integer, h as Integer)
+sub drawContinuePoster(series as Object, parent as Object, x as Integer, y as Integer, w as Integer, h as Integer)
     posterUrl = seriesText(series, "posterUrl")
     if posterUrl = "" then posterUrl = seriesCardUrl(series)
     if posterUrl <> "" then
-        poster = uiPoster(m.canvas, posterUrl, x, y, w, h)
+        poster = uiPoster(parent, posterUrl, x, y, w, h)
         poster.loadDisplayMode = "scaleToZoom"
-        uiPoster(m.canvas, "pkg:/images/demo/frames/featured_poster_corner_mask.png", x, y, w, h)
-        uiPoster(m.canvas, "pkg:/images/demo/frames/featured_poster_frame_neutral.png", x, y, w, h)
+        uiPoster(parent, "pkg:/images/demo/frames/featured_poster_corner_mask.png", x, y, w, h)
+        uiPoster(parent, "pkg:/images/demo/frames/featured_poster_frame_neutral.png", x, y, w, h)
     else
-        uiRoundRect(m.canvas, x, y, w, h, m.colors.purpleSoft, m.colors.greenFocus)
-        uiDrawIcon(m.canvas, "cards_badge", x + 16, y + 28, 36, 36, false, "0xFFFFFFFF", 12)
+        uiRoundRect(parent, x, y, w, h, m.colors.purpleSoft, m.colors.greenFocus)
+        uiDrawIcon(parent, "cards_badge", x + 16, y + 28, 36, 36, false, "0xFFFFFFFF", 12)
     end if
 end sub
 
@@ -390,13 +395,18 @@ sub drawMediaCard(series as Object, mediaIndex as Integer, sourceIndex as Intege
         focused = mediaIndex = m.selectedSeriesIndex
         if focused then m.focusIndex = itemIndex
     end if
-    uiRect(m.canvas, x, y, w, h, m.colors.panel, 0.32)
-    drawSeriesPoster(series, x, y, w, h, focused)
-    uiCardFocusTint(m.canvas, x, y, w, h, focused)
+    cardCanvas = CreateObject("roSGNode", "Group")
+    cardCanvas.id = "seriesCard" + mediaIndex.toStr()
+    cardCanvas.translation = [x, y]
+    m.canvas.appendChild(cardCanvas)
+    uiRect(cardCanvas, 0, 0, w, h, m.colors.panel, 0.32)
+    drawSeriesPoster(series, cardCanvas, 0, 0, w, h, focused)
+    uiCardFocusTint(cardCanvas, 0, 0, w, h, focused)
     title = seriesText(series, "title", "Untitled")
     meta = seriesText(series, "seasons")
     if meta = "" then meta = seriesText(series, "episodeCount")
-    drawSeriesCardBorder(x, y, w, h, focused)
+    drawSeriesCardBorder(cardCanvas, 0, 0, w, h, focused)
+    if focused then uiAnimateCardFocus(m.canvas, cardCanvas, x, y)
 
     m.focusItems.push({
         x: x, y: y, w: w, h: h,
@@ -409,7 +419,7 @@ sub drawMediaCard(series as Object, mediaIndex as Integer, sourceIndex as Intege
     })
 end sub
 
-sub drawSeriesCardBorder(x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean)
+sub drawSeriesCardBorder(parent as Object, x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean)
     borderColor = "0xFFFFFF18"
     thickness = 1
     opacity = 0.9
@@ -418,21 +428,21 @@ sub drawSeriesCardBorder(x as Integer, y as Integer, w as Integer, h as Integer,
         thickness = 3
         opacity = 1.0
     end if
-    uiRectBorder(m.canvas, x, y, w, h, borderColor, thickness, opacity)
+    uiRectBorder(parent, x, y, w, h, borderColor, thickness, opacity)
 end sub
 
-sub drawSeriesPoster(series as Object, x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean)
+sub drawSeriesPoster(series as Object, parent as Object, x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean)
     artUrl = seriesCardUrl(series)
     if artUrl <> "" then
-        poster = uiPoster(m.canvas, artUrl, x, y, w, h, 0.96)
+        poster = uiPoster(parent, artUrl, x, y, w, h, 0.96)
         poster.loadDisplayMode = "scaleToZoom"
     else
         iconW = 36
         iconH = 36
         iconX = x + Int((w - iconW) / 2)
         iconY = y + Int((h - iconH) / 2)
-        uiDrawIcon(m.canvas, "cards_badge", iconX, iconY, iconW, iconH, focused, "0xFFFFFFFF", 12)
-        uiLabel(m.canvas, seriesText(series, "year"), x + 16, y + h - 24, w - 32, 18, 8, m.colors.textMuted, "center")
+        uiDrawIcon(parent, "cards_badge", iconX, iconY, iconW, iconH, focused, "0xFFFFFFFF", 12)
+        uiLabel(parent, seriesText(series, "year"), x + 16, y + h - 24, w - 32, 18, 8, m.colors.textMuted, "center")
     end if
 end sub
 

@@ -372,17 +372,22 @@ sub drawPosterFavoriteCard(fav as Object, section as Integer, visibleIndex as In
         focused = visibleIndex = m.selectedIndexes[section]
         if focused then m.focusIndex = itemIndex
     end if
-    uiRect(m.canvas, x, y, w, h, m.colors.panel, 0.32)
+    cardCanvas = CreateObject("roSGNode", "Group")
+    cardCanvas.id = "favoritePosterCard" + section.toStr() + "_" + visibleIndex.toStr()
+    cardCanvas.translation = [x, y]
+    m.canvas.appendChild(cardCanvas)
+    uiRect(cardCanvas, 0, 0, w, h, m.colors.panel, 0.32)
     artUrl = favoritePosterUrl(fav)
     if artUrl <> "" then
-        poster = uiPoster(m.canvas, artUrl, x, y, w, h, 0.96)
+        poster = uiPoster(cardCanvas, artUrl, 0, 0, w, h, 0.96)
         poster.loadDisplayMode = "scaleToZoom"
     else
-        uiRoundRect(m.canvas, x, y, w, h, m.colors.purpleSoft, m.colors.whiteLine, 0.64)
-        uiDrawIcon(m.canvas, "heart", x + 54, y + 46, 36, 36, focused, m.colors.text, 15)
+        uiRoundRect(cardCanvas, 0, 0, w, h, m.colors.purpleSoft, m.colors.whiteLine, 0.64)
+        uiDrawIcon(cardCanvas, "heart", 54, 46, 36, 36, focused, m.colors.text, 15)
     end if
-    uiCardFocusTint(m.canvas, x, y, w, h, focused)
-    uiRectBorder(m.canvas, x, y, w, h, favoriteBorderColor(focused), favoriteBorderWidth(focused), 1.0)
+    uiCardFocusTint(cardCanvas, 0, 0, w, h, focused)
+    uiRectBorder(cardCanvas, 0, 0, w, h, favoriteBorderColor(focused), favoriteBorderWidth(focused), 1.0)
+    if focused then uiAnimateCardFocus(m.canvas, cardCanvas, x, y)
     m.focusItems.push({
         x: x, y: y, w: w, h: h,
         icon: "", label: favoriteTitle(fav), subtitle: favItemText(fav, "genre"),
@@ -406,21 +411,26 @@ sub drawLiveFavoriteCard(fav as Object, section as Integer, visibleIndex as Inte
         bg = m.colors.greenSoft
         border = m.colors.greenFocus
     end if
-    uiRect(m.canvas, x, y, w, h, bg, 0.62)
+    cardCanvas = CreateObject("roSGNode", "Group")
+    cardCanvas.id = "favoriteLiveCard" + section.toStr() + "_" + visibleIndex.toStr()
+    cardCanvas.translation = [x, y]
+    m.canvas.appendChild(cardCanvas)
+    uiRect(cardCanvas, 0, 0, w, h, bg, 0.62)
     brandColor = favItemText(fav, "brandColor", m.colors.greenFocus)
     brandColor2 = favItemText(fav, "brandColor2", m.colors.purpleActive)
-    uiRect(m.canvas, x, y, w, h, brandColor2, 0.50)
-    uiRect(m.canvas, x, y + h - 42, w, 42, "0x000000FF", 0.34)
+    uiRect(cardCanvas, 0, 0, w, h, brandColor2, 0.50)
+    uiRect(cardCanvas, 0, h - 42, w, 42, "0x000000FF", 0.34)
     logoUrl = favoritePosterUrl(fav)
     if logoUrl <> "" then
-        logo = uiPoster(m.canvas, logoUrl, x + 16, y + 38, w - 32, 54, 0.96)
+        logo = uiPoster(cardCanvas, logoUrl, 16, 38, w - 32, 54, 0.96)
         logo.loadDisplayMode = "scaleToFit"
     else
-        uiDrawIcon(m.canvas, "tv", x + 39, y + 52, 38, 38, focused, m.colors.text, 14)
+        uiDrawIcon(cardCanvas, "tv", 39, 52, 38, 38, focused, m.colors.text, 14)
     end if
-    uiCardFocusTint(m.canvas, x, y, w, h, focused)
-    uiRectBorder(m.canvas, x, y, w, h, border, favoriteBorderWidth(focused), 1.0)
-    uiScaledLabel(m.canvas, liveCardShortTitle(fav), x + 10, y + h - 36, w - 20, 22, 9, m.colors.text, "center", 0.78)
+    uiCardFocusTint(cardCanvas, 0, 0, w, h, focused)
+    uiRectBorder(cardCanvas, 0, 0, w, h, border, favoriteBorderWidth(focused), 1.0)
+    uiScaledLabel(cardCanvas, liveCardShortTitle(fav), 10, h - 36, w - 20, 22, 9, m.colors.text, "center", 0.78)
+    if focused then uiAnimateCardFocus(m.canvas, cardCanvas, x, y)
     m.focusItems.push({
         x: x, y: y, w: w, h: h,
         icon: "tv", label: favoriteTitle(fav), subtitle: favItemText(fav, "now"),

@@ -104,13 +104,13 @@ sub render()
     end if
     drawMoviePills(row)
 
-    uiLabel(m.canvas, "FEATURED MOVIE", 244, 166, 250, 26, 13, m.colors.textDim)
+    uiLabel(m.canvas, "FEATURED MOVIE", 244, 166, 250, 26, 13, m.colors.text)
     drawFeatured(featuredMovie(visible), row + 1)
 
     sectionLabel = "ALL MOVIES"
     if m.selectedGenre <> "All" then sectionLabel = m.selectedGenre + " movies"
     countText = visible.count().toStr() + " titles"
-    uiLabel(m.canvas, sectionLabel, 244, 404, 250, 26, 13, m.colors.textDim)
+    uiLabel(m.canvas, sectionLabel, 244, 404, 250, 26, 13, m.colors.text)
     uiLabel(m.canvas, countText, 824, 404, 190, 26, 12, m.colors.textDim, "right")
     endIndex = m.movieWindowStart + m.movieWindowSize - 1
     if endIndex > visible.count() - 1 then endIndex = visible.count() - 1
@@ -308,19 +308,25 @@ sub drawFeatured(movie as Object, row as Integer)
         buttonText = "0xFFFFFFFF"
     end if
 
-    uiPoster(m.canvas, "pkg:/images/ui/movie_featured_770x184_panel_whiteSoft.png", 244, 206, 600, 184, 0.46)
+    featuredCanvas = CreateObject("roSGNode", "Group")
+    featuredCanvas.id = "featuredMovieCard"
+    featuredCanvas.translation = [244, 206]
+    featuredCanvas.scaleRotateCenter = [300, 92]
+    m.canvas.appendChild(featuredCanvas)
+    uiPoster(featuredCanvas, "pkg:/images/ui/movie_featured_770x184_panel_whiteSoft.png", 0, 0, 600, 184, 0.46)
     if focused then
-        uiPoster(m.canvas, "pkg:/images/ui/movie_featured_770x184_panel_greenFocus.png", 244, 206, 600, 184, 0.56)
+        uiPoster(featuredCanvas, "pkg:/images/ui/movie_featured_770x184_panel_greenFocus.png", 0, 0, 600, 184, 0.56)
     end if
-    drawFeaturedPoster(movie, 278, 227, 92, 142)
-    uiPoster(m.canvas, "pkg:/images/ui/movie_featured_badge_100x34_purpleDeep.png", 404, 228, 78, 24, 0.76)
-    uiScaledLabel(m.canvas, "Featured", 404, 232, 78, 16, 8, labelColor, "center", 0.72)
+    drawFeaturedPoster(movie, featuredCanvas, 34, 21, 92, 142)
+    uiPoster(featuredCanvas, "pkg:/images/ui/movie_featured_badge_100x34_purpleDeep.png", 160, 22, 78, 24, 0.76)
+    uiScaledLabel(featuredCanvas, "Featured", 160, 26, 78, 16, 8, labelColor, "center", 0.72)
     title = movieText(movie, "title", "Untitled")
     meta = movieText(movie, "year") + " - " + movieText(movie, "duration") + " - " + movieText(movie, "genre")
-    uiLabel(m.canvas, title, 404, 260, 320, 28, 17, titleColor)
-    uiScaledLabel(m.canvas, meta, 404, 293, 360, 18, 8, subColor, "left", 0.68)
-    uiPoster(m.canvas, buttonUri, 404, 326, 126, 36)
-    uiScaledLabel(m.canvas, "Watch now", 411, 332, 112, 20, 10, buttonText, "center", 0.78)
+    uiLabel(featuredCanvas, title, 160, 54, 320, 28, 17, titleColor)
+    uiScaledLabel(featuredCanvas, meta, 160, 87, 360, 18, 8, subColor, "left", 0.68)
+    uiPoster(featuredCanvas, buttonUri, 160, 120, 126, 36)
+    uiScaledLabel(featuredCanvas, "Watch now", 167, 126, 112, 20, 10, buttonText, "center", 0.78)
+    if focused then uiAnimatePanelFocus(m.canvas, featuredCanvas)
 
     m.focusItems.push({
         x: 404, y: 326, w: 126, h: 36,
@@ -341,10 +347,15 @@ sub drawMovieCard(movie as Object, mediaIndex as Integer, sourceIndex as Integer
     end if
     title = movieText(movie, "title", "Untitled")
 
-    uiRect(m.canvas, x, y, w, h, m.colors.panel, 0.32)
-    drawMoviePoster(movie, x, y, w, h)
-    uiCardFocusTint(m.canvas, x, y, w, h, focused)
-    drawMovieCardBorder(x, y, w, h, focused)
+    cardCanvas = CreateObject("roSGNode", "Group")
+    cardCanvas.id = "movieCard" + mediaIndex.toStr()
+    cardCanvas.translation = [x, y]
+    m.canvas.appendChild(cardCanvas)
+    uiRect(cardCanvas, 0, 0, w, h, m.colors.panel, 0.32)
+    drawMoviePoster(movie, cardCanvas, 0, 0, w, h)
+    uiCardFocusTint(cardCanvas, 0, 0, w, h, focused)
+    drawMovieCardBorder(cardCanvas, 0, 0, w, h, focused)
+    if focused then uiAnimateCardFocus(m.canvas, cardCanvas, x, y)
 
     m.focusItems.push({
         x: x, y: y, w: w, h: h,
@@ -356,22 +367,22 @@ sub drawMovieCard(movie as Object, mediaIndex as Integer, sourceIndex as Integer
     })
 end sub
 
-sub drawMoviePoster(movie as Object, x as Integer, y as Integer, w as Integer, h as Integer)
+sub drawMoviePoster(movie as Object, parent as Object, x as Integer, y as Integer, w as Integer, h as Integer)
     artUrl = movieCardUrl(movie)
     if artUrl <> "" then
-        poster = uiPoster(m.canvas, artUrl, x, y, w, h, 0.96)
+        poster = uiPoster(parent, artUrl, x, y, w, h, 0.96)
         poster.loadDisplayMode = "scaleToZoom"
     else
         iconW = 36
         iconH = 36
         iconX = x + Int((w - iconW) / 2)
         iconY = y + Int((h - iconH) / 2) - 6
-        uiPoster(m.canvas, "pkg:/images/icons/movie_cards.png", iconX, iconY, iconW, iconH)
-        uiLabel(m.canvas, movieText(movie, "year"), x + 16, y + h - 24, w - 32, 18, 8, m.colors.textMuted, "center")
+        uiPoster(parent, "pkg:/images/icons/movie_cards.png", iconX, iconY, iconW, iconH)
+        uiLabel(parent, movieText(movie, "year"), x + 16, y + h - 24, w - 32, 18, 8, m.colors.textMuted, "center")
     end if
 end sub
 
-sub drawMovieCardBorder(x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean)
+sub drawMovieCardBorder(parent as Object, x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean)
     borderColor = "0xFFFFFF18"
     thickness = 1
     opacity = 0.9
@@ -380,20 +391,20 @@ sub drawMovieCardBorder(x as Integer, y as Integer, w as Integer, h as Integer, 
         thickness = 3
         opacity = 1.0
     end if
-    uiRectBorder(m.canvas, x, y, w, h, borderColor, thickness, opacity)
+    uiRectBorder(parent, x, y, w, h, borderColor, thickness, opacity)
 end sub
 
-sub drawFeaturedPoster(movie as Object, x as Integer, y as Integer, w as Integer, h as Integer)
+sub drawFeaturedPoster(movie as Object, parent as Object, x as Integer, y as Integer, w as Integer, h as Integer)
     posterUrl = movieText(movie, "posterUrl")
     if posterUrl <> "" then
-        poster = uiPoster(m.canvas, posterUrl, x - 4, y - 4, w + 8, h + 8)
+        poster = uiPoster(parent, posterUrl, x - 4, y - 4, w + 8, h + 8)
         poster.loadDisplayMode = "scaleToZoom"
-        uiPoster(m.canvas, "pkg:/images/demo/frames/featured_poster_corner_mask.png", x - 4, y - 4, w + 8, h + 8)
-        uiPoster(m.canvas, "pkg:/images/demo/frames/featured_poster_frame_neutral.png", x - 4, y - 4, w + 8, h + 8)
+        uiPoster(parent, "pkg:/images/demo/frames/featured_poster_corner_mask.png", x - 4, y - 4, w + 8, h + 8)
+        uiPoster(parent, "pkg:/images/demo/frames/featured_poster_frame_neutral.png", x - 4, y - 4, w + 8, h + 8)
     else
-        uiRoundRect(m.canvas, x, y, w, h, m.colors.purpleSoft, m.colors.greenFocus)
-        uiPoster(m.canvas, "pkg:/images/icons/movie_featured.png", x + 15, y + 28, 44, 44)
-        uiLabel(m.canvas, movie.year, x + 8, y + 86, w - 16, 20, 8, m.colors.textMuted, "center")
+        uiRoundRect(parent, x, y, w, h, m.colors.purpleSoft, m.colors.greenFocus)
+        uiPoster(parent, "pkg:/images/icons/movie_featured.png", x + 15, y + 28, 44, 44)
+        uiLabel(parent, movie.year, x + 8, y + 86, w - 16, 20, 8, m.colors.textMuted, "center")
     end if
 end sub
 

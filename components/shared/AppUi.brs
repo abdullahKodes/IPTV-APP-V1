@@ -251,6 +251,53 @@ sub uiCardFocusTint(parent as Object, x as Integer, y as Integer, w as Integer, 
     uiRect(parent, x + 1, y + 1, w - 2, h - 2, "0x1EE0CAFF", 0.08)
 end sub
 
+sub uiAnimateCardFocus(parent as Object, cardCanvas as Object, x as Integer, y as Integer)
+    animation = CreateObject("roSGNode", "Animation")
+    animation.duration = 0.14
+    animation.easeFunction = "outQuad"
+
+    scaleAnimation = animation.createChild("Vector2DFieldInterpolator")
+    scaleAnimation.key = [0.0, 1.0]
+    scaleAnimation.keyValue = [[1.0, 1.0], [1.025, 1.025]]
+    scaleAnimation.fieldToInterp = cardCanvas.id + ".scale"
+
+    positionAnimation = animation.createChild("Vector2DFieldInterpolator")
+    positionAnimation.key = [0.0, 1.0]
+    positionAnimation.keyValue = [[x, y], [x - 2, y - 3]]
+    positionAnimation.fieldToInterp = cardCanvas.id + ".translation"
+
+    parent.appendChild(animation)
+    animation.control = "start"
+end sub
+
+sub uiAnimatePanelFocus(parent as Object, panelCanvas as Object)
+    animation = CreateObject("roSGNode", "Animation")
+    animation.duration = 0.12
+    animation.easeFunction = "outQuad"
+
+    scaleAnimation = animation.createChild("Vector2DFieldInterpolator")
+    scaleAnimation.key = [0.0, 1.0]
+    scaleAnimation.keyValue = [[1.0, 1.0], [1.015, 1.015]]
+    scaleAnimation.fieldToInterp = panelCanvas.id + ".scale"
+
+    parent.appendChild(animation)
+    animation.control = "start"
+end sub
+
+sub uiAnimateActionFocus(parent as Object, actionCanvas as Object)
+    animation = CreateObject("roSGNode", "Animation")
+    animation.duration = 0.14
+    animation.easeFunction = "outQuad"
+
+    scaleAnimation = animation.createChild("Vector2DFieldInterpolator")
+    scaleAnimation.key = [0.0, 1.0]
+    scaleAnimation.keyValue = [[1.0, 1.0], [1.02, 1.02]]
+    scaleAnimation.fieldToInterp = actionCanvas.id + ".scale"
+
+    parent.appendChild(animation)
+    animation.control = "start"
+end sub
+
 sub uiClear(parent as Object)
     while parent.getChildCount() > 0
         parent.removeChild(parent.getChild(0))

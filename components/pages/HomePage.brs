@@ -134,4 +134,13 @@ end sub
 
 sub drawFocus()
     uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
+    if m.focusIndex < 0 or m.focusIndex >= m.focusItems.count() then return
+    item = m.focusItems[m.focusIndex]
+    mode = ""
+    if item.doesExist("mode") then mode = item.mode
+    if mode = "tile" and item.doesExist("node") and item.node <> invalid then
+        item.node.id = "homeCard" + m.focusIndex.toStr()
+        item.node.scaleRotateCenter = [item.w / 2, item.h / 2]
+        uiAnimatePanelFocus(m.canvas, item.node)
+    end if
 end sub

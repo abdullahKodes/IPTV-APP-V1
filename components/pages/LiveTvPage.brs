@@ -7,7 +7,7 @@ sub init()
     m.categoryIndex = 0
     m.focusedCategoryIndex = 0
     m.categoryWindowStart = 0
-    m.categoryWindowSize = 7
+    m.categoryWindowSize = 8
     m.selectedChannelIndex = 0
     m.channelWindowStart = 0
     m.channelColumns = 5
@@ -108,7 +108,7 @@ sub render()
     normalizeChannelWindow(visible.count())
     sectionTitle = "LIVE TV"
     if m.categoryIndex > 0 and m.categoryIndex < m.categories.count() then sectionTitle = UCase(m.categories[m.categoryIndex])
-    uiLabel(m.canvas, sectionTitle, 244, 174, 520, 32, 18, m.colors.textGreen)
+    uiLabel(m.canvas, sectionTitle, 244, 174, 520, 32, 18, m.colors.text)
     uiLabel(m.canvas, visible.count().toStr() + " channels", 926, 179, 188, 24, 11, m.colors.textDim, "right")
 
     if visible.count() = 0 then
@@ -234,6 +234,7 @@ sub drawCategoryPills()
         pillW = liveCategoryPillWidth(categoryLabel)
         assetW = 100
         if pillW > 100 then assetW = 140
+        if pillW > 140 then assetW = 150
         itemIndex = m.focusItems.count()
         focused = m.focusArea = "categories" and i = m.focusedCategoryIndex
         if focused then m.focusIndex = itemIndex
@@ -254,7 +255,13 @@ sub drawCategoryPills()
             textColor = m.colors.text
             opacity = 0.66
         end if
-        uiPoster(m.canvas, uiRoundUri(assetW, 40, bg, border), x, 106, pillW, 40, opacity)
+        pillUri = uiRoundUri(assetW, 40, bg, border)
+        if pillW > 150 then
+            pillUri = "pkg:/images/ui/rr_190x44_bg_whiteLine.png"
+            if selected then pillUri = "pkg:/images/ui/rr_190x44_purpleSoft_greenFocus.png"
+            if focused then pillUri = "pkg:/images/ui/rr_172x48_greenSoft_greenFocus.png"
+        end if
+        uiPoster(m.canvas, pillUri, x, 106, pillW, 40, opacity)
         uiScaledLabel(m.canvas, categoryLabel, x + 8, 115, pillW - 16, 20, 11, textColor, "center", 0.82)
         m.focusItems.push({
             x: x, y: 106, w: pillW, h: 40,
@@ -267,8 +274,11 @@ sub drawCategoryPills()
         slot += 1
         x += pillW + 12
     end for
-    if m.categoryWindowStart > 0 then uiLabel(m.canvas, "<", 230, 113, 12, 22, 11, m.colors.textGreen, "center")
-    if endIndex < m.categories.count() - 1 then uiLabel(m.canvas, ">", 1120, 113, 12, 22, 11, m.colors.textGreen, "center")
+    if endIndex < m.categories.count() - 1 then
+        uiLabel(m.canvas, ">", 1156, 113, 12, 22, 11, m.colors.textGreen, "center")
+    else if m.categoryWindowStart > 0 then
+        uiLabel(m.canvas, "<", 1156, 113, 12, 22, 11, m.colors.textGreen, "center")
+    end if
 end sub
 
 sub drawChannelGrid(visible as Object)
@@ -279,7 +289,7 @@ sub drawChannelGrid(visible as Object)
         gridRow = Int(slot / m.channelColumns)
         gridCol = slot mod m.channelColumns
         x = 244 + gridCol * 176
-        y = 218 + gridRow * 220
+        y = 218 + gridRow * 236
         rowData = visible[i]
         drawChannelCard(rowData.channel, rowData.index, i, x, y, gridRow + 2, gridCol + 1)
     end for
@@ -302,43 +312,60 @@ sub drawChannelCard(channel as Object, channelIndex as Integer, visibleIndex as 
     cardH = 208
     artH = 148
     textH = cardH - artH
-    uiRect(m.canvas, x, y, cardW, cardH, bg, opacity)
+    cardCanvas = CreateObject("roSGNode", "Group")
+    cardCanvas.id = "liveChannelCard" + visibleIndex.toStr()
+    cardCanvas.translation = [x, y]
+    m.canvas.appendChild(cardCanvas)
+
+    uiRect(cardCanvas, 0, 0, cardW, cardH, bg, opacity)
     posterUrl = liveCardPosterUrl(channel)
     backgroundUrl = liveCardBackgroundUrl(channel)
     if posterUrl <> "" then
-        poster = uiPoster(m.canvas, posterUrl, x, y, cardW, cardH, 1.0)
+        poster = uiPoster(cardCanvas, posterUrl, 0, 0, cardW, cardH, 1.0)
         poster.loadDisplayMode = "scaleToZoom"
     else
         if backgroundUrl <> "" then
-            background = uiPoster(m.canvas, backgroundUrl, x, y, cardW, cardH, 1.0)
+            background = uiPoster(cardCanvas, backgroundUrl, 0, 0, cardW, cardH, 1.0)
             background.loadDisplayMode = "scaleToZoom"
+            logoUrl = liveLogoArtUrl(channel)
+            if logoUrl <> "" then
+                logo = uiPoster(cardCanvas, logoUrl, 34, 45, 96, 58, 1.0)
+                logo.loadDisplayMode = "scaleToFit"
+            end if
         else
-            brandColor = liveText(channel, "brandColor", m.colors.purpleActive)
-            brandColor2 = liveText(channel, "brandColor2", m.colors.panel)
-            uiRect(m.canvas, x, y, cardW, cardH, brandColor2, 1.0)
-            uiRect(m.canvas, x, y, cardW, cardH, brandColor, 0.34)
+            logoBg = m.colors.panel
+            if focused then logoBg = m.colors.greenSoft
+            brandColor2 = liveText(channel, "brandColor2", m.colors.purpleActive)
+            uiRect(cardCanvas, 0, 0, cardW, cardH, logoBg, 0.62)
+            uiRect(cardCanvas, 0, 0, cardW, cardH, brandColor2, 0.50)
         end if
-        logoUrl = liveLogoArtUrl(channel)
-        if logoUrl <> "" then
-            logo = uiPoster(m.canvas, logoUrl, x + 27, y + 43, 110, 66, 1.0)
-            logo.loadDisplayMode = "scaleToFit"
-        else
-            uiRoundRect(m.canvas, x + 47, y + 40, 70, 70, m.colors.purpleSoft, m.colors.whiteLine, 0.84)
-            uiScaledLabel(m.canvas, liveBrandText(channel), x + 53, y + 61, 58, 26, 16, m.colors.text, "center", 0.86)
+        if backgroundUrl = "" then
+            logoUrl = liveLogoArtUrl(channel)
+            if logoUrl <> "" then
+                logo = uiPoster(cardCanvas, logoUrl, 27, 43, 110, 66, 1.0)
+                logo.loadDisplayMode = "scaleToFit"
+            else
+                uiRoundRect(cardCanvas, 47, 40, 70, 70, m.colors.purpleSoft, m.colors.whiteLine, 0.84)
+                uiScaledLabel(cardCanvas, liveBrandText(channel), 53, 61, 58, 26, 16, m.colors.text, "center", 0.86)
+            end if
         end if
+    end if
+    if liveFlag(channel, "live") then
+        uiPoster(cardCanvas, "pkg:/images/ui/live_badge.png", 8, 8, 52, 19, 1.0)
     end if
 
     channelName = liveText(channel, "name", liveText(channel, "title", "Untitled channel"))
-    uiRect(m.canvas, x, y + artH, cardW, textH, "0x071426FF", 0.58)
-    uiScaledLabel(m.canvas, channelName, x + 10, y + artH + 6, cardW - 20, 24, 11, m.colors.text, "center", 0.78)
+    uiRect(cardCanvas, 0, artH, cardW, textH, "0x000000FF", 0.34)
+    uiScaledLabel(cardCanvas, channelName, 10, artH + 6, cardW - 20, 24, 11, m.colors.text, "center", 0.78)
     meta = liveChannelCategory(channel)
     channelNumber = liveText(channel, "channelNumber")
     if channelNumber <> "" then meta = "CH " + channelNumber + "  /  " + meta
-    uiScaledLabel(m.canvas, meta, x + 10, y + artH + 33, cardW - 20, 18, 8, m.colors.textDim, "center", 0.66)
-    uiCardFocusTint(m.canvas, x, y, cardW, cardH, focused)
+    uiScaledLabel(cardCanvas, meta, 10, artH + 33, cardW - 20, 18, 8, m.colors.textDim, "center", 0.66)
+    uiCardFocusTint(cardCanvas, 0, 0, cardW, cardH, focused)
     borderWidth = 1
-    if focused then borderWidth = 3
-    uiRectBorder(m.canvas, x, y, cardW, cardH, border, borderWidth, 1.0)
+    if focused then borderWidth = 2
+    uiRectBorder(cardCanvas, 0, 0, cardW, cardH, border, borderWidth, 1.0)
+    if focused then animateLiveCardFocus(cardCanvas, x, y)
 
     m.focusItems.push({
         x: x, y: y, w: cardW, h: cardH,
@@ -350,19 +377,38 @@ sub drawChannelCard(channel as Object, channelIndex as Integer, visibleIndex as 
     })
 end sub
 
+sub animateLiveCardFocus(cardCanvas as Object, x as Integer, y as Integer)
+    animation = CreateObject("roSGNode", "Animation")
+    animation.duration = 0.14
+    animation.easeFunction = "outQuad"
+
+    scaleAnimation = animation.createChild("Vector2DFieldInterpolator")
+    scaleAnimation.key = [0.0, 1.0]
+    scaleAnimation.keyValue = [[1.0, 1.0], [1.025, 1.025]]
+    scaleAnimation.fieldToInterp = cardCanvas.id + ".scale"
+
+    positionAnimation = animation.createChild("Vector2DFieldInterpolator")
+    positionAnimation.key = [0.0, 1.0]
+    positionAnimation.keyValue = [[x, y], [x - 2, y - 3]]
+    positionAnimation.fieldToInterp = cardCanvas.id + ".translation"
+
+    m.canvas.appendChild(animation)
+    animation.control = "start"
+end sub
+
 sub drawChannelScrollbar(total as Integer)
     if total <= m.channelWindowSize then return
-    x = 1132
+    x = 1160
     y = 218
-    h = 428
+    h = 444
     uiRect(m.canvas, x, y, 4, h, "0xFFFFFF18", 0.10)
-    maxStart = total - m.channelWindowSize
-    if maxStart < 1 then maxStart = 1
     thumbH = Int(h * m.channelWindowSize / total)
     if thumbH < 48 then thumbH = 48
     if thumbH > h then thumbH = h
     thumbY = y
-    if h > thumbH then thumbY = y + Int((h - thumbH) * m.channelWindowStart / maxStart)
+    pageCount = Int((total - 1) / m.channelWindowSize) + 1
+    pageIndex = Int(m.selectedChannelIndex / m.channelWindowSize)
+    if pageCount > 1 and h > thumbH then thumbY = y + Int((h - thumbH) * pageIndex / (pageCount - 1))
     uiVerticalPill(m.canvas, x - 1, thumbY, 6, thumbH, m.colors.greenFocus, "pkg:/images/ui/scroll_cap_6_greenFocus.png", 0.24)
 end sub
 
@@ -540,6 +586,19 @@ function liveValue(item as Dynamic, key as String) as Dynamic
     return invalid
 end function
 
+function liveFlag(item as Dynamic, key as String) as Boolean
+    value = liveValue(item, key)
+    if value = invalid then return false
+    valueType = type(value)
+    if valueType = "Boolean" or valueType = "roBoolean" then return value
+    if valueType = "String" or valueType = "roString" then
+        text = LCase(value)
+        return text = "true" or text = "1" or text = "yes" or text = "live"
+    end if
+    if valueType = "Integer" or valueType = "roInt" or valueType = "LongInteger" or valueType = "roLongInteger" then return value <> 0
+    return false
+end function
+
 function liveChannelCategory(channel as Dynamic) as String
     category = liveText(channel, "category")
     if category <> "" then return category
@@ -560,7 +619,7 @@ function liveCategoryPillWidth(label as String) as Integer
     if length <= 5 then return 82
     if length <= 7 then return 96
     if length <= 10 then return 116
-    return 132
+    return 172
 end function
 
 function liveLogoArtUrl(channel as Dynamic) as String
