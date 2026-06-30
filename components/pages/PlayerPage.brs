@@ -189,9 +189,17 @@ sub render()
         uiLabel(m.canvas, "Preparing video", 0, 310, 1280, 40, 22, m.colors.text, "center")
     end if
 
-    uiRect(m.canvas, 0, 0, 1280, 78, "0x090D16FF", 0.76)
-    uiRect(m.canvas, 0, 77, 1280, 1, "0xFFFFFF18", 0.32)
-    uiLabel(m.canvas, playbackTitle(), 48, 20, 900, 42, 24, m.colors.text)
+    headerHeight = 78
+    isSeriesEpisode = m.top.returnPage = "SeriesDetailPage"
+    if isSeriesEpisode then headerHeight = 94
+    uiRect(m.canvas, 0, 0, 1280, headerHeight, "0x090D16FF", 0.76)
+    uiRect(m.canvas, 0, headerHeight - 1, 1280, 1, "0xFFFFFF18", 0.32)
+    if isSeriesEpisode then
+        uiLabel(m.canvas, playbackTitle(), 48, 12, 900, 42, 24, m.colors.text)
+        uiLabel(m.canvas, playbackSubtitle(), 48, 52, 300, 24, 13, m.colors.textDim)
+    else
+        uiLabel(m.canvas, playbackTitle(), 48, 20, 900, 42, 24, m.colors.text)
+    end if
 
     if m.errorText <> "" then
         uiRect(m.canvas, 316, 292, 648, 96, m.colors.panel, 0.96)
@@ -222,11 +230,11 @@ sub drawControls()
 
     iconY = panelY + 70
     addIconControl(430, iconY, "restart", 0, "pkg:/images/ui/player_restart.png", false)
-    addIconControl(535, iconY, "backward", 1, "pkg:/images/ui/player_rewind.png", false)
+    addIconControl(535, iconY, "backward", 1, "pkg:/images/ui/player_forward.png", false)
     playIcon = "pkg:/images/ui/player_pause.png"
     if not m.playing then playIcon = "pkg:/images/ui/player_play.png"
     addIconControl(640, iconY, "playpause", 2, playIcon, true)
-    addIconControl(745, iconY, "forward", 3, "pkg:/images/ui/player_forward.png", false)
+    addIconControl(745, iconY, "forward", 3, "pkg:/images/ui/player_rewind.png", false)
     addIconControl(850, iconY, "captions", 4, "pkg:/images/ui/player_captions.png", false)
 end sub
 

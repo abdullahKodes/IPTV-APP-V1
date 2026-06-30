@@ -30,7 +30,24 @@ Completed:
 - Follow-up Roku review removed all text beneath the controls, centered play/pause, kept captions at the far right, and reduced the four secondary icon sizes.
 - Rewind/forward now seek 30 seconds so their behavior matches the supplied `30` icon artwork.
 - Follow-up moved Restart to the far-left side and replaced the subtle focus border with a strong cyan circular focus halo.
-- Bumped the manifest build version to `00157`.
+- Corrected the reversed rewind/forward arrow artwork while preserving the working 30-second seek behavior.
+- Series episode playback now shows compact season/episode context such as `S1-E4` beneath the title; movie playback remains title-only.
+- Reduced dynamic Movies/Series list artwork strength so poster cards and focus borders remain visually dominant.
+- Backdrop dimming now responds to focus: card and Continue Watching rows receive the quieter treatment while the selected artwork still changes dynamically by title.
+- Movies and Series category pills now come from incoming media genres instead of fixed lists.
+- Both pages now follow Live TV category overflow behavior: a bounded pill window, left/right focus scrolling, selected-category state, and overflow direction indicators.
+- Aligned the category overflow indicator with the shared horizontal center of the Movies/Series card scrollbars.
+- Fixed category-pill overlap by reserving a dedicated scrollbar-aligned indicator column and calculating the visible pill window from actual label widths.
+- Extended the existing Movies, Series, and Live TV search bars to search category names as well as titles/channels.
+- Finishing a category search now jumps focus directly to the best exact or partial category match; selecting it clears the text query and loads the category's complete content.
+- Standardized Back behavior across every searchable page: Back clears active results and restores the full page before normal page navigation is allowed.
+- Category searches on Movies, Series, and Live TV remember and restore the category that was active before searching; My Playlists now follows the same clear-search-first behavior, while Favorites retains its existing matching behavior.
+- Movies and Series now switch to a dedicated results layout while searching: Featured Movie, Continue Watching, and category pills are hidden so only the results heading, count, and matching cards remain.
+- Title searches show `SEARCHED MOVIES` or `SEARCHED SERIES`; category searches automatically select the match and show headings such as `ANIMATION SEARCHED`.
+- Removed redundant result counts from direct movie/series title searches while retaining counts for category searches, and moved results content closer to the top bar.
+- Live TV now keeps focus on the selected category pill after OK instead of jumping into channels or toward the sidebar; Down remains the explicit route into channel cards.
+- Locked the quieter dynamic backdrop opacity across content-card focus, preventing brightness jumps between Featured Movie and movie cards or Continue Watching and series cards.
+- Bumped the manifest build version to `00168`.
 
 ### Demo Artwork And Detail Pages
 

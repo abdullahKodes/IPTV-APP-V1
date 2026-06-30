@@ -6,6 +6,8 @@ sub init()
     m.selectedGenre = "All"
     m.searchQuery = ""
     m.searchEditing = false
+    m.searchReturnPending = false
+    m.searchPreviousCategoryIndex = 0
     m.searchKeyboardIndex = 0
     m.seriesWindowStart = 0
     m.seriesWindowSize = 5
@@ -19,6 +21,11 @@ sub init()
     m.activePlaylistId = playlistStoreText(m.activePlaylist, "id", playlistStoreDemoId())
     m.activePlaylistTitle = playlistStoreText(m.activePlaylist, "title", "Demo Playlist")
     m.series = mediaSeriesCatalogForPlaylist(m.activePlaylistId)
+    m.categories = seriesCategoriesFromCatalog(m.series)
+    m.categoryIndex = 0
+    m.focusedCategoryIndex = 0
+    m.categoryWindowStart = 0
+    m.categoryWindowSize = 8
     render()
 end sub
 
@@ -28,6 +35,7 @@ end sub
 
 function handleKey(key as String) as Boolean
     if m.searchEditing then return handleSearchKeyboardKey(key)
+    if key = "back" and (m.searchQuery <> "" or m.searchReturnPending) then clearSeriesSearchAndStay() : return true
     if key = "left" then move(-1, 0) : return true
     if key = "right" then move(1, 0) : return true
     if key = "up" then move(0, -1) : return true
@@ -48,7 +56,7 @@ sub activate()
     item = m.focusItems[m.focusIndex]
     if item.page <> invalid and item.page <> "" then m.top.navigateTo = item.page : return
     if item.action = "search" then openSearchKeyboard() : return
-    if item.action = "genre" then m.selectedGenre = item.label : resetSeriesWindow() : render() : return
+    if item.action = "genre" and item.doesExist("categoryIndex") then selectSeriesCategory(item.categoryIndex) : return
     if item.action = "play" then openSeriesDetail(m.series[item.sourceIndex]) : return
     if item.action = "series" then openSeriesDetail(m.series[item.sourceIndex]) : return
 end sub
@@ -101,6 +109,12 @@ sub render()
 
     row = drawSeriesSideNav()
     drawSearchBox()
+    if seriesSearchResultsActive() then
+        drawSeriesSearchResults(visible)
+        uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
+        if m.searchEditing then drawSearchKeyboardOverlay()
+        return
+    end if
     if visible.count() = 0 then
         uiLabel(m.canvas, "No series in " + m.activePlaylistTitle, 244, 332, 746, 28, 15, m.colors.textDim, "center")
         uiLabel(m.canvas, "Switch playlist or add one with series content.", 244, 366, 746, 24, 11, m.colors.textMuted, "center")
@@ -131,6 +145,30 @@ sub render()
     uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
     if m.searchEditing then drawSearchKeyboardOverlay()
 end sub
+
+sub drawSeriesSearchResults(visible as Object)
+    heading = "SEARCHED SERIES"
+    if m.searchReturnPending then heading = UCase(m.selectedGenre) + " SEARCHED"
+    uiLabel(m.canvas, heading, 244, 108, 520, 30, 15, m.colors.text)
+    if m.searchReturnPending then uiLabel(m.canvas, visible.count().toStr() + " titles", 824, 108, 190, 28, 12, m.colors.textDim, "right")
+    if visible.count() = 0 then
+        uiLabel(m.canvas, "No matching series found", 244, 270, 770, 30, 16, m.colors.textDim, "center")
+        return
+    end if
+    endIndex = m.seriesWindowStart + m.seriesWindowSize - 1
+    if endIndex > visible.count() - 1 then endIndex = visible.count() - 1
+    slot = 0
+    for i = m.seriesWindowStart to endIndex
+        rowData = visible[i]
+        drawMediaCard(rowData.series, i, rowData.index, 244 + slot * 174, 158, 164, 230, 3, slot + 1)
+        slot += 1
+    end for
+    drawSeriesScrollbar(visible.count(), 1134, 158, 230)
+end sub
+
+function seriesSearchResultsActive() as Boolean
+    return m.searchQuery <> "" or m.searchReturnPending
+end function
 
 function drawSeriesSideNav() as Integer
     uiRect(m.canvas, 0, 86, 226, 634, m.colors.panel, 0.24)
@@ -255,19 +293,21 @@ sub drawSearchBox()
 end sub
 
 sub drawCategoryPills(row as Integer)
-    categories = [
-        { label: "All", x: 244, y: 104, w: 70, h: 36, assetW: 100, assetH: 40 },
-        { label: "Drama", x: 328, y: 104, w: 92, h: 36, assetW: 100, assetH: 40 },
-        { label: "Action", x: 434, y: 104, w: 92, h: 36, assetW: 100, assetH: 40 },
-        { label: "Comedy", x: 540, y: 104, w: 104, h: 36, assetW: 140, assetH: 40 },
-        { label: "Sci-Fi", x: 658, y: 104, w: 84, h: 36, assetW: 100, assetH: 40 },
-        { label: "Thriller", x: 756, y: 104, w: 100, h: 36, assetW: 100, assetH: 40 }
-    ]
-    for i = 0 to categories.count() - 1
-        cat = categories[i]
+    normalizeSeriesCategoryWindow()
+    endIndex = m.categoryWindowStart - 1
+    slot = 0
+    x = 244
+    for i = m.categoryWindowStart to m.categories.count() - 1
+        label = m.categories[i]
+        pillW = seriesCategoryPillWidth(label)
+        if x + pillW > 1116 then exit for
+        assetW = 100
+        if pillW > 100 then assetW = 140
+        if pillW > 140 then assetW = 150
         itemIndex = m.focusItems.count()
-        focused = itemIndex = m.focusIndex
-        selected = cat.label = m.selectedGenre
+        focused = m.focusArea = "categories" and i = m.focusedCategoryIndex
+        if focused then m.focusIndex = itemIndex
+        selected = i = m.categoryIndex
         bg = m.colors.bg
         border = m.colors.whiteLine
         textColor = m.colors.textPurple
@@ -285,20 +325,34 @@ sub drawCategoryPills(row as Integer)
             pillOpacity = 0.66
         end if
 
-        uiPoster(m.canvas, uiRoundUri(cat.assetW, cat.assetH, bg, border), cat.x, cat.y, cat.w, cat.h, pillOpacity)
+        pillUri = uiRoundUri(assetW, 40, bg, border)
+        if pillW > 150 then
+            pillUri = "pkg:/images/ui/rr_190x44_bg_whiteLine.png"
+            if selected then pillUri = "pkg:/images/ui/rr_190x44_purpleSoft_greenFocus.png"
+            if focused then pillUri = "pkg:/images/ui/rr_172x48_greenSoft_greenFocus.png"
+        end if
+        uiPoster(m.canvas, pillUri, x, 104, pillW, 36, pillOpacity)
         labelScale = 0.80
-        if cat.label = "All" then labelScale = 0.74
-        uiScaledLabel(m.canvas, cat.label, cat.x, cat.y + 8, cat.w, 22, 11, textColor, "center", labelScale)
+        if label = "All" then labelScale = 0.74
+        uiScaledLabel(m.canvas, label, x, 112, pillW, 22, 11, textColor, "center", labelScale)
 
         m.focusItems.push({
-            x: cat.x, y: cat.y, w: cat.w, h: cat.h,
-            icon: "", label: cat.label, subtitle: "",
+            x: x, y: 104, w: pillW, h: 36,
+            icon: "", label: label, subtitle: "",
             iconSize: 1, titleSize: 12, subSize: 10,
             bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim,
             focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
-            row: 1, col: i + 1, page: "", action: "genre", mode: "manual"
+            row: 1, col: slot + 1, page: "", action: "genre", categoryIndex: i, mode: "manual"
         })
+        endIndex = i
+        slot += 1
+        x += pillW + 12
     end for
+    if endIndex < m.categories.count() - 1 then
+        uiLabel(m.canvas, ">", 1130, 111, 12, 22, 11, m.colors.textGreen, "center")
+    else if m.categoryWindowStart > 0 then
+        uiLabel(m.canvas, "<", 1130, 111, 12, 22, 11, m.colors.textGreen, "center")
+    end if
 end sub
 
 sub drawResumeSeriesCards()
@@ -456,23 +510,41 @@ sub drawSelectedSeriesBackdrop(visible as Object)
     else
         bgUrl = seriesBackgroundUrl(series)
         if bgUrl <> "" then
-            backdrop = uiPoster(m.canvas, bgUrl, 0, 0, 1280, 720, 0.74)
+            backdrop = uiPoster(m.canvas, bgUrl, 0, 0, 1280, 720, seriesListBackdropOpacity())
             backdrop.loadDisplayMode = "scaleToFill"
         end if
-        uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.38)
-        uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.08)
+        uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.46)
+        uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", seriesListScrimOpacity())
     end if
 end sub
 
 sub drawSeriesBackdropPosterAnchor(heroUrl as String, x as Integer, y as Integer, w as Integer, h as Integer)
-    hero = uiPoster(m.canvas, heroUrl, 0, 0, 1280, 720, 0.66)
+    hero = uiPoster(m.canvas, heroUrl, 0, 0, 1280, 720, seriesListBackdropOpacity())
     hero.loadDisplayMode = "scaleToZoom"
     drawSeriesListHeroSmoke()
 end sub
 
 sub drawSeriesListHeroSmoke()
-    uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.08)
+    uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", seriesListScrimOpacity())
 end sub
+
+function seriesListBackdropOpacity() as Float
+    if seriesContentFocusActive() then return 0.38
+    return 0.46
+end function
+
+function seriesListScrimOpacity() as Float
+    if seriesContentFocusActive() then return 0.20
+    return 0.14
+end function
+
+function seriesContentFocusActive() as Boolean
+    if m.focusArea = "series" or m.focusArea = "resume" then return true
+    if m.focusItems = invalid or m.focusIndex < 0 or m.focusIndex >= m.focusItems.count() then return false
+    item = m.focusItems[m.focusIndex]
+    if not item.doesExist("action") then return false
+    return item.action = "series" or item.action = "play"
+end function
 
 function seriesBackdropIsComposed(url as String) as Boolean
     if url = invalid or url = "" then return false
@@ -575,6 +647,43 @@ function filteredSeries() as Object
     return res
 end function
 
+function seriesCategoriesFromCatalog(seriesItems as Object) as Object
+    categories = ["All"]
+    for i = 0 to seriesItems.count() - 1
+        appendSeriesGenreCategories(categories, seriesText(seriesItems[i], "genre"))
+    end for
+    return categories
+end function
+
+sub appendSeriesGenreCategories(categories as Object, genre as String)
+    remaining = genre
+    separator = Instr(1, remaining, " - ")
+    while separator > 0
+        category = remaining.left(separator - 1)
+        if category <> "" and not seriesCategoryExists(categories, category) then categories.push(category)
+        remaining = Mid(remaining, separator + 3)
+        separator = Instr(1, remaining, " - ")
+    end while
+    if remaining <> "" and not seriesCategoryExists(categories, remaining) then categories.push(remaining)
+end sub
+
+function seriesCategoryExists(categories as Object, category as String) as Boolean
+    needle = LCase(category)
+    for i = 0 to categories.count() - 1
+        if LCase(categories[i]) = needle then return true
+    end for
+    return false
+end function
+
+function seriesCategoryPillWidth(label as String) as Integer
+    length = label.len()
+    if length <= 3 then return 70
+    if length <= 5 then return 82
+    if length <= 7 then return 96
+    if length <= 10 then return 116
+    return 172
+end function
+
 function resumeSeriesRows() as Object
     res = []
     for i = 0 to m.series.count() - 1
@@ -656,22 +765,86 @@ sub normalizeSeriesWindow(total as Integer)
     end if
 end sub
 
+sub selectSeriesCategory(categoryIndex as Integer)
+    if categoryIndex < 0 or categoryIndex >= m.categories.count() then return
+    query = LCase(m.searchQuery)
+    fromSearch = query <> "" and Instr(1, LCase(m.categories[categoryIndex]), query) > 0
+    m.searchReturnPending = fromSearch
+    if fromSearch then m.searchQuery = ""
+    m.categoryIndex = categoryIndex
+    m.focusedCategoryIndex = categoryIndex
+    m.selectedGenre = m.categories[categoryIndex]
+    resetSeriesWindow()
+    m.focusArea = "categories"
+    normalizeSeriesCategoryWindow()
+    render()
+end sub
+
+sub normalizeSeriesCategoryWindow()
+    total = m.categories.count()
+    if total <= 0 then m.categoryWindowStart = 0 : m.focusedCategoryIndex = 0 : return
+    if m.focusedCategoryIndex < 0 then m.focusedCategoryIndex = 0
+    if m.focusedCategoryIndex > total - 1 then m.focusedCategoryIndex = total - 1
+    if m.categoryWindowStart > total - 1 then m.categoryWindowStart = total - 1
+    if m.focusedCategoryIndex < m.categoryWindowStart then m.categoryWindowStart = m.focusedCategoryIndex
+    while m.categoryWindowStart < m.focusedCategoryIndex and not seriesCategoryFitsInWindow(m.categoryWindowStart, m.focusedCategoryIndex)
+        m.categoryWindowStart += 1
+    end while
+end sub
+
+function seriesCategoryFitsInWindow(startIndex as Integer, targetIndex as Integer) as Boolean
+    x = 244
+    for i = startIndex to targetIndex
+        pillW = seriesCategoryPillWidth(m.categories[i])
+        if x + pillW > 1116 then return false
+        x += pillW + 12
+    end for
+    return true
+end function
+
 function routeSeriesFocus(dx as Integer, dy as Integer) as Boolean
     if m.focusItems.count() = 0 then return false
     if m.focusIndex < 0 or m.focusIndex >= m.focusItems.count() then m.focusIndex = 0
     current = m.focusItems[m.focusIndex]
     action = ""
     if current.doesExist("action") then action = current.action
-    if action <> "series" then m.focusArea = "normal"
+    if action <> "series" and action <> "genre" then m.focusArea = "normal"
+    if action = "genre" then m.focusArea = "categories"
     if action = "play" then m.focusArea = "resume"
 
     if action = "search" and dy > 0 then
+        if seriesSearchResultsActive() then
+            sIndex = findFocusByRowCol(3, 1)
+            if sIndex >= 0 then
+                m.selectedSeriesIndex = m.seriesWindowStart
+                m.focusArea = "series"
+                m.focusIndex = sIndex
+                return true
+            end if
+            return true
+        end if
+        m.focusArea = "categories"
+        m.focusedCategoryIndex = m.categoryIndex
+        normalizeSeriesCategoryWindow()
         pIndex = findFocusByRowCol(1, 1)
         if pIndex >= 0 then m.focusIndex = pIndex : return true
     end if
 
     if action = "genre" then
+        if current.doesExist("categoryIndex") then m.focusedCategoryIndex = current.categoryIndex
+        nextCategory = m.focusedCategoryIndex
+        if dx < 0 then nextCategory -= 1
+        if dx > 0 then nextCategory += 1
+        if dx <> 0 and nextCategory >= 0 and nextCategory < m.categories.count() then
+            m.focusedCategoryIndex = nextCategory
+            m.focusArea = "categories"
+            normalizeSeriesCategoryWindow()
+            return true
+        end if
+        if dx > 0 and nextCategory >= m.categories.count() then return true
+        if dx < 0 and nextCategory < 0 then return false
         if dy < 0 then
+            m.focusArea = "normal"
             sIndex = findFocusAction("search")
             if sIndex >= 0 then m.focusIndex = sIndex : return true
         end if
@@ -694,6 +867,7 @@ function routeSeriesFocus(dx as Integer, dy as Integer) as Boolean
                 return true
             end if
         end if
+        return true
     end if
 
     if action = "play" then
@@ -725,6 +899,10 @@ function routeSeriesFocus(dx as Integer, dy as Integer) as Boolean
         end if
         if dy < 0 then
             m.focusArea = "normal"
+            if seriesSearchResultsActive() then
+                sIndex = findFocusAction("search")
+                if sIndex >= 0 then m.focusIndex = sIndex : return true
+            end if
             col = current.col
             pIndex = findFocusByRowCol(1, col)
             if pIndex >= 0 then m.focusIndex = pIndex : return true
@@ -815,12 +993,17 @@ sub syncSeriesFocus()
     else if action = "play" then
         if item.doesExist("resumeIndex") then m.selectedResumeIndex = item.resumeIndex
         m.focusArea = "resume"
+    else if action = "genre" then
+        if item.doesExist("categoryIndex") then m.focusedCategoryIndex = item.categoryIndex
+        m.focusArea = "categories"
     else
         m.focusArea = "normal"
     end if
 end sub
 
 sub openSearchKeyboard()
+    m.searchPreviousCategoryIndex = m.categoryIndex
+    m.searchReturnPending = false
     m.searchEditing = true
     m.searchKeyboardIndex = 0
     render()
@@ -842,6 +1025,12 @@ sub pressSearchKey()
     selected = m.searchKeys[m.searchKeyboardIndex]
     current = m.searchQuery
     if selected = "DONE" then
+        categoryMatch = seriesCategorySearchMatch()
+        if categoryMatch >= 0 then
+            m.searchEditing = false
+            selectSeriesCategory(categoryMatch)
+            return
+        end if
         closeSearchKeyboard()
         return
     end if
@@ -863,15 +1052,47 @@ sub pressSearchKey()
     render()
 end sub
 
+function seriesCategorySearchMatch() as Integer
+    query = LCase(m.searchQuery)
+    if query = "" then return -1
+    partialMatch = -1
+    for i = 1 to m.categories.count() - 1
+        category = LCase(m.categories[i])
+        if category = query then return i
+        if partialMatch < 0 and Instr(1, category, query) > 0 then partialMatch = i
+    end for
+    return partialMatch
+end function
+
 sub closeSearchKeyboard()
     m.searchEditing = false
+    render()
+end sub
+
+sub clearSeriesSearchAndStay()
+    m.searchQuery = ""
+    if m.searchReturnPending then
+        m.categoryIndex = m.searchPreviousCategoryIndex
+        if m.categoryIndex < 0 or m.categoryIndex >= m.categories.count() then m.categoryIndex = 0
+        m.selectedGenre = m.categories[m.categoryIndex]
+    end if
+    m.searchReturnPending = false
+    m.focusedCategoryIndex = m.categoryIndex
+    m.categoryWindowStart = 0
+    m.seriesWindowStart = 0
+    m.selectedSeriesIndex = 0
+    m.resumeWindowStart = 0
+    m.selectedResumeIndex = 0
+    m.focusArea = "normal"
+    searchIndex = findFocusAction("search")
+    if searchIndex >= 0 then m.focusIndex = searchIndex
     render()
 end sub
 
 sub drawSearchKeyboardOverlay()
     uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.92)
     uiRect(m.canvas, 260, 116, 760, 488, m.colors.panel, 0.98)
-    uiLabel(m.canvas, "Search Series", 300, 142, 680, 32, 20, m.colors.textGreen, "center")
+    uiLabel(m.canvas, "Search Series or Categories", 300, 142, 680, 32, 20, m.colors.textGreen, "center")
     uiRect(m.canvas, 330, 188, 620, 48, m.colors.bg2)
     searchText = m.searchQuery
     if searchText = "" then searchText = "Search series"

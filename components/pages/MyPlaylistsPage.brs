@@ -32,6 +32,7 @@ function handleKey(key as String) as Boolean
         return false
     end if
     if m.searchEditing then return handleSearchKeyboardKey(key)
+    if key = "back" and m.searchQuery <> "" then clearPlaylistSearchAndStay() : return true
     if key = "left" then move(-1, 0) : return true
     if key = "right" then move(1, 0) : return true
     if key = "up" then move(0, -1) : return true
@@ -757,6 +758,14 @@ end sub
 
 sub closeSearchKeyboard()
     m.searchEditing = false
+    render()
+end sub
+
+sub clearPlaylistSearchAndStay()
+    m.searchQuery = ""
+    m.playlistWindowStart = 0
+    searchIndex = findPlaylistActionFocus("search")
+    if searchIndex >= 0 then m.focusIndex = searchIndex
     render()
 end sub
 

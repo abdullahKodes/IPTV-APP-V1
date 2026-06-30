@@ -182,7 +182,7 @@ sub playDetail()
     url = m.top.detailPlaybackUrl
     if url = invalid or url = "" then return
     m.top.playbackTitle = detailTitle()
-    m.top.playbackSubtitle = "S" + (m.seasonIndex + 1).toStr() + " E" + selectedSeasonEpisodeNumber(m.episodeIndex).toStr() + " - " + detailHeaderMeta()
+    m.top.playbackSubtitle = "S" + (m.seasonIndex + 1).toStr() + "-E" + selectedSeasonEpisodeNumber(m.episodeIndex).toStr()
     m.top.playbackUrl = url
     m.top.playbackFormat = detailPlaybackFormat()
     m.top.playbackPosterUrl = m.top.detailPosterUrl

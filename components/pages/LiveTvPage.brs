@@ -15,6 +15,8 @@ sub init()
     m.channelWindowSize = m.channelColumns * m.channelRows
     m.searchQuery = ""
     m.searchEditing = false
+    m.searchReturnPending = false
+    m.searchPreviousCategoryIndex = 0
     m.searchKeyboardIndex = 0
     m.searchKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "SPACE", "DEL", "CLEAR", "DONE"]
     m.activePlaylist = playlistStoreActive()
@@ -35,6 +37,7 @@ end sub
 
 function handleKey(key as String) as Boolean
     if m.searchEditing then return handleSearchKeyboardKey(key)
+    if key = "back" and (m.searchQuery <> "" or m.searchReturnPending) then clearLiveSearchAndStay() : return true
     if key = "left" then move(-1, 0) : return true
     if key = "right" then move(1, 0) : return true
     if key = "up" then move(0, -1) : return true
@@ -77,16 +80,16 @@ end sub
 
 sub selectLiveCategory(categoryIndex as Integer)
     if categoryIndex < 0 or categoryIndex >= m.categories.count() then return
+    query = LCase(m.searchQuery)
+    fromSearch = query <> "" and Instr(1, LCase(m.categories[categoryIndex]), query) > 0
+    m.searchReturnPending = fromSearch
+    if fromSearch then m.searchQuery = ""
     m.categoryIndex = categoryIndex
     m.focusedCategoryIndex = categoryIndex
     m.selectedChannelIndex = 0
     m.channelWindowStart = 0
-    visible = filteredChannels()
-    if visible.count() > 0 then
-        m.focusArea = "channels"
-    else
-        m.focusArea = "categories"
-    end if
+    m.focusArea = "categories"
+    normalizeCategoryWindow()
     render()
 end sub
 
@@ -675,6 +678,8 @@ function liveCategoryExists(categories as Object, category as String) as Boolean
 end function
 
 sub openSearchKeyboard()
+    m.searchPreviousCategoryIndex = m.categoryIndex
+    m.searchReturnPending = false
     m.searchEditing = true
     m.searchKeyboardIndex = 0
     render()
@@ -695,7 +700,19 @@ end function
 sub pressSearchKey()
     selected = m.searchKeys[m.searchKeyboardIndex]
     current = m.searchQuery
-    if selected = "DONE" then closeSearchKeyboard() : return
+    if selected = "DONE" then
+        categoryMatch = liveCategorySearchMatch()
+        if categoryMatch >= 0 then
+            m.searchEditing = false
+            m.focusedCategoryIndex = categoryMatch
+            m.focusArea = "categories"
+            normalizeCategoryWindow()
+            render()
+            return
+        end if
+        closeSearchKeyboard()
+        return
+    end if
     if selected = "CLEAR" then
         current = ""
     else if selected = "DEL" then
@@ -711,15 +728,44 @@ sub pressSearchKey()
     render()
 end sub
 
+function liveCategorySearchMatch() as Integer
+    query = LCase(m.searchQuery)
+    if query = "" then return -1
+    partialMatch = -1
+    for i = 1 to m.categories.count() - 1
+        category = LCase(m.categories[i])
+        if category = query then return i
+        if partialMatch < 0 and Instr(1, category, query) > 0 then partialMatch = i
+    end for
+    return partialMatch
+end function
+
 sub closeSearchKeyboard()
     m.searchEditing = false
+    render()
+end sub
+
+sub clearLiveSearchAndStay()
+    m.searchQuery = ""
+    if m.searchReturnPending then
+        m.categoryIndex = m.searchPreviousCategoryIndex
+        if m.categoryIndex < 0 or m.categoryIndex >= m.categories.count() then m.categoryIndex = 0
+    end if
+    m.searchReturnPending = false
+    m.focusedCategoryIndex = m.categoryIndex
+    m.categoryWindowStart = 0
+    m.channelWindowStart = 0
+    m.selectedChannelIndex = 0
+    m.focusArea = "normal"
+    searchIndex = findFocusAction("search")
+    if searchIndex >= 0 then m.focusIndex = searchIndex
     render()
 end sub
 
 sub drawSearchKeyboardOverlay()
     uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.92)
     uiRect(m.canvas, 260, 116, 760, 488, m.colors.panel, 0.98)
-    uiLabel(m.canvas, "Search Channels", 300, 142, 680, 32, 20, m.colors.textGreen, "center")
+    uiLabel(m.canvas, "Search Channels or Categories", 300, 142, 680, 32, 20, m.colors.textGreen, "center")
     uiRect(m.canvas, 330, 188, 620, 48, m.colors.bg2)
     searchText = m.searchQuery
     if searchText = "" then searchText = "Search channels"
