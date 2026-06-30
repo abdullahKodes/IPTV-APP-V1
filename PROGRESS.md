@@ -1,6 +1,6 @@
 # IPTV App Progress
 
-Last updated: 2026-06-25
+Last updated: 2026-06-29
 
 Read this file before starting a new session. Update it only after a meaningful milestone is completed, such as finishing a screen, fixing a major workflow, committing/pushing, or changing project structure. Do not update it for every tiny visual tweak.
 
@@ -18,6 +18,19 @@ Read this file before starting a new session. Update it only after a meaningful 
   `C:\Users\M Abdullah\Documents\GitHub\IPTV-APP-V1\build\roku-iptv-app.zip`
 
 ## Current Design Progress
+
+### Player Controls
+
+Status: redesigned and ready for Roku visual review.
+
+Completed:
+- Rebuilt the playback overlay around icon-first TV controls for rewind, play/pause, forward, restart, and captions.
+- Added a real captions on/off action and retained the existing remote playback, seeking, restart, progress, and automatic control-hiding behavior.
+- Simplified the player header to the media title only; removed the year/runtime subtitle and the `IPTV MAX` label.
+- Follow-up Roku review removed all text beneath the controls, centered play/pause, kept captions at the far right, and reduced the four secondary icon sizes.
+- Rewind/forward now seek 30 seconds so their behavior matches the supplied `30` icon artwork.
+- Follow-up moved Restart to the far-left side and replaced the subtle focus border with a strong cyan circular focus halo.
+- Bumped the manifest build version to `00157`.
 
 ### Demo Artwork And Detail Pages
 

@@ -3,8 +3,9 @@ sub init()
     m.video = m.top.findNode("playerVideo")
     m.canvas = m.top.findNode("playerCanvas")
     m.focusItems = []
-    m.focusIndex = 1
+    m.focusIndex = 2
     m.playing = true
+    m.captionsEnabled = false
     m.loadedUrl = ""
     m.errorText = ""
     m.controlsVisible = true
@@ -25,7 +26,7 @@ sub init()
 
     m.hideTimer = CreateObject("roSGNode", "Timer")
     m.hideTimer.repeat = false
-    m.hideTimer.duration = 10
+    m.hideTimer.duration = 7
     m.hideTimer.observeField("fire", "onHideControls")
     resetHideTimer()
 
@@ -54,7 +55,7 @@ function handleKey(key as String) as Boolean
     if key = "up" or key = "down" then showControls() : render() : return true
     if key = "OK" then showControls() : activateControl() : return true
     if key = "play" then showControls() : togglePlayback() : return true
-    if key = "replay" then showControls() : seekPlayer(-15, false) : return true
+    if key = "replay" then showControls() : seekPlayer(-30, false) : return true
     return true
 end function
 
@@ -76,6 +77,7 @@ sub playMedia()
 
     m.video.control = "stop"
     m.video.content = content
+    applyCaptionMode()
     m.video.control = "play"
     m.loadedUrl = url
     m.playing = true
@@ -124,16 +126,17 @@ end sub
 
 sub moveControl(delta as Integer)
     m.focusIndex += delta
-    if m.focusIndex < 0 then m.focusIndex = 3
-    if m.focusIndex > 3 then m.focusIndex = 0
+    if m.focusIndex < 0 then m.focusIndex = 4
+    if m.focusIndex > 4 then m.focusIndex = 0
     render()
 end sub
 
 sub activateControl()
-    if m.focusIndex = 0 then seekPlayer(-15, false) : return
-    if m.focusIndex = 1 then togglePlayback() : return
-    if m.focusIndex = 2 then seekPlayer(15, false) : return
-    if m.focusIndex = 3 then seekPlayer(0, true) : return
+    if m.focusIndex = 0 then seekPlayer(0, true) : return
+    if m.focusIndex = 1 then seekPlayer(-30, false) : return
+    if m.focusIndex = 2 then togglePlayback() : return
+    if m.focusIndex = 3 then seekPlayer(30, false) : return
+    if m.focusIndex = 4 then toggleCaptions() : return
 end sub
 
 sub togglePlayback()
@@ -159,6 +162,21 @@ sub seekPlayer(offset as Integer, absolute as Boolean)
     render()
 end sub
 
+sub toggleCaptions()
+    m.captionsEnabled = not m.captionsEnabled
+    applyCaptionMode()
+    render()
+end sub
+
+sub applyCaptionMode()
+    if m.video = invalid or not m.video.hasField("closedCaptionMode") then return
+    if m.captionsEnabled then
+        m.video.closedCaptionMode = "On"
+    else
+        m.video.closedCaptionMode = "Off"
+    end if
+end sub
+
 sub render()
     uiClear(m.canvas)
     m.focusItems = []
@@ -171,10 +189,9 @@ sub render()
         uiLabel(m.canvas, "Preparing video", 0, 310, 1280, 40, 22, m.colors.text, "center")
     end if
 
-    uiRect(m.canvas, 0, 0, 1280, 96, "0x090D16FF", 0.78)
-    uiLabel(m.canvas, playbackTitle(), 54, 24, 650, 32, 20, m.colors.text)
-    uiLabel(m.canvas, playbackSubtitle(), 54, 56, 690, 24, 12, m.colors.textDim)
-    uiLabel(m.canvas, "IPTV MAX", 1060, 30, 150, 28, 14, m.colors.textGreen, "right")
+    uiRect(m.canvas, 0, 0, 1280, 78, "0x090D16FF", 0.76)
+    uiRect(m.canvas, 0, 77, 1280, 1, "0xFFFFFF18", 0.32)
+    uiLabel(m.canvas, playbackTitle(), 48, 20, 900, 42, 24, m.colors.text)
 
     if m.errorText <> "" then
         uiRect(m.canvas, 316, 292, 648, 96, m.colors.panel, 0.96)
@@ -186,45 +203,52 @@ sub render()
 end sub
 
 sub drawControls()
-    panelY = 558
-    uiRect(m.canvas, 0, panelY, 1280, 162, "0x090D16FF", 0.84)
+    panelY = 548
+    uiRect(m.canvas, 0, panelY, 1280, 172, "0x090D16FF", 0.86)
     uiRect(m.canvas, 0, panelY, 1280, 1, "0xFFFFFF18", 0.42)
     playPosition = videoPosition()
     dur = videoDuration()
-    progressW = 880
-    progressX = 200
-    progressY = panelY + 34
-    uiRect(m.canvas, progressX, progressY, progressW, 4, "0xFFFFFF18", 0.72)
+    progressW = 980
+    progressX = 150
+    progressY = panelY + 30
+    uiRect(m.canvas, progressX, progressY, progressW, 5, "0xFFFFFF18", 0.72)
     fillW = 0
     if dur > 0 then fillW = Int(progressW * playPosition / dur)
     if fillW > progressW then fillW = progressW
-    uiRect(m.canvas, progressX, progressY, fillW, 4, m.colors.greenFocus, 0.95)
-    uiLabel(m.canvas, formatTime(playPosition), 80, panelY + 20, 92, 26, 12, m.colors.textDim, "right")
-    uiLabel(m.canvas, formatTime(dur), 1108, panelY + 20, 92, 26, 12, m.colors.textDim)
+    uiRect(m.canvas, progressX, progressY, fillW, 5, m.colors.greenFocus, 0.98)
+    if fillW > 0 then uiRect(m.canvas, progressX + fillW - 3, progressY - 3, 7, 11, m.colors.text, 1.0)
+    uiLabel(m.canvas, formatTime(playPosition), 48, panelY + 18, 80, 26, 12, m.colors.text, "right")
+    uiLabel(m.canvas, formatTime(dur), 1152, panelY + 18, 80, 26, 12, m.colors.text)
 
-    addControl(452, panelY + 70, 88, "REW", "backward", 0)
-    playLabel = "PAUSE"
-    if not m.playing then playLabel = "PLAY"
-    addControl(558, panelY + 62, 112, playLabel, "playpause", 1)
-    addControl(688, panelY + 70, 88, "FWD", "forward", 2)
-    addControl(794, panelY + 70, 116, "RESTART", "restart", 3)
+    iconY = panelY + 70
+    addIconControl(430, iconY, "restart", 0, "pkg:/images/ui/player_restart.png", false)
+    addIconControl(535, iconY, "backward", 1, "pkg:/images/ui/player_rewind.png", false)
+    playIcon = "pkg:/images/ui/player_pause.png"
+    if not m.playing then playIcon = "pkg:/images/ui/player_play.png"
+    addIconControl(640, iconY, "playpause", 2, playIcon, true)
+    addIconControl(745, iconY, "forward", 3, "pkg:/images/ui/player_forward.png", false)
+    addIconControl(850, iconY, "captions", 4, "pkg:/images/ui/player_captions.png", false)
 end sub
 
-sub addControl(x as Integer, y as Integer, w as Integer, label as String, action as String, col as Integer)
+sub addIconControl(centerX as Integer, y as Integer, action as String, col as Integer, iconUri as String, primary as Boolean)
     itemIndex = m.focusItems.count()
     focused = itemIndex = m.focusIndex
-    h = 46
-    textColor = m.colors.textDim
-    labelSize = 14
+    iconSize = 42
+    if primary then iconSize = 56
     if focused then
-        textColor = m.colors.text
-        labelSize = 16
-        uiRect(m.canvas, x + 10, y + 40, w - 20, 3, m.colors.greenFocus, 0.92)
+        if primary then
+            uiPoster(m.canvas, "pkg:/images/ui/player_focus_halo.png", centerX - 36, y - 4, 72, 72)
+            iconSize = 60
+        else
+            uiPoster(m.canvas, "pkg:/images/ui/player_focus_halo.png", centerX - 30, y + 2, 60, 60)
+            iconSize = 46
+        end if
     end if
-    uiLabel(m.canvas, label, x, y + 4, w, 30, labelSize, textColor, "center")
+    iconTop = y + Int((64 - iconSize) / 2)
+    uiPoster(m.canvas, iconUri, centerX - Int(iconSize / 2), iconTop, iconSize, iconSize)
     item = {
-        x: x, y: y, w: w, h: h,
-        icon: "", label: label, subtitle: "",
+        x: centerX - 48, y: y, w: 96, h: 64,
+        icon: "", label: "", subtitle: "",
         iconSize: 1, titleSize: 12, subSize: 8,
         bg: m.colors.panel, border: m.colors.whiteLine, textColor: m.colors.textDim, subColor: m.colors.textDim,
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
