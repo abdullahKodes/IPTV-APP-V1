@@ -84,6 +84,7 @@ sub playMovie(movie as Object)
     m.top.playbackUrl = mediaPlaybackUrl(movie)
     m.top.playbackFormat = mediaPlaybackFormat(movie)
     m.top.playbackPosterUrl = movieCardUrl(movie)
+    m.top.playbackMediaType = "movie"
     m.top.returnPage = "MoviesPage"
     m.top.navigateTo = "PlayerPage"
 end sub

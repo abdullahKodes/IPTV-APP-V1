@@ -37,10 +37,11 @@ sub showPage(componentName as String)
     if componentName = "PlayerPage" and m.pendingPlayback <> invalid then
         m.currentPage.playbackTitle = m.pendingPlayback.title
         m.currentPage.playbackSubtitle = m.pendingPlayback.subtitle
-        m.currentPage.playbackUrl = m.pendingPlayback.url
         m.currentPage.playbackFormat = m.pendingPlayback.streamFormat
         m.currentPage.playbackPosterUrl = m.pendingPlayback.posterUrl
+        if m.currentPage.hasField("playbackMediaType") then m.currentPage.playbackMediaType = m.pendingPlayback.mediaType
         m.currentPage.returnPage = m.pendingPlayback.returnPage
+        m.currentPage.playbackUrl = m.pendingPlayback.url
     else if (componentName = "MovieDetailPage" or componentName = "SeriesDetailPage") and m.pendingDetail <> invalid then
         m.currentPage.detailId = m.pendingDetail.id
         m.currentPage.detailTitle = m.pendingDetail.title
@@ -84,6 +85,7 @@ sub onPageNavigation()
                 url: m.currentPage.playbackUrl,
                 streamFormat: m.currentPage.playbackFormat,
                 posterUrl: m.currentPage.playbackPosterUrl,
+                mediaType: playbackPendingText(m.currentPage),
                 returnPage: m.currentPage.returnPage
             }
         else if (target = "MovieDetailPage" or target = "SeriesDetailPage") and m.currentPage.hasField("detailTitle") then
@@ -127,6 +129,11 @@ end sub
 
 function shouldPreservePageForTarget(target as String) as Boolean
     return target = "MovieDetailPage" or target = "SeriesDetailPage" or target = "PlayerPage"
+end function
+
+function playbackPendingText(page as Object) as String
+    if page <> invalid and page.hasField("playbackMediaType") then return page.playbackMediaType
+    return ""
 end function
 
 function onKeyEvent(key as String, press as Boolean) as Boolean

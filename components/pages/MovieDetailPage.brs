@@ -52,6 +52,7 @@ sub playDetail()
     m.top.playbackUrl = url
     m.top.playbackFormat = detailPlaybackFormat()
     m.top.playbackPosterUrl = m.top.detailPosterUrl
+    m.top.playbackMediaType = "movie"
     m.top.returnPage = "MovieDetailPage"
     m.top.navigateTo = "PlayerPage"
 end sub

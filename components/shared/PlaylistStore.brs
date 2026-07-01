@@ -140,20 +140,137 @@ function playlistStoreDelete(id as String) as Boolean
 end function
 
 function playlistStoreRefresh(id as String) as Boolean
+    result = playlistStoreRefreshResult(id)
+    return result.success
+end function
+
+function playlistStoreRefreshResult(id as String) as Object
     items = playlistStoreList()
     for i = 0 to items.count() - 1
         item = items[i]
         if playlistStoreText(item, "id") = id then
-            item.status = "Active"
-            item.time = "Synced just now"
-            item.lastSync = "just now"
-            if playlistStoreNumber(item, "itemCount") = 0 then
-                item.meta = "Sync pending - " + playlistStoreText(item, "type", "Playlist")
+            if playlistStoreBool(item, "isProtected", false) then
+                item.time = "Built-in content ready"
+                item.lastSync = "just now"
+                items[i] = item
+                saved = playlistStoreSave(items)
+                return { success: saved, message: "Built-in playlist is ready." }
             end if
+
+            playlistType = playlistStoreText(item, "type", "M3U")
+            if playlistType = "Xtreme" then
+                if playlistStoreText(item, "serverUrl") = "" or playlistStoreText(item, "username") = "" or playlistStoreText(item, "password") = "" then
+                    item.status = "Offline"
+                    item.time = "Account details are incomplete"
+                    item.lastSync = "sync failed"
+                    items[i] = item
+                    playlistStoreSave(items)
+                    return { success: false, message: "Complete the Xtreme account details before refreshing." }
+                end if
+            else if playlistStoreText(item, "sourceUrl") = "" then
+                item.status = "Offline"
+                item.time = "Playlist URL is missing"
+                item.lastSync = "sync failed"
+                items[i] = item
+                playlistStoreSave(items)
+                return { success: false, message: "Add a valid M3U URL before refreshing." }
+            end if
+
+            item.status = "Active"
+            item.time = "Validated just now"
+            item.lastSync = "just now"
+            if playlistStoreNumber(item, "itemCount") = 0 then item.meta = "Provider sync pending - " + playlistType
             items[i] = item
+            saved = playlistStoreSave(items)
+            if saved then return { success: true, message: "Playlist details validated. Provider sync is ready for backend integration." }
+            return { success: false, message: "Playlist status could not be saved." }
         end if
     end for
-    return playlistStoreSave(items)
+    return { success: false, message: "Playlist could not be found." }
+end function
+
+function playlistStoreGet(id as String) as Dynamic
+    if id = invalid or id = "" then return invalid
+    items = playlistStoreList()
+    for each item in items
+        if playlistStoreText(item, "id") = id then return item
+    end for
+    return invalid
+end function
+
+function playlistStoreUpdate(id as String, input as Object, mode as String) as Object
+    if id = invalid or id = "" or playlistStoreIsBuiltInId(id) then return invalid
+    items = playlistStoreList()
+    for i = 0 to items.count() - 1
+        item = items[i]
+        if playlistStoreText(item, "id") = id then
+            if mode = "xtreme" then
+                item.title = playlistStoreNormalizeInputText(playlistStoreText(input, "accountName"))
+                item.type = "Xtreme"
+                item.serverUrl = playlistStoreNormalizeInputText(playlistStoreText(input, "serverUrl"))
+                item.username = playlistStoreNormalizeInputText(playlistStoreText(input, "username"))
+                item.password = playlistStoreNormalizeInputText(playlistStoreText(input, "password"))
+                item.sourceUrl = ""
+                item.contentProfile = ""
+                item.icon = "link"
+                item.meta = "Provider sync pending - Xtreme"
+            else
+                item.title = playlistStoreNormalizeInputText(playlistStoreText(input, "playlistTitle"))
+                item.type = "M3U"
+                item.sourceUrl = playlistStoreM3uInputUrl(input)
+                item.serverUrl = ""
+                item.username = ""
+                item.password = ""
+                item.contentProfile = playlistStoreInferInputProfile(item.title, item.sourceUrl)
+                item.icon = "m3u"
+                item.itemCount = 0
+                item.meta = "Provider sync pending - M3U"
+                if item.contentProfile = "demo_live_m3u" then
+                    item.icon = "tv"
+                    item.itemCount = 4
+                    item.meta = "4 live channels - Demo M3U"
+                    item.liveItems = playlistStoreDemoLiveItems(id)
+                else if item.contentProfile = "demo_movies_m3u" then
+                    item.icon = "movies"
+                    item.itemCount = 3
+                    item.meta = "3 movies - Demo M3U"
+                else if item.contentProfile = "demo_series" then
+                    item.icon = "series"
+                    item.itemCount = 3
+                    item.meta = "3 series - Demo M3U"
+                end if
+            end if
+            item.status = "Active"
+            item.time = "Updated just now"
+            item.lastSync = "not synced yet"
+            items[i] = item
+            if playlistStoreSave(items) then return item
+            return invalid
+        end if
+    end for
+    return invalid
+end function
+
+function playlistStoreInferInputProfile(title as String, sourceUrl as String) as String
+    if playlistStoreIsFakeLiveText(sourceUrl) or playlistStoreIsFakeLiveText(title) then return "demo_live_m3u"
+    if playlistStoreIsFakeMoviesText(sourceUrl) or playlistStoreIsFakeMoviesText(title) then return "demo_movies_m3u"
+    if playlistStoreIsFakeSeriesText(sourceUrl) or playlistStoreIsFakeSeriesText(title) then return "demo_series"
+    return ""
+end function
+
+sub playlistStoreSetPendingEdit(id as String)
+    section = CreateObject("roRegistrySection", "iptv_max_playlists")
+    section.Write("pendingEditId", id)
+    section.Flush()
+end sub
+
+function playlistStoreTakePendingEditId() as String
+    section = CreateObject("roRegistrySection", "iptv_max_playlists")
+    id = section.Read("pendingEditId")
+    if id = invalid then id = ""
+    if section.Exists("pendingEditId") then section.Delete("pendingEditId")
+    section.Flush()
+    return id
 end function
 
 function playlistStoreNormalize(items as Object) as Object
@@ -550,6 +667,12 @@ function playlistStoreNumber(item as Object, key as String) as Integer
     return value
 end function
 
+function playlistStoreBool(item as Object, key as String, fallback as Boolean) as Boolean
+    value = playlistStoreValue(item, key)
+    if value = invalid then return fallback
+    return value = true
+end function
+
 function playlistStoreValue(item as Object, key as String) as Dynamic
     if item = invalid then return invalid
     if item.doesExist(key) then return item[key]
@@ -559,11 +682,15 @@ function playlistStoreValue(item as Object, key as String) as Dynamic
 end function
 
 function playlistStoreTitleExists(title as String) as Boolean
+    return playlistStoreTitleExistsExcept(title, "")
+end function
+
+function playlistStoreTitleExistsExcept(title as String, excludedId as String) as Boolean
     compareTitle = LCase(title)
     if compareTitle = "" then return false
     items = playlistStoreList()
     for each item in items
-        if LCase(playlistStoreText(item, "title")) = compareTitle then return true
+        if playlistStoreText(item, "id") <> excludedId and LCase(playlistStoreText(item, "title")) = compareTitle then return true
     end for
     return false
 end function

@@ -93,6 +93,7 @@ sub playSeries(series as Object)
     m.top.playbackUrl = mediaPlaybackUrl(series)
     m.top.playbackFormat = mediaPlaybackFormat(series)
     m.top.playbackPosterUrl = seriesCardUrl(series)
+    m.top.playbackMediaType = "series"
     m.top.returnPage = "SeriesPage"
     m.top.navigateTo = "PlayerPage"
 end sub

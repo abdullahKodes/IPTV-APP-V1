@@ -27,6 +27,7 @@
     <field id="playbackUrl" type="string" />
     <field id="playbackFormat" type="string" />
     <field id="playbackPosterUrl" type="string" />
+    <field id="playbackMediaType" type="string" />
     <field id="returnPage" type="string" />
     <function name="handleKey" />
     <function name="refreshClock" />

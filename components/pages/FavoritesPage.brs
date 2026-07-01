@@ -181,6 +181,11 @@ sub playLiveFavorite(channel as Object)
     m.top.playbackUrl = mediaPlaybackUrl(channel)
     m.top.playbackFormat = mediaPlaybackFormat(channel)
     m.top.playbackPosterUrl = favoritePosterUrl(channel)
+    if favItemFlag(channel, "live") then
+        m.top.playbackMediaType = "live"
+    else
+        m.top.playbackMediaType = "movie"
+    end if
     m.top.returnPage = "FavoritesPage"
     m.top.navigateTo = "PlayerPage"
 end sub
@@ -649,6 +654,19 @@ function favItemValue(item as Dynamic, key as String) as Dynamic
     lowerKey = LCase(key)
     if lowerKey <> key and item.doesExist(lowerKey) then return item[lowerKey]
     return invalid
+end function
+
+function favItemFlag(item as Dynamic, key as String) as Boolean
+    value = favItemValue(item, key)
+    if value = invalid then return false
+    valueType = type(value)
+    if valueType = "Boolean" or valueType = "roBoolean" then return value
+    if valueType = "String" or valueType = "roString" then
+        text = LCase(value)
+        return text = "true" or text = "1" or text = "yes" or text = "live"
+    end if
+    if valueType = "Integer" or valueType = "roInt" or valueType = "LongInteger" or valueType = "roLongInteger" then return value <> 0
+    return false
 end function
 
 sub openSearchKeyboard()

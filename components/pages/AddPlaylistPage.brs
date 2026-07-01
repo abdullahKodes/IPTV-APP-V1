@@ -8,6 +8,8 @@ sub init()
     m.editLabel = ""
     m.errorMessage = ""
     m.errorField = ""
+    m.submitState = ""
+    m.editPlaylistId = ""
     m.keyboardIndex = 0
     m.keyboardUpper = true
     m.keyboardKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "CASE", "SPACE", "DEL", "DONE"]
@@ -19,9 +21,35 @@ sub init()
         username: "",
         password: ""
     }
+    loadPendingPlaylistEdit()
     m.focusItems = []
     m.focusIndex = 6
+
+    m.submitTimer = CreateObject("roSGNode", "Timer")
+    m.submitTimer.repeat = false
+    m.submitTimer.duration = 0.6
+    m.submitTimer.observeField("fire", "finishPlaylistSubmit")
     render()
+end sub
+
+sub loadPendingPlaylistEdit()
+    editId = playlistStoreTakePendingEditId()
+    if editId = "" then return
+    item = playlistStoreGet(editId)
+    if item = invalid or playlistStoreBool(item, "isProtected", false) then return
+
+    m.editPlaylistId = editId
+    if playlistStoreText(item, "type") = "Xtreme" then
+        m.mode = "xtreme"
+        m.inputs.accountName = playlistStoreText(item, "title")
+        m.inputs.serverUrl = playlistStoreText(item, "serverUrl")
+        m.inputs.username = playlistStoreText(item, "username")
+        m.inputs.password = playlistStoreText(item, "password")
+    else
+        m.mode = "m3u"
+        m.inputs.playlistTitle = playlistStoreText(item, "title")
+        m.inputs.m3uUrl = playlistStoreText(item, "sourceUrl")
+    end if
 end sub
 
 sub refreshClock()
@@ -33,7 +61,16 @@ sub refreshClock()
 end sub
 
 function handleKey(key as String) as Boolean
+    if m.submitState = "validating" then return true
     if m.editing then return handleKeyboardKey(key)
+    if key = "back" then
+        if m.editPlaylistId <> "" then
+            m.top.navigateTo = "ManagePlaylistsPage"
+        else
+            m.top.navigateTo = "MyPlaylistsPage"
+        end if
+        return true
+    end if
     if key = "left" then move(-1, 0) : return true
     if key = "right" then move(1, 0) : return true
     if key = "up" then move(0, -1) : return true
@@ -50,7 +87,11 @@ end sub
 sub activate()
     item = m.focusItems[m.focusIndex]
     if item.page <> invalid and item.page <> "" then m.top.navigateTo = item.page : return
-    if item.action = "m3u" or item.action = "xtreme" then m.mode = item.action : render() : return
+    if item.action = "m3u" or item.action = "xtreme" then
+        if m.editPlaylistId = "" then m.mode = item.action
+        render()
+        return
+    end if
     if item.action = "field" then openKeyboard(item.fieldKey, item.fieldLabel) : return
     if item.action = "submit" then
         errorText = validatePlaylistInput()
@@ -59,22 +100,41 @@ sub activate()
             return
         end if
         normalizePlaylistInputForSave()
-        addedPlaylist = playlistStoreAdd(m.inputs, m.mode)
-        if addedPlaylist = invalid then
-            if m.mode = "m3u" then
-                setFieldError("m3uUrl", "M3U URL was not saved. Enter it again.")
-            else
-                setFieldError("serverUrl", "Account URL was not saved. Enter it again.")
-            end if
-            render()
-            return
-        end if
-        m.added = true
-        m.errorMessage = ""
-        m.errorField = ""
-        onboardingCompleteWithPlaylist()
-        m.top.navigateTo = "MyPlaylistsPage"
+        m.submitState = "validating"
+        render()
+        m.submitTimer.control = "stop"
+        m.submitTimer.control = "start"
         return
+    end if
+end sub
+
+sub finishPlaylistSubmit()
+    savedPlaylist = invalid
+    if m.editPlaylistId <> "" then
+        savedPlaylist = playlistStoreUpdate(m.editPlaylistId, m.inputs, m.mode)
+    else
+        savedPlaylist = playlistStoreAdd(m.inputs, m.mode)
+    end if
+
+    m.submitState = ""
+    if savedPlaylist = invalid then
+        if m.mode = "m3u" then
+            setFieldError("m3uUrl", "Playlist details could not be saved.")
+        else
+            setFieldError("serverUrl", "Account details could not be saved.")
+        end if
+        render()
+        return
+    end if
+
+    m.added = true
+    m.errorMessage = ""
+    m.errorField = ""
+    if m.editPlaylistId = "" then onboardingCompleteWithPlaylist()
+    if m.editPlaylistId <> "" then
+        m.top.navigateTo = "ManagePlaylistsPage"
+    else
+        m.top.navigateTo = "MyPlaylistsPage"
     end if
 end sub
 
@@ -88,24 +148,40 @@ sub render()
     refreshClock()
     row = drawAddPlaylistSideNav()
 
-    uiLabel(m.canvas, "Add New Playlist", 380, 108, 760, 56, 36, m.colors.text, "center")
+    pageTitle = "Add New Playlist"
+    if m.editPlaylistId <> "" then pageTitle = "Edit Playlist"
+    uiLabel(m.canvas, pageTitle, 380, 108, 760, 56, 36, m.colors.text, "center")
     addSmallButton(505, 198, 230, 48, "", "M3U Playlist", row, 1, "m3u")
     addSmallButton(765, 198, 230, 48, "", "Xtreme Account", row, 2, "xtreme")
 
     if m.mode = "m3u" then
         addInputField(380, 292, 760, "Playlist Title", "playlistTitle", row + 1, 1, false)
         addInputField(380, 398, 760, "M3U URL", "m3uUrl", row + 2, 1, false)
-        addWideAction(530, 510, 460, 56, "plus", "Add Playlist", row + 3, 1)
+        submitLabel = "Add Playlist"
+        if m.editPlaylistId <> "" then submitLabel = "Save Changes"
+        addWideAction(530, 510, 460, 56, "plus", submitLabel, row + 3, 1)
     else
         addInputField(380, 250, 760, "Account Name", "accountName", row + 1, 1, false)
         addInputField(380, 334, 760, "Server URL", "serverUrl", row + 2, 1, false)
         addInputField(380, 418, 760, "Username", "username", row + 3, 1, false)
         addInputField(380, 502, 760, "Password", "password", row + 4, 1, true)
-        addWideAction(530, 602, 460, 56, "link", "Connect Account", row + 5, 1)
+        submitLabel = "Connect Account"
+        if m.editPlaylistId <> "" then submitLabel = "Save Changes"
+        addWideAction(530, 602, 460, 56, "link", submitLabel, row + 5, 1)
     end if
 
     uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
     if m.editing then drawKeyboardOverlay()
+    if m.submitState = "validating" then drawValidationOverlay()
+end sub
+
+sub drawValidationOverlay()
+    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.72)
+    uiPoster(m.canvas, "pkg:/images/ui/rr_500x158_panel_purpleLine.png", 400, 282, 560, 132, 0.98)
+    heading = "Validating playlist"
+    if m.mode = "xtreme" then heading = "Validating account"
+    uiLabel(m.canvas, heading, 440, 306, 480, 32, 20, m.colors.text, "center")
+    uiLabel(m.canvas, "Checking required details and preparing local storage...", 440, 350, 480, 28, 12, m.colors.textMuted, "center")
 end sub
 
 function drawAddPlaylistSideNav() as Integer
@@ -261,7 +337,7 @@ function validatePlaylistInput() as String
         if not isValidHttpUrl(m.inputs.m3uUrl) then return setFieldError("m3uUrl", "Enter a valid M3U URL.")
     end if
 
-    if playlistStoreTitleExists(title) then
+    if playlistStoreTitleExistsExcept(title, m.editPlaylistId) then
         if m.mode = "xtreme" then return setFieldError("accountName", "Playlist name already exists.")
         return setFieldError("playlistTitle", "Playlist name already exists.")
     end if

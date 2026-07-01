@@ -10,6 +10,7 @@
     <field id="playbackUrl" type="string" />
     <field id="playbackFormat" type="string" />
     <field id="playbackPosterUrl" type="string" />
+    <field id="playbackMediaType" type="string" />
     <field id="returnPage" type="string" />
     <field id="detailId" type="string" />
     <field id="detailTitle" type="string" />

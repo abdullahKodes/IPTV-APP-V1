@@ -11,10 +11,12 @@
     <field id="playbackUrl" type="string" alwaysNotify="true" />
     <field id="playbackFormat" type="string" />
     <field id="playbackPosterUrl" type="string" />
+    <field id="playbackMediaType" type="string" />
     <field id="returnPage" type="string" />
     <function name="handleKey" />
     <function name="refreshClock" />
   </interface>
   <script type="text/brightscript" uri="pkg:/components/shared/AppUi.brs" />
+  <script type="text/brightscript" uri="pkg:/components/shared/SettingsStore.brs" />
   <script type="text/brightscript" uri="pkg:/components/pages/PlayerPage.brs" />
 </component>

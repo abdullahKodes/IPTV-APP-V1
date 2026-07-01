@@ -604,3 +604,28 @@ Do not update this file for:
 - Roku follow-up in build `00183`: moved Welcome controls to a balanced `380x72` size, reduced title scale, applied the transparent rounded Movie/Series detail-button surface behavior, increased spacing before the no-card note, and introduced a versioned onboarding background with three subtly distributed `IPTV MAX` television tiles while retaining the detail-page smoke blend.
 - Roku follow-up in build `00184`: shifted Welcome button text farther inward, replaced the heavy cyan outlines with subtle rounded transparent surfaces in both normal and focused states, and changed the trial note to the white `No card information is required for the free trial.` copy.
 - Roku follow-up in build `00185`: restored the more rounded detail-page button shape with reduced normal/focus opacity for sleeker borders, while changing the no-card trial note to the shared muted subtitle color.
+
+## 2026-07-01 Phase 2 Playlist Lifecycle
+
+- Extended Add Playlist into a reusable Add/Edit flow with one-shot edit routing, prefilled M3U/Xtreme fields, duplicate-name validation that excludes the current record, secure password display, a visible validation state, and protected built-in playlist safeguards.
+- Added playlist update, lookup, pending-edit, and detailed refresh-result helpers to `PlaylistStore.brs`.
+- Replaced the card-level Delete-only action with a unified Manage flow. User playlists now offer Refresh, Edit, Delete, and Cancel; protected Demo playlists expose Refresh and Cancel only.
+- Refresh now shows a temporary Syncing state, validates locally available M3U/Xtreme details, reports honest success/failure feedback, and leaves provider content synchronization marked as pending until backend integration.
+- My Playlists now identifies the active playlist directly on its card, reports lifecycle feedback, preserves delete confirmation, and falls back safely to Empty M3U Playlist when the active user playlist is removed.
+- Bumped the manifest to `00186` for the complete local playlist-lifecycle pass.
+- Roku review follow-up in build `00187`: restored My Playlists to clean activation-only cards with no per-card Manage/Delete action, added a dedicated `Manage Playlists` header button beside Add Playlist, and created `ManagePlaylistsPage` for scrolling playlist rows with Refresh, Edit, and Delete actions. Protected built-in playlists expose Refresh only, edits return to the management page, and Add/Edit Back behavior now returns to the appropriate playlist screen.
+- Roku review follow-up in build `00188`: changed both My Playlists header actions to transparent rounded detail-style controls, removed the Manage Playlists icon, and added explicit Search/Manage/Add/card-grid focus routes so the Manage action follows the app's normal green focus behavior reliably.
+- Roku review follow-up in build `00189`: swapped the My Playlists header order to Add Playlist then Manage Playlists, removed the visible Back control from Manage Playlists while retaining Roku Back behavior, widened status badges so `Protected` renders fully, and made Refresh/Edit/Delete visible on every row. Edit/Delete remain safely locked for built-in playlists and display an explanatory inline message when selected.
+- Temporary Roku test build `00190`: unlocked Edit/Delete only for Empty M3U Playlist, added a persistent deleted-empty override with Demo Playlist as the active fallback, retained protection for Demo Playlist/Demo Movies, and changed management badge widths to follow label length with explicit inner padding.
+- Final Phase 2 build `00191`: restored the original Empty M3U Playlist regardless of the temporary deletion marker, re-protected every built-in playlist, and made Refresh/Edit/Delete widths derive from their own label text with right-aligned dynamic placement. Corrected My Playlists to show exactly one Active badge, use Ready for other connected records, report active/ready/offline totals honestly, and avoid invented last-sync times. Completed a final static audit of add/edit validation, password masking, active selection, refresh feedback, protected actions, user deletion fallback, scrolling, focus routing, and Add/Edit return destinations.
+- Roku visual follow-up in build `00192`: lowered Refresh/Edit/Delete labels inside their 40px management controls to balance top and bottom spacing and optically center the text.
+
+## 2026-07-01 Phase 3 Playback Foundation
+
+- Added explicit `playbackMediaType` routing through Live TV, Movies, Series, detail pages, Favorites, MainScene, and PlayerPage so Live and VOD behavior no longer depends on return-page guessing.
+- Rebuilt PlayerPage around preparing, buffering, playing, paused, reconnecting, finished, and terminal error states.
+- Added two automatic reconnect attempts, then a focused Retry Stream / Go Back error screen with friendly network, timeout, empty-stream, unsupported-format, and DRM messages.
+- Split controls by media type: Live playback now shows Live plus Play/Pause and Audio/Subtitle controls, while VOD retains Restart, 30-second seek, Play/Pause, progress, and track controls.
+- Integrated saved caption mode and guarded quality preference application. Added a custom Options/track menu using Roku Video fields for available audio/subtitle tracks and track selection.
+- Preserved automatic control hiding, restored controls on remote input, retained exact prior-page restoration, and added a Replay / Go Back completion screen.
+- Verified all three bundled HLS manifests respond successfully, all player assets exist, and `npm.cmd run check` creates build `00193`.

@@ -74,6 +74,11 @@ sub openLiveChannel(channelIndex as Integer)
     m.top.playbackUrl = playbackUrl
     m.top.playbackFormat = mediaPlaybackFormat(channel)
     m.top.playbackPosterUrl = liveLogoArtUrl(channel)
+    if liveFlag(channel, "live") then
+        m.top.playbackMediaType = "live"
+    else
+        m.top.playbackMediaType = "movie"
+    end if
     m.top.returnPage = "LiveTvPage"
     m.top.navigateTo = "PlayerPage"
 end sub

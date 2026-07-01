@@ -7,14 +7,27 @@ sub init()
     m.searchEditing = false
     m.searchKeyboardIndex = 0
     m.deleteDialog = invalid
+    m.manageDialog = invalid
+    m.refreshDialog = invalid
     m.pendingDeleteId = ""
     m.pendingDeleteTitle = ""
+    m.pendingManageId = ""
+    m.pendingManageTitle = ""
+    m.manageProtected = false
+    m.feedbackMessage = ""
+    m.feedbackSuccess = true
+    m.refreshingId = ""
     m.playlistWindowStart = 0
     m.playlistWindowSize = 6
     m.initialFocusPlaylistId = playlistStoreActiveId()
     m.initialFocusApplied = false
     m.searchKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "SPACE", "DEL", "CLEAR", "DONE"]
     m.playlists = playlistStoreList()
+
+    m.refreshTimer = CreateObject("roSGNode", "Timer")
+    m.refreshTimer.repeat = false
+    m.refreshTimer.duration = 0.7
+    m.refreshTimer.observeField("fire", "finishPlaylistRefresh")
     render()
 end sub
 
@@ -27,6 +40,15 @@ sub refreshClock()
 end sub
 
 function handleKey(key as String) as Boolean
+    if m.refreshingId <> "" then return true
+    if m.manageDialog <> invalid then
+        if key = "back" then closeManageDialog() : return true
+        return false
+    end if
+    if m.refreshDialog <> invalid then
+        if key = "back" then closeRefreshDialog() : return true
+        return false
+    end if
     if m.deleteDialog <> invalid then
         if key = "back" then closeDeleteDialog() : return true
         return false
@@ -54,11 +76,13 @@ sub activate()
     if item.action = "search" then openSearchKeyboard() : return
     if item.action = "playlist" then
         playlistStoreSetActive(item.playlistId)
+        m.feedbackMessage = item.playlistTitle + " is now active."
+        m.feedbackSuccess = true
         m.top.navigateTo = playlistStorePreferredPageForId(item.playlistId)
         return
     end if
-    if item.action = "delete" then
-        openDeleteConfirm(item.playlistId, item.playlistTitle)
+    if item.action = "manage" then
+        openManageDialog(item.playlistId, item.playlistTitle, item.playlistProtected)
         return
     end if
 end sub
@@ -81,6 +105,7 @@ sub render()
     row = drawPlaylistSideNav()
 
     drawPageHeader(row)
+    drawLifecycleFeedback()
 
     if visible.count() = 0 then
         drawEmptyState()
@@ -95,7 +120,7 @@ sub render()
 end sub
 
 function firstPlaylistFocusIndex() as Integer
-    return 8
+    return 9
 end function
 
 sub keepActivePlaylistFirstFocus(visible as Object)
@@ -121,7 +146,7 @@ function routePlaylistFocus(dx as Integer, dy as Integer) as Boolean
     if current.doesExist("page") then page = current.page
     visible = filteredPlaylists()
 
-    if dy < 0 and page = "AddPlaylistPage" then
+    if dy < 0 and (page = "AddPlaylistPage" or page = "ManagePlaylistsPage") then
         searchTarget = findPlaylistActionFocus("search")
         if searchTarget >= 0 then m.focusIndex = searchTarget
         return true
@@ -133,9 +158,15 @@ function routePlaylistFocus(dx as Integer, dy as Integer) as Boolean
         return true
     end if
 
-    if dx < 0 and action = "delete" then
-        target = findPlaylistCardFocus(current.playlistId)
-        if target >= 0 then m.focusIndex = target
+    if dx > 0 and page = "AddPlaylistPage" then
+        manageTarget = findPlaylistPageFocus("ManagePlaylistsPage")
+        if manageTarget >= 0 then m.focusIndex = manageTarget
+        return true
+    end if
+
+    if dx < 0 and page = "ManagePlaylistsPage" then
+        addTarget = findPlaylistPageFocus("AddPlaylistPage")
+        if addTarget >= 0 then m.focusIndex = addTarget
         return true
     end if
 
@@ -157,28 +188,7 @@ function routePlaylistFocus(dx as Integer, dy as Integer) as Boolean
         return true
     end if
 
-    if dx > 0 and action = "delete" then
-        currentVisible = 0
-        if current.doesExist("visibleIndex") then currentVisible = current.visibleIndex
-        slot = currentVisible - m.playlistWindowStart
-        if (slot mod 3) = 2 then return true
-        nextVisible = currentVisible + 1
-        if nextVisible < visible.count() then
-            normalizePlaylistWindowForIndex(nextVisible, visible.count())
-            target = findPlaylistCardVisibleFocus(nextVisible)
-            if target >= 0 then
-                m.focusIndex = target
-            else
-                m.focusIndex = playlistFocusIndexForVisible(nextVisible, false)
-            end if
-            return true
-        end if
-        return true
-    end if
-
     if dx > 0 and action = "playlist" then
-        target = findPlaylistDeleteFocus(current.playlistId)
-        if target >= 0 then m.focusIndex = target : return true
         currentVisible = 0
         if current.doesExist("visibleIndex") then currentVisible = current.visibleIndex
         nextVisible = currentVisible + 1
@@ -200,7 +210,7 @@ function routePlaylistFocus(dx as Integer, dy as Integer) as Boolean
         return true
     end if
 
-    if (dy < 0 or dy > 0) and (action = "playlist" or action = "delete") then
+    if (dy < 0 or dy > 0) and action = "playlist" then
         currentVisible = 0
         if current.doesExist("visibleIndex") then currentVisible = current.visibleIndex
         nextVisible = currentVisible
@@ -208,26 +218,22 @@ function routePlaylistFocus(dx as Integer, dy as Integer) as Boolean
         if dy > 0 then nextVisible = currentVisible + 3
         if nextVisible >= 0 and nextVisible < visible.count() then
             normalizePlaylistWindowForIndex(nextVisible, visible.count())
-            if action = "delete" then
-                target = findPlaylistDeleteVisibleFocus(nextVisible)
-            else
-                target = findPlaylistCardVisibleFocus(nextVisible)
-            end if
+            target = findPlaylistCardVisibleFocus(nextVisible)
             if target >= 0 then
                 m.focusIndex = target
             else
-                m.focusIndex = playlistFocusIndexForVisible(nextVisible, action = "delete")
+                m.focusIndex = playlistFocusIndexForVisible(nextVisible, false)
             end if
             return true
         end if
         if dy < 0 then
-            addTarget = findPlaylistPageFocus("AddPlaylistPage")
-            if addTarget >= 0 then
-                m.focusIndex = addTarget
+            slot = currentVisible - m.playlistWindowStart
+            if (slot mod 3) < 2 then
+                headerTarget = findPlaylistPageFocus("AddPlaylistPage")
             else
-                searchTarget = findPlaylistActionFocus("search")
-                if searchTarget >= 0 then m.focusIndex = searchTarget
+                headerTarget = findPlaylistPageFocus("ManagePlaylistsPage")
             end if
+            if headerTarget >= 0 then m.focusIndex = headerTarget
             return true
         end if
         return true
@@ -248,16 +254,12 @@ function routePlaylistFocus(dx as Integer, dy as Integer) as Boolean
     return false
 end function
 
-function playlistFocusIndexForVisible(visibleIndex as Integer, deleteAction as Boolean) as Integer
+function playlistFocusIndexForVisible(visibleIndex as Integer, manageAction as Boolean) as Integer
     visible = filteredPlaylists()
-    index = 8
+    index = 9
     for i = m.playlistWindowStart to visibleIndex - 1
-        if i >= 0 and i < visible.count() then
-            index += 1
-            if not playlistStoreBoolField(visible[i].playlist, "isProtected", false) then index += 1
-        end if
+        if i >= 0 and i < visible.count() then index += 1
     end for
-    if deleteAction and visibleIndex >= 0 and visibleIndex < visible.count() and not playlistStoreBoolField(visible[visibleIndex].playlist, "isProtected", false) then index += 1
     return index
 end function
 
@@ -293,10 +295,10 @@ function findPlaylistCardFocus(playlistId as String) as Integer
     return -1
 end function
 
-function findPlaylistDeleteFocus(playlistId as String) as Integer
+function findPlaylistManageFocus(playlistId as String) as Integer
     for i = 0 to m.focusItems.count() - 1
         item = m.focusItems[i]
-        if item.doesExist("action") and item.action = "delete" and item.playlistId = playlistId then return i
+        if item.doesExist("action") and item.action = "manage" and item.playlistId = playlistId then return i
     end for
     return -1
 end function
@@ -309,26 +311,25 @@ function findPlaylistCardVisibleFocus(visibleIndex as Integer) as Integer
     return -1
 end function
 
-function findPlaylistDeleteVisibleFocus(visibleIndex as Integer) as Integer
+function findPlaylistManageVisibleFocus(visibleIndex as Integer) as Integer
     for i = 0 to m.focusItems.count() - 1
         item = m.focusItems[i]
-        if item.doesExist("action") and item.action = "delete" and item.doesExist("visibleIndex") and item.visibleIndex = visibleIndex then return i
+        if item.doesExist("action") and item.action = "manage" and item.doesExist("visibleIndex") and item.visibleIndex = visibleIndex then return i
     end for
     return -1
 end function
 
 sub normalizePlaylistFocus(visibleCount as Integer)
-    maxIndex = 7
+    maxIndex = 8
     drawnCount = visibleCount
     if drawnCount > m.playlistWindowSize then drawnCount = m.playlistWindowSize
     if drawnCount > 0 then
-        maxIndex = 7
+        maxIndex = 8
         visible = filteredPlaylists()
         endIndex = m.playlistWindowStart + drawnCount - 1
         if endIndex > visible.count() - 1 then endIndex = visible.count() - 1
         for i = m.playlistWindowStart to endIndex
             maxIndex += 1
-            if not playlistStoreBoolField(visible[i].playlist, "isProtected", false) then maxIndex += 1
         end for
     end if
     if m.focusIndex > maxIndex then m.focusIndex = maxIndex
@@ -407,30 +408,34 @@ sub drawPageHeader(row as Integer)
     uiLabel(m.canvas, summary.countText, 258, 140, 300, 26, 13, m.colors.purpleLine)
 
     addSearchAction(686, 24, 260, 40, 0, 3)
-    addHeaderAction(920, 108, 230, 48, "plus", "Add Playlist", row, 3, "AddPlaylistPage", "")
+    addHeaderAction(664, 108, 230, 48, "plus", "Add Playlist", row, 2, "AddPlaylistPage", "")
+    addHeaderAction(920, 108, 230, 48, "", "Manage Playlists", row, 3, "ManagePlaylistsPage", "")
 end sub
 
 sub addHeaderAction(x as Integer, y as Integer, w as Integer, h as Integer, icon as String, label as String, row as Integer, col as Integer, page as String, action as String)
     itemIndex = m.focusItems.count()
     focused = itemIndex = m.focusIndex
-    bg = m.colors.purpleSoft
-    border = m.colors.purpleLine
     textColor = m.colors.text
-    buttonOpacity = 1.0
+    surfaceUri = "pkg:/images/ui/movie_watch_176x40_panel_greenFocus.png"
+    buttonOpacity = 0.46
     if focused then
-        bg = m.colors.purpleSoft
-        border = m.colors.greenFocus
+        surfaceUri = "pkg:/images/ui/movie_watch_176x40_greenSoft_greenFocus.png"
+        buttonOpacity = 0.64
     end if
     buttonCanvas = CreateObject("roSGNode", "Group")
     buttonCanvas.id = "playlistHeaderAction" + itemIndex.toStr()
     buttonCanvas.translation = [x, y]
     buttonCanvas.scaleRotateCenter = [w / 2, h / 2]
     m.canvas.appendChild(buttonCanvas)
-    uiRoundRect(buttonCanvas, 0, 0, w, h, bg, border, buttonOpacity)
-    uiDrawIcon(buttonCanvas, icon, 28, 13, 20, 20, focused, textColor, 12)
-    uiLabel(buttonCanvas, label, 58, 8, w - 72, 30, 15, textColor)
+    uiPoster(buttonCanvas, surfaceUri, 0, 0, w, h, buttonOpacity)
+    if icon = "" then
+        uiLabel(buttonCanvas, label, 0, 8, w, 30, 15, textColor, "center")
+    else
+        uiDrawIcon(buttonCanvas, icon, 34, 13, 20, 20, focused, textColor, 12)
+        uiLabel(buttonCanvas, label, 64, 8, w - 80, 30, 15, textColor)
+    end if
     if focused then uiAnimateActionFocus(m.canvas, buttonCanvas)
-    m.focusItems.push({ x: x, y: y, w: w, h: h, icon: icon, label: label, subtitle: "", iconSize: 12, titleSize: 15, subSize: 10, bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.greenFocus, focusBorder: m.colors.text, focusTextColor: m.colors.text, row: row, col: col, page: page, action: action, mode: "manual" })
+    m.focusItems.push({ x: x, y: y, w: w, h: h, icon: icon, label: label, subtitle: "", iconSize: 12, titleSize: 15, subSize: 10, bg: m.colors.panel, border: m.colors.greenFocus, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: col, page: page, action: action, mode: "manual" })
 end sub
 
 sub addSearchAction(x as Integer, y as Integer, w as Integer, h as Integer, row as Integer, col as Integer)
@@ -503,15 +508,12 @@ sub drawPlaylistCard(p as Object, x as Integer, y as Integer, w as Integer, h as
     drawStatusPill(p, cardCanvas, 18, 18, cardFocused)
     uiLabel(cardCanvas, playlistStoreText(p, "title", "Playlist"), 18, 68, w - 36, 28, 14, titleColor)
     uiLabel(cardCanvas, playlistTypeLabel(p), 18, 94, w - 36, 22, 11, m.colors.textPurple)
-    uiRect(cardCanvas, 18, 124, w - 152, 1, "0xFFFFFF14")
-    uiLabel(cardCanvas, playlistStoreText(p, "time", "Ready"), 18, 127, 150, 22, 8, m.colors.textDim)
+    uiRect(cardCanvas, 18, 124, w - 36, 1, "0xFFFFFF14")
+    uiLabel(cardCanvas, playlistStoreText(p, "time", "Ready"), 18, 127, w - 36, 22, 8, m.colors.textDim)
     if cardFocused then uiAnimateCardFocus(m.canvas, cardCanvas, x, y)
 
-    m.focusItems.push({ x: x, y: y, w: w, h: h, icon: playlistStoreText(p, "icon", "list"), label: playlistStoreText(p, "title", "Playlist"), subtitle: playlistStoreText(p, "meta"), iconSize: 13, titleSize: 16, subSize: 12, bg: fill, border: border, textColor: titleColor, subColor: m.colors.textDim, focusBg: fill, focusBorder: border, focusTextColor: titleColor, row: row, col: col, page: "", action: "playlist", playlistId: playlistStoreText(p, "id"), visibleIndex: visibleIndex, mode: "manual" })
-
-    if not playlistStoreBoolField(p, "isProtected", false) then
-        drawCardAction("Delete", "delete", playlistStoreText(p, "id"), playlistStoreText(p, "title", "Playlist"), x + w - 104, y + h - 43, row + 1, col + 1, visibleIndex)
-    end if
+    playlistTitle = playlistStoreText(p, "title", "Playlist")
+    m.focusItems.push({ x: x, y: y, w: w, h: h, icon: playlistStoreText(p, "icon", "list"), label: playlistTitle, subtitle: playlistStoreText(p, "meta"), iconSize: 13, titleSize: 16, subSize: 12, bg: fill, border: border, textColor: titleColor, subColor: m.colors.textDim, focusBg: fill, focusBorder: border, focusTextColor: titleColor, row: row, col: col, page: "", action: "playlist", playlistId: playlistStoreText(p, "id"), playlistTitle: playlistTitle, visibleIndex: visibleIndex, mode: "manual" })
 end sub
 
 sub drawPlaylistCardShell(parent as Object, x as Integer, y as Integer, w as Integer, h as Integer, fill as String, border as String, opacity = 1.0 as Float)
@@ -573,6 +575,13 @@ sub drawStatusPill(p as Object, parent as Object, x as Integer, y as Integer, fo
     textColor = "0xFFFFFFFF"
     uri = "pkg:/images/ui/movie_featured_badge_100x34_purpleDeep.png"
     label = status
+    isActive = playlistStoreText(p, "id") = playlistStoreActiveId()
+    if isActive then
+        label = "Active"
+    else if status = "Active" then
+        label = "Ready"
+    end if
+    if playlistStoreText(p, "id") = m.refreshingId then label = "Syncing"
     if status = "Offline" then
         textColor = "0xFFFFFFFF"
     else if status = "Expires soon" then
@@ -583,7 +592,7 @@ sub drawStatusPill(p as Object, parent as Object, x as Integer, y as Integer, fo
     uiLabel(parent, label, x + 4, y - 1, 80, 30, 9, textColor, "center")
 end sub
 
-sub drawCardAction(label as String, action as String, playlistId as String, playlistTitle as String, x as Integer, y as Integer, row as Integer, col as Integer, visibleIndex as Integer)
+sub drawCardAction(label as String, action as String, playlistId as String, playlistTitle as String, playlistProtected as Boolean, x as Integer, y as Integer, row as Integer, col as Integer, visibleIndex as Integer)
     itemIndex = m.focusItems.count()
     focused = itemIndex = m.focusIndex
     buttonUri = "pkg:/images/ui/movie_watch_140x40_panel_greenFocus.png"
@@ -593,7 +602,14 @@ sub drawCardAction(label as String, action as String, playlistId as String, play
     end if
     uiPoster(m.canvas, buttonUri, x, y, 90, 28)
     uiLabel(m.canvas, label, x + 4, y - 1, 82, 28, 7, textColor, "center")
-    m.focusItems.push({ x: x, y: y, w: 90, h: 28, icon: "", label: label, subtitle: "", iconSize: 1, titleSize: 7, subSize: 7, bg: m.colors.panel, border: m.colors.greenFocus, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: textColor, row: row, col: col, page: "", action: action, playlistId: playlistId, playlistTitle: playlistTitle, visibleIndex: visibleIndex, mode: "manual", noFocusShift: true })
+    m.focusItems.push({ x: x, y: y, w: 90, h: 28, icon: "", label: label, subtitle: "", iconSize: 1, titleSize: 7, subSize: 7, bg: m.colors.panel, border: m.colors.greenFocus, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: textColor, row: row, col: col, page: "", action: action, playlistId: playlistId, playlistTitle: playlistTitle, playlistProtected: playlistProtected, visibleIndex: visibleIndex, mode: "manual", noFocusShift: true })
+end sub
+
+sub drawLifecycleFeedback()
+    if m.feedbackMessage = "" then return
+    color = m.colors.textGreen
+    if not m.feedbackSuccess then color = "0xFFB2A8FF"
+    uiScaledLabel(m.canvas, m.feedbackMessage, 258, 158, 900, 24, 10, color, "left", 0.72)
 end sub
 
 sub drawFooterSummary()
@@ -615,6 +631,88 @@ sub drawPlaylistScrollbar(totalCount as Integer)
     thumbY = trackY
     if maxStart > 0 then thumbY = trackY + Int(thumbTravel * m.playlistWindowStart / maxStart)
     uiVerticalPill(m.canvas, trackX - 1, thumbY, 5, thumbH, m.colors.greenFocus, "pkg:/images/ui/scroll_cap_6_greenFocus.png", 0.86)
+end sub
+
+sub openManageDialog(playlistId as String, playlistTitle as String, isProtected as Boolean)
+    m.pendingManageId = playlistId
+    m.pendingManageTitle = playlistTitle
+    m.manageProtected = isProtected
+    dialog = CreateObject("roSGNode", "Dialog")
+    dialog.title = "Manage " + playlistTitle
+    dialog.message = "Choose an action for this playlist."
+    if isProtected then
+        dialog.buttons = ["Refresh", "Cancel"]
+    else
+        dialog.buttons = ["Refresh", "Edit", "Delete", "Cancel"]
+    end if
+    dialog.observeField("buttonSelected", "onManageDialogButton")
+    m.manageDialog = dialog
+    m.top.getScene().dialog = dialog
+end sub
+
+sub closeManageDialog()
+    if m.top <> invalid and m.top.getScene() <> invalid then m.top.getScene().dialog = invalid
+    m.manageDialog = invalid
+end sub
+
+sub onManageDialogButton()
+    if m.manageDialog = invalid then return
+    selected = m.manageDialog.buttonSelected
+    playlistId = m.pendingManageId
+    playlistTitle = m.pendingManageTitle
+    isProtected = m.manageProtected
+    closeManageDialog()
+
+    if selected = 0 then
+        openRefreshConfirm(playlistId, playlistTitle)
+    else if not isProtected and selected = 1 then
+        playlistStoreSetPendingEdit(playlistId)
+        m.top.navigateTo = "AddPlaylistPage"
+    else if not isProtected and selected = 2 then
+        openDeleteConfirm(playlistId, playlistTitle)
+    end if
+end sub
+
+sub openRefreshConfirm(playlistId as String, playlistTitle as String)
+    m.pendingManageId = playlistId
+    m.pendingManageTitle = playlistTitle
+    dialog = CreateObject("roSGNode", "Dialog")
+    dialog.title = "Refresh playlist?"
+    dialog.message = "Validate " + playlistTitle + " and prepare it for the latest provider content."
+    dialog.buttons = ["Cancel", "Refresh"]
+    dialog.observeField("buttonSelected", "onRefreshDialogButton")
+    m.refreshDialog = dialog
+    m.top.getScene().dialog = dialog
+end sub
+
+sub closeRefreshDialog()
+    if m.top <> invalid and m.top.getScene() <> invalid then m.top.getScene().dialog = invalid
+    m.refreshDialog = invalid
+end sub
+
+sub onRefreshDialogButton()
+    if m.refreshDialog = invalid then return
+    selected = m.refreshDialog.buttonSelected
+    playlistId = m.pendingManageId
+    closeRefreshDialog()
+    if selected = 1 then
+        m.refreshingId = playlistId
+        m.feedbackSuccess = true
+        m.feedbackMessage = "Validating playlist details..."
+        render()
+        m.refreshTimer.control = "stop"
+        m.refreshTimer.control = "start"
+    end if
+end sub
+
+sub finishPlaylistRefresh()
+    if m.refreshingId = "" then return
+    result = playlistStoreRefreshResult(m.refreshingId)
+    m.refreshingId = ""
+    m.feedbackSuccess = result.success
+    m.feedbackMessage = result.message
+    m.playlists = playlistStoreList()
+    render()
 end sub
 
 sub openDeleteConfirm(playlistId as String, playlistTitle as String)
@@ -640,8 +738,17 @@ sub onDeleteDialogButton()
     if m.deleteDialog = invalid then return
     selected = m.deleteDialog.buttonSelected
     if selected = 1 then
-        playlistStoreDelete(m.pendingDeleteId)
+        deletedTitle = m.pendingDeleteTitle
+        wasActive = playlistStoreActiveId() = m.pendingDeleteId
+        deleted = playlistStoreDelete(m.pendingDeleteId)
         m.playlists = playlistStoreList()
+        m.feedbackSuccess = deleted
+        if deleted then
+            m.feedbackMessage = deletedTitle + " was deleted."
+            if wasActive then m.feedbackMessage += " Empty M3U Playlist is now active."
+        else
+            m.feedbackMessage = "This protected playlist cannot be deleted."
+        end if
     end if
     closeDeleteDialog()
     normalizePlaylistFocus(filteredPlaylists().count())
@@ -685,13 +792,17 @@ end function
 
 function playlistSummary(items as Object) as Object
     activeCount = 0
+    readyCount = 0
     offlineCount = 0
     total = 0
+    activeId = playlistStoreActiveId()
     for each item in items
-        if playlistStoreText(item, "status") = "Offline" then
+        if playlistStoreText(item, "id") = activeId then
+            activeCount += 1
+        else if playlistStoreText(item, "status") = "Offline" then
             offlineCount += 1
         else
-            activeCount += 1
+            readyCount += 1
         end if
         total += playlistStoreNumber(item, "itemCount")
     end for
@@ -699,8 +810,8 @@ function playlistSummary(items as Object) as Object
     if items.count() = 1 then playlistWord = " playlist"
     return {
         countText: items.count().toStr() + playlistWord,
-        totalText: formatCount(total) + " channels total",
-        statusText: activeCount.toStr() + " active - " + offlineCount.toStr() + " offline - last sync " + latestSyncText(items)
+        totalText: formatCount(total) + " items total",
+        statusText: activeCount.toStr() + " active - " + readyCount.toStr() + " ready - " + offlineCount.toStr() + " offline - last sync " + latestSyncText(items)
     }
 end function
 
@@ -709,7 +820,7 @@ function latestSyncText(items as Object) as String
     for each item in items
         if playlistStoreText(item, "lastSync") = "just now" then return "just now"
     end for
-    return "2 hours ago"
+    return "not synced yet"
 end function
 
 function formatCount(value as Integer) as String
