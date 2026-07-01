@@ -22,6 +22,8 @@
     <field id="detailPlaybackUrl" type="string" />
     <field id="detailPlaybackFormat" type="string" />
     <field id="detailEpisodeNames" type="string" />
+    <field id="detailSeasonNames" type="string" />
+    <field id="detailEpisodeDurations" type="string" />
     <field id="detailActiveEpisodeTitle" type="string" />
     <field id="detailPlaylistId" type="string" />
     <field id="detailMediaType" type="string" />

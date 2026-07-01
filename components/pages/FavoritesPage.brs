@@ -166,6 +166,8 @@ sub openSeriesFavorite(series as Object)
     m.top.detailPlaybackUrl = mediaPlaybackUrl(series)
     m.top.detailPlaybackFormat = mediaPlaybackFormat(series)
     m.top.detailEpisodeNames = favItemText(series, "episodeNames")
+    m.top.detailSeasonNames = favItemText(series, "seasonNames")
+    m.top.detailEpisodeDurations = favItemText(series, "episodeDurations")
     m.top.detailActiveEpisodeTitle = favItemText(series, "activeEpisodeTitle")
     m.top.detailPlaylistId = m.activePlaylistId
     m.top.detailMediaType = "series"

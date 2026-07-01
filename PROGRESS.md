@@ -47,7 +47,22 @@ Completed:
 - Removed redundant result counts from direct movie/series title searches while retaining counts for category searches, and moved results content closer to the top bar.
 - Live TV now keeps focus on the selected category pill after OK instead of jumping into channels or toward the sidebar; Down remains the explicit route into channel cards.
 - Locked the quieter dynamic backdrop opacity across content-card focus, preventing brightness jumps between Featured Movie and movie cards or Continue Watching and series cards.
-- Bumped the manifest build version to `00168`.
+- Fixed the Series poster-to-Continue focus handoff so the selected Continue item and resume focus state drive the backdrop consistently; the same title, such as Ozark, now keeps the same backdrop opacity across both rows.
+- Removed Series page state-based backdrop brightness entirely: the page now opens with the same quieter opacity used while browsing Continue Watching and poster cards, for every title.
+- Replaced the generic `EPISODES` heading on Series detail with the selected season's provider-supplied name, falling back to `SEASON 1`, `SEASON 2`, and so on.
+- Added backend-ready `seasonNames` and `episodeDurations` metadata through Series/Favorites navigation and persistence; episode cards now show their supplied duration beneath the title and vertically center titles when duration is unavailable.
+- Removed invented demo episode durations after review; runtimes now appear only when genuine episode metadata is supplied by the IPTV/backend provider.
+- Added navigation-state restoration for Movie/Series detail and playback drill-downs: Back now restores the exact prior page instance, preserving focused card, category, scrolling, and search state instead of recreating the page at its sidebar default.
+- The same history behavior covers Live TV and Favorites playback/detail returns.
+- Restored varied placeholder episode durations when real metadata is absent; provider-supplied `episodeDurations` still takes priority and replaces placeholders automatically.
+- Manual Movies/Series category selection now enters the same focused results layout as category search, hiding Featured/Continue sections and making Back restore the previous main page/category state.
+- Live TV manual category selection now follows the same return behavior: it remembers the previous category, retains focus on the selected pill, and Back restores the prior/main Live TV view before Home navigation.
+- Added a purpose-made Live TV broadcast-studio background with no channel branding or text, composed with dark sidebar/header space and subdued detail behind channel cards.
+- Wired the optimized `1280x720` project asset under translucent app-color overlays so channel logos, labels, and focus states remain dominant.
+- Replaced the first Live TV concept with a richer second background containing a multi-genre broadcast wall, studio cameras, control-room depth, signal graphics, and reflective lighting while preserving UI-safe dark zones.
+- Mirrored the richer Live TV background horizontally and switched the page to the new versioned asset.
+- Replaced the mirrored background's large blank side with a full-width continuation of the studio, broadcast screens, cameras, signal graphics, and reflections while keeping the extended area lower contrast.
+- Bumped the manifest build version to `00179`.
 
 ### Demo Artwork And Detail Pages
 
@@ -576,3 +591,16 @@ Do not update this file for:
 - Moved Series season buttons farther below the `SEASONS` heading and pushed the episode scrollbar farther away from the episode cards with lower opacity.
 - Added `detailEpisodeNames` and `detailActiveEpisodeTitle` detail fields so backend-provided episode names can render in episode rows, with `Episode 1`, `Episode 2`, etc. as fallback labels.
 - Bumped Roku manifest build version to `00154` for the season spacing, scrollbar opacity, and episode-title data hook.
+
+## 2026-07-01 Phase 1 First-Run Onboarding
+
+- Added a first-launch `WelcomePage` with Start 7-Day Trial, Add Playlist, and Buy Subscription choices plus a purpose-built IPTV onboarding background.
+- Added registry-backed onboarding completion and trial-start state. Trial activation selects the protected Demo Playlist, which remains available after future upgrades.
+- Add Playlist completes onboarding only after a playlist is successfully saved; leaving setup early returns to Welcome.
+- Buy Subscription records purchase intent and shows an honest Roku-billing handoff without granting a fake entitlement or charging the user.
+- Bumped the manifest to `00180`; `npm.cmd run check` passes and the fresh package includes the new screen, onboarding store, background, and updated manifest.
+- Roku follow-up in build `00181`: replaced the hard center split with the detail-page smoke blend, reduced Welcome to 7-Day Free Trial and Buy Subscription, made both button surfaces use verified packaged assets, reduced supporting typography, and routed Buy Subscription directly to Add Playlist for the current phase.
+- Roku follow-up in build `00182`: reduced both Welcome controls to compact app-style buttons, restored purple-normal/green-focused behavior, enlarged button titles, removed trailing arrows, and restored the single no-card-required trial note.
+- Roku follow-up in build `00183`: moved Welcome controls to a balanced `380x72` size, reduced title scale, applied the transparent rounded Movie/Series detail-button surface behavior, increased spacing before the no-card note, and introduced a versioned onboarding background with three subtly distributed `IPTV MAX` television tiles while retaining the detail-page smoke blend.
+- Roku follow-up in build `00184`: shifted Welcome button text farther inward, replaced the heavy cyan outlines with subtle rounded transparent surfaces in both normal and focused states, and changed the trial note to the white `No card information is required for the free trial.` copy.
+- Roku follow-up in build `00185`: restored the more rounded detail-page button shape with reduced normal/focus opacity for sleeker borders, while changing the no-card trial note to the shared muted subtitle color.

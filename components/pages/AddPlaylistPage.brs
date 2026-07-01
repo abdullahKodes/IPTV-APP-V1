@@ -72,6 +72,7 @@ sub activate()
         m.added = true
         m.errorMessage = ""
         m.errorField = ""
+        onboardingCompleteWithPlaylist()
         m.top.navigateTo = "MyPlaylistsPage"
         return
     end if

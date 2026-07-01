@@ -697,7 +697,8 @@ sub selectMovieCategory(categoryIndex as Integer)
     if categoryIndex < 0 or categoryIndex >= m.categories.count() then return
     query = LCase(m.searchQuery)
     fromSearch = query <> "" and Instr(1, LCase(m.categories[categoryIndex]), query) > 0
-    m.searchReturnPending = fromSearch
+    if not fromSearch then m.searchPreviousCategoryIndex = m.categoryIndex
+    m.searchReturnPending = categoryIndex > 0
     if fromSearch then m.searchQuery = ""
     m.categoryIndex = categoryIndex
     m.focusedCategoryIndex = categoryIndex

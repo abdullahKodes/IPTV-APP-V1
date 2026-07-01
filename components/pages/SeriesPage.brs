@@ -74,6 +74,8 @@ sub openSeriesDetail(series as Object)
     m.top.detailPlaybackUrl = mediaPlaybackUrl(series)
     m.top.detailPlaybackFormat = mediaPlaybackFormat(series)
     m.top.detailEpisodeNames = seriesText(series, "episodeNames")
+    m.top.detailSeasonNames = seriesText(series, "seasonNames")
+    m.top.detailEpisodeDurations = seriesText(series, "episodeDurations")
     m.top.detailActiveEpisodeTitle = seriesText(series, "activeEpisodeTitle")
     m.top.detailPlaylistId = m.activePlaylistId
     m.top.detailMediaType = "series"
@@ -529,21 +531,11 @@ sub drawSeriesListHeroSmoke()
 end sub
 
 function seriesListBackdropOpacity() as Float
-    if seriesContentFocusActive() then return 0.38
-    return 0.46
+    return 0.38
 end function
 
 function seriesListScrimOpacity() as Float
-    if seriesContentFocusActive() then return 0.20
-    return 0.14
-end function
-
-function seriesContentFocusActive() as Boolean
-    if m.focusArea = "series" or m.focusArea = "resume" then return true
-    if m.focusItems = invalid or m.focusIndex < 0 or m.focusIndex >= m.focusItems.count() then return false
-    item = m.focusItems[m.focusIndex]
-    if not item.doesExist("action") then return false
-    return item.action = "series" or item.action = "play"
+    return 0.20
 end function
 
 function seriesBackdropIsComposed(url as String) as Boolean
@@ -769,7 +761,8 @@ sub selectSeriesCategory(categoryIndex as Integer)
     if categoryIndex < 0 or categoryIndex >= m.categories.count() then return
     query = LCase(m.searchQuery)
     fromSearch = query <> "" and Instr(1, LCase(m.categories[categoryIndex]), query) > 0
-    m.searchReturnPending = fromSearch
+    if not fromSearch then m.searchPreviousCategoryIndex = m.categoryIndex
+    m.searchReturnPending = categoryIndex > 0
     if fromSearch then m.searchQuery = ""
     m.categoryIndex = categoryIndex
     m.focusedCategoryIndex = categoryIndex
@@ -952,12 +945,17 @@ function routeSeriesFocus(dx as Integer, dy as Integer) as Boolean
             return false
         end if
         if dy < 0 then
-            m.focusArea = "normal"
             col = current.col
             targetCol = 1
             if col > 2 then targetCol = 2
             cIndex = findFocusByRowCol(2, targetCol)
-            if cIndex >= 0 then m.focusIndex = cIndex : return true
+            if cIndex >= 0 then
+                m.selectedResumeIndex = m.resumeWindowStart + targetCol - 1
+                m.focusArea = "resume"
+                m.focusIndex = cIndex
+                return true
+            end if
+            m.focusArea = "categories"
             pIndex = findFocusByRowCol(1, targetCol)
             if pIndex >= 0 then m.focusIndex = pIndex : return true
         end if

@@ -297,6 +297,8 @@ function seriesDetailFavoriteItem() as Object
         streamUrl: m.top.detailPlaybackUrl,
         streamFormat: detailPlaybackFormat(),
         episodeNames: m.top.detailEpisodeNames,
+        seasonNames: m.top.detailSeasonNames,
+        episodeDurations: m.top.detailEpisodeDurations,
         activeEpisodeTitle: m.top.detailActiveEpisodeTitle,
         description: detailDescription()
     }
@@ -359,7 +361,7 @@ end sub
 sub drawEpisodes()
     normalizeEpisodeIndex()
     visibleCount = visibleEpisodeCount()
-    uiLabel(m.canvas, "EPISODES", 846, 232, 230, 24, 12, m.colors.text)
+    uiScaledLabel(m.canvas, selectedSeasonHeading(), 846, 232, 300, 24, 12, m.colors.text, "left", 0.90)
     for offset = 0 to visibleCount - 1
         episodeNumber = m.episodeWindowStart + offset
         drawEpisodeCard(episodeNumber, episodeCardTitle(episodeNumber), 846, 262 + offset * 82, 300, 74, offset)
@@ -389,8 +391,11 @@ sub drawEpisodeCard(index as Integer, title as String, x as Integer, y as Intege
     drawEpisodeSurface(episodeCanvas, 0, 0, w, h, focused, opacity)
     uiCardFocusTint(episodeCanvas, 0, 0, w, h, focused)
     drawEpisodeThumb(episodeCanvas, 16, 10, 54, 54)
-    uiScaledLabel(episodeCanvas, title, 90, 12, w - 106, 30, 14, titleColor, "left", 1.06)
-    uiScaledLabel(episodeCanvas, "Season " + (m.seasonIndex + 1).toStr(), 90, 43, w - 106, 20, 10, m.colors.textMuted, "left", 0.88)
+    duration = episodeDurationFromData(index)
+    titleY = 22
+    if duration <> "" then titleY = 12
+    uiScaledLabel(episodeCanvas, title, 90, titleY, w - 106, 30, 14, titleColor, "left", 1.06)
+    if duration <> "" then uiScaledLabel(episodeCanvas, duration, 90, 43, w - 106, 20, 10, m.colors.textMuted, "left", 0.88)
     if focused then uiAnimateCardFocus(m.canvas, episodeCanvas, x, y)
 end sub
 
@@ -597,6 +602,46 @@ function episodeTitleFromData(localIndex as Integer) as String
     end if
 
     return ""
+end function
+
+function selectedSeasonHeading() as String
+    seasonName = seasonNameFromData(m.seasonIndex)
+    if seasonName <> "" then return UCase(seasonName)
+    return "SEASON " + (m.seasonIndex + 1).toStr()
+end function
+
+function seasonNameFromData(index as Integer) as String
+    names = m.top.detailSeasonNames
+    if names = invalid or names = "" then return ""
+    delimiter = "|"
+    if Instr(1, names, delimiter) = 0 then delimiter = ";"
+    if Instr(1, names, delimiter) = 0 then delimiter = ","
+    tokens = names.Tokenize(delimiter)
+    if index < 0 or index >= tokens.count() then return ""
+    return trimLeftText(tokens[index])
+end function
+
+function episodeDurationFromData(localIndex as Integer) as String
+    durations = m.top.detailEpisodeDurations
+    if durations <> invalid and durations <> "" then
+        delimiter = "|"
+        if Instr(1, durations, delimiter) = 0 then delimiter = ";"
+        if Instr(1, durations, delimiter) = 0 then delimiter = ","
+        tokens = durations.Tokenize(delimiter)
+        tokenIndex = localIndex
+        if tokens.count() >= detailEpisodeCount() then tokenIndex = selectedSeasonEpisodeOffset() + localIndex
+        if tokenIndex >= 0 and tokenIndex < tokens.count() then
+            duration = trimLeftText(tokens[tokenIndex])
+            if duration <> "" then return duration
+        end if
+    end if
+    return placeholderEpisodeDuration(localIndex)
+end function
+
+function placeholderEpisodeDuration(localIndex as Integer) as String
+    durations = ["52 min", "55 min", "58 min", "54 min", "57 min", "60 min", "51 min", "56 min"]
+    durationIndex = (m.seasonIndex + localIndex) mod durations.count()
+    return durations[durationIndex]
 end function
 
 function isEpisodeCodeLabel(text as String) as Boolean

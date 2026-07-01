@@ -165,6 +165,8 @@ function favoriteStoreNormalizeItem(kind as String, item as Object, playlistId a
     favoriteStoreCopyField(out, item, "seasons")
     favoriteStoreCopyField(out, item, "episodeCount")
     favoriteStoreCopyField(out, item, "episodeNames")
+    favoriteStoreCopyField(out, item, "seasonNames")
+    favoriteStoreCopyField(out, item, "episodeDurations")
     favoriteStoreCopyField(out, item, "activeEpisodeTitle")
     favoriteStoreCopyField(out, item, "progressText")
     favoriteStoreCopyField(out, item, "category")

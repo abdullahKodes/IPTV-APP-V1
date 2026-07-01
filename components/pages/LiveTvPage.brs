@@ -82,7 +82,8 @@ sub selectLiveCategory(categoryIndex as Integer)
     if categoryIndex < 0 or categoryIndex >= m.categories.count() then return
     query = LCase(m.searchQuery)
     fromSearch = query <> "" and Instr(1, LCase(m.categories[categoryIndex]), query) > 0
-    m.searchReturnPending = fromSearch
+    if not fromSearch then m.searchPreviousCategoryIndex = m.categoryIndex
+    m.searchReturnPending = categoryIndex > 0
     if fromSearch then m.searchQuery = ""
     m.categoryIndex = categoryIndex
     m.focusedCategoryIndex = categoryIndex
@@ -97,6 +98,10 @@ sub render()
     uiClear(m.canvas)
     m.focusItems = []
     uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg)
+    liveBackground = uiPoster(m.canvas, "pkg:/images/live/live_tv_background_v4_full.jpg", 0, 0, 1280, 720, 0.54)
+    liveBackground.loadDisplayMode = "scaleToFill"
+    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.30)
+    uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.08)
 
     clockParts = uiTopBar(m.canvas, m.colors)
     m.clock = clockParts.clock
