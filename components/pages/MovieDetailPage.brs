@@ -53,6 +53,12 @@ sub playDetail()
     m.top.playbackFormat = detailPlaybackFormat()
     m.top.playbackPosterUrl = m.top.detailPosterUrl
     m.top.playbackMediaType = "movie"
+    m.top.playbackPlaylistId = detailPlaylistId()
+    m.top.playbackMediaId = detailProgressMediaId()
+    m.top.playbackEpisodeId = ""
+    m.top.playbackSeasonIndex = 0
+    m.top.playbackEpisodeIndex = 0
+    m.top.playbackResumePosition = progressStorePosition(detailPlaylistId(), "movie", detailProgressMediaId())
     m.top.returnPage = "MovieDetailPage"
     m.top.navigateTo = "PlayerPage"
 end sub
@@ -114,7 +120,7 @@ sub drawHeroCopy()
 end sub
 
 sub drawActions()
-    drawActionButton(72, 338, 176, "play", "Play Now", "watch", 2, 0)
+    drawActionButton(72, 338, 176, "play", moviePrimaryActionLabel(), "watch", 2, 0)
     drawActionButton(264, 338, 176, "heart", favoriteActionLabel(), "favorite", 2, 1)
 end sub
 
@@ -172,6 +178,17 @@ function detailPlaylistId() as String
     playlistId = m.top.detailPlaylistId
     if playlistId = invalid or playlistId = "" then return playlistStoreActiveId()
     return playlistId
+end function
+
+function detailProgressMediaId() as String
+    mediaId = m.top.detailId
+    if mediaId = invalid or mediaId = "" then return detailTitle()
+    return mediaId
+end function
+
+function moviePrimaryActionLabel() as String
+    if progressStorePosition(detailPlaylistId(), "movie", detailProgressMediaId()) >= 10 then return "Resume"
+    return "Play Now"
 end function
 
 function movieDetailYear() as String

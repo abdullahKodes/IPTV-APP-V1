@@ -40,6 +40,12 @@ sub showPage(componentName as String)
         m.currentPage.playbackFormat = m.pendingPlayback.streamFormat
         m.currentPage.playbackPosterUrl = m.pendingPlayback.posterUrl
         if m.currentPage.hasField("playbackMediaType") then m.currentPage.playbackMediaType = m.pendingPlayback.mediaType
+        if m.currentPage.hasField("playbackPlaylistId") then m.currentPage.playbackPlaylistId = m.pendingPlayback.playlistId
+        if m.currentPage.hasField("playbackMediaId") then m.currentPage.playbackMediaId = m.pendingPlayback.mediaId
+        if m.currentPage.hasField("playbackEpisodeId") then m.currentPage.playbackEpisodeId = m.pendingPlayback.episodeId
+        if m.currentPage.hasField("playbackSeasonIndex") then m.currentPage.playbackSeasonIndex = m.pendingPlayback.seasonIndex
+        if m.currentPage.hasField("playbackEpisodeIndex") then m.currentPage.playbackEpisodeIndex = m.pendingPlayback.episodeIndex
+        if m.currentPage.hasField("playbackResumePosition") then m.currentPage.playbackResumePosition = m.pendingPlayback.resumePosition
         m.currentPage.returnPage = m.pendingPlayback.returnPage
         m.currentPage.playbackUrl = m.pendingPlayback.url
     else if (componentName = "MovieDetailPage" or componentName = "SeriesDetailPage") and m.pendingDetail <> invalid then
@@ -73,6 +79,8 @@ sub restorePage(history as Object)
     m.currentPage = history.page
     m.pageHost.appendChild(m.currentPage)
     m.currentPage.setFocus(true)
+    if history.name = "MovieDetailPage" or history.name = "SeriesDetailPage" then m.currentPage.callFunc("syncDetail")
+    if history.name = "SeriesPage" then m.currentPage.callFunc("refreshProgress")
 end sub
 
 sub onPageNavigation()
@@ -86,6 +94,12 @@ sub onPageNavigation()
                 streamFormat: m.currentPage.playbackFormat,
                 posterUrl: m.currentPage.playbackPosterUrl,
                 mediaType: playbackPendingText(m.currentPage),
+                playlistId: playbackPendingFieldText(m.currentPage, "playbackPlaylistId"),
+                mediaId: playbackPendingFieldText(m.currentPage, "playbackMediaId"),
+                episodeId: playbackPendingFieldText(m.currentPage, "playbackEpisodeId"),
+                seasonIndex: playbackPendingFieldInt(m.currentPage, "playbackSeasonIndex"),
+                episodeIndex: playbackPendingFieldInt(m.currentPage, "playbackEpisodeIndex"),
+                resumePosition: playbackPendingFieldInt(m.currentPage, "playbackResumePosition"),
                 returnPage: m.currentPage.returnPage
             }
         else if (target = "MovieDetailPage" or target = "SeriesDetailPage") and m.currentPage.hasField("detailTitle") then
@@ -134,6 +148,16 @@ end function
 function playbackPendingText(page as Object) as String
     if page <> invalid and page.hasField("playbackMediaType") then return page.playbackMediaType
     return ""
+end function
+
+function playbackPendingFieldText(page as Object, key as String) as String
+    if page <> invalid and page.hasField(key) and page[key] <> invalid then return page[key]
+    return ""
+end function
+
+function playbackPendingFieldInt(page as Object, key as String) as Integer
+    if page <> invalid and page.hasField(key) and page[key] <> invalid then return Int(page[key])
+    return 0
 end function
 
 function onKeyEvent(key as String, press as Boolean) as Boolean

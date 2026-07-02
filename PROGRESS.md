@@ -629,3 +629,25 @@ Do not update this file for:
 - Integrated saved caption mode and guarded quality preference application. Added a custom Options/track menu using Roku Video fields for available audio/subtitle tracks and track selection.
 - Preserved automatic control hiding, restored controls on remote input, retained exact prior-page restoration, and added a Replay / Go Back completion screen.
 - Verified all three bundled HLS manifests respond successfully, all player assets exist, and `npm.cmd run check` creates build `00193`.
+
+## 2026-07-02 Phase 3 Final Player Review
+
+- Finalized distinct Live/VOD overlays, one red top-right Live badge, larger safely positioned titles, an animated circular buffering indicator, matching transport icons, and compact Playback Settings.
+- Added focused Captions, Audio, Subtitles, and Quality controls with nested dropdowns, eight-item scrolling windows, range feedback, demo-only track previews, saved quality limits, and VOD position restoration after quality changes.
+- Corrected Roku track selection to use `Track` for audio and `TrackName` for subtitles, restored automatic audio selection from Default, enabled seamless HLS audio switching where supported, and preserved parent-row focus when leaving submenus.
+- Kept retry/error/completion handling, control auto-hide, prior-page restoration, Live/VOD classification, and protected invalid position/duration reads intact.
+- Final audit resolved a missing normal-row asset reference, verified every direct PlayerPage package asset, confirmed all three demo HLS manifests return HTTP 200, and produced build `00205`.
+
+## 2026-07-02 Phase 4 Continue Watching and Resume
+
+- Added registry-backed playback progress keyed by playlist, media type, and media ID, capped to the 40 most recent records per playlist.
+- PlayerPage now saves VOD progress every 10 seconds and on pause/back, resumes movies and the exact saved series episode, preserves position through quality changes, and removes completed/restarted entries.
+- Movie and Series detail actions now change between Play/Watch and Resume from real saved progress. Series detail restores the saved season and episode selection.
+- Replaced hard-coded Series Continue Watching percentages with recent saved entries, a real progress bar, episode context, an empty state, and playlist-isolated ordering.
+- Removed all `22 min left`-style demo copy because it could become inaccurate; Continue Watching now relies on progress rather than estimated remaining time.
+- Added page-refresh hooks so detail and Series pages update immediately after returning from playback.
+- Bumped the manifest to `00206`; final validation and package verification are required before handoff.
+- Roku follow-up in build `00207`: capped Series Continue Watching to the five most recent records per playlist with oldest-entry eviction, aligned season/progress/Resume content farther left, increased progress-to-button spacing without changing bottom padding, and removed the square focus tint so focused cards retain rounded corners.
+- Roku visual follow-up in build `00208`: aligned the season label, progress bar, and Resume button with the series-title column, and rebuilt Continue Watching focus as a rounded low-opacity green layer plus the existing green focus border.
+- Player settings cleanup in build `00209`: removed the duplicate Captions row, leaving Audio, Subtitles, and Quality. Subtitle selection still enables captions automatically, while Off disables them.
+- Series navigation follow-up in build `00210`: removed horizontal wrapping from Popular Series and Continue Watching, routed Left from each first card to the Series sidebar item, kept Right on each last card in place, and made Up from Continue Watching visibly focus the selected category pill.

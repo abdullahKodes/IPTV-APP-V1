@@ -21,6 +21,7 @@ sub init()
     m.activePlaylistId = playlistStoreText(m.activePlaylist, "id", playlistStoreDemoId())
     m.activePlaylistTitle = playlistStoreText(m.activePlaylist, "title", "Demo Playlist")
     m.series = mediaSeriesCatalogForPlaylist(m.activePlaylistId)
+    applySeriesProgress()
     m.categories = seriesCategoriesFromCatalog(m.series)
     m.categoryIndex = 0
     m.focusedCategoryIndex = 0
@@ -31,6 +32,11 @@ end sub
 
 sub refreshClock()
     if m.clock <> invalid then now = uiNowStrings() : m.clock.text = now.time : m.date.text = now.date
+end sub
+
+sub refreshProgress()
+    applySeriesProgress()
+    render()
 end sub
 
 function handleKey(key as String) as Boolean
@@ -128,7 +134,11 @@ sub render()
     drawCategoryPills(row)
 
     uiLabel(m.canvas, "CONTINUE WATCHING", 244, 166, 300, 26, 13, m.colors.text)
-    drawResumeSeriesCards()
+    if resumeSeriesRows().count() > 0 then
+        drawResumeSeriesCards()
+    else
+        uiLabel(m.canvas, "Your unfinished episodes will appear here.", 244, 236, 620, 28, 12, m.colors.textMuted)
+    end if
 
     sectionLabel = "POPULAR SERIES"
     if m.selectedGenre <> "All" then sectionLabel = m.selectedGenre + " series"
@@ -392,31 +402,27 @@ sub drawContinueCard(series as Object, sourceIndex as Integer, resumeIndex as In
 
     title = seriesText(series, "title", "Untitled")
     episode = seriesText(series, "activeEpisodeTitle")
-    progress = seriesText(series, "progressText")
     meta = episode
-    if progress <> "" then
-        if meta <> "" then meta += " - "
-        meta += progress
-    end if
     if meta = "" then meta = seriesText(series, "seasons")
 
-    cardUri = "pkg:/images/ui/continue_card_410x136_panel_whiteSoft.png"
-    cardOpacity = 0.50
-    if focused then
-        cardUri = "pkg:/images/ui/continue_card_410x136_panel_greenFocus.png"
-        cardOpacity = 0.64
-    end if
     cardCanvas = CreateObject("roSGNode", "Group")
     cardCanvas.id = "seriesResumeCard" + resumeIndex.toStr()
     cardCanvas.translation = [x, y]
     m.canvas.appendChild(cardCanvas)
-    uiPoster(cardCanvas, cardUri, 0, 0, w, h, cardOpacity)
-    uiCardFocusTint(cardCanvas, 0, 0, w, h, focused)
+    uiPoster(cardCanvas, "pkg:/images/ui/continue_card_410x136_panel_whiteSoft.png", 0, 0, w, h, 0.50)
+    if focused then
+        focusTint = uiPoster(cardCanvas, "pkg:/images/ui/continue_card_410x136_panel_whiteSoft.png", 0, 0, w, h, 0.18)
+        focusTint.blendColor = m.colors.green
+        uiPoster(cardCanvas, "pkg:/images/ui/continue_card_410x136_panel_greenFocus.png", 0, 0, w, h, 0.54)
+    end if
     drawContinuePoster(series, cardCanvas, 20, 17, 76, 102)
     uiLabel(cardCanvas, title, 116, 20, w - 138, 28, 17, textColor)
-    uiScaledLabel(cardCanvas, meta, 116, 54, w - 138, 20, 9, subColor, "left", 0.76)
-    uiPoster(cardCanvas, buttonUri, 116, 84, 126, 34, 0.74)
-    uiScaledLabel(cardCanvas, "Watch now", 123, 91, 112, 18, 8, "0xFFFFFFFF", "center", 0.78)
+    uiScaledLabel(cardCanvas, meta, 116, 50, w - 138, 20, 9, subColor, "left", 0.76)
+    progressPercent = seriesProgress(series)
+    uiRect(cardCanvas, 116, 73, 246, 4, "0xFFFFFF18", 0.62)
+    uiRect(cardCanvas, 116, 73, Int(246 * progressPercent / 100), 4, m.colors.greenFocus, 0.96)
+    uiPoster(cardCanvas, buttonUri, 116, 91, 126, 34, 0.74)
+    uiScaledLabel(cardCanvas, "Resume", 123, 98, 112, 18, 8, "0xFFFFFFFF", "center", 0.78)
     if focused then uiAnimateCardFocus(m.canvas, cardCanvas, x, y)
 
     m.focusItems.push({
@@ -679,13 +685,49 @@ end function
 
 function resumeSeriesRows() as Object
     res = []
-    for i = 0 to m.series.count() - 1
-        s = m.series[i]
-        if seriesProgress(s) > 0 then
-            res.push({ series: s, index: i })
+    entries = progressStoreList(m.activePlaylistId)
+    for each entry in entries
+        if progressStoreText(entry, "mediaType") = "series" and progressStoreInt(entry, "percent") > 0 then
+            mediaId = progressStoreText(entry, "mediaId")
+            for i = 0 to m.series.count() - 1
+                s = m.series[i]
+                if seriesProgressMediaId(s) = mediaId then
+                    res.push({ series: s, index: i })
+                    exit for
+                end if
+            end for
         end if
     end for
     return res
+end function
+
+sub applySeriesProgress()
+    progressStoreTrimMediaType(m.activePlaylistId, "series", 5)
+    for each series in m.series
+        series.resumePercent = 0
+        series.progressText = ""
+    end for
+    entries = progressStoreList(m.activePlaylistId)
+    for each entry in entries
+        if progressStoreText(entry, "mediaType") = "series" then
+            mediaId = progressStoreText(entry, "mediaId")
+            for each series in m.series
+                if seriesProgressMediaId(series) = mediaId then
+                    series.resumePercent = progressStoreInt(entry, "percent")
+                    series.progressText = ""
+                    episodeLabel = progressStoreText(entry, "subtitle")
+                    if episodeLabel <> "" then series.activeEpisodeTitle = episodeLabel
+                    exit for
+                end if
+            end for
+        end if
+    end for
+end sub
+
+function seriesProgressMediaId(series as Dynamic) as String
+    mediaId = seriesText(series, "id")
+    if mediaId = "" then mediaId = seriesText(series, "title")
+    return mediaId
 end function
 
 sub normalizeResumeWindow(total as Integer)
@@ -873,10 +915,10 @@ function routeSeriesFocus(dx as Integer, dy as Integer) as Boolean
             normalizeResumeWindow(resumeItems.count())
             return true
         end if
-        if dx < 0 and resumeItems.count() > 0 then
-            m.selectedResumeIndex = resumeItems.count() - 1
-            m.focusArea = "resume"
-            normalizeResumeWindow(resumeItems.count())
+        if dx < 0 then
+            m.focusArea = "normal"
+            navIndex = findFocusByRowCol(2, 0)
+            if navIndex >= 0 then m.focusIndex = navIndex
             return true
         end if
         if dx > 0 and m.selectedResumeIndex < resumeItems.count() - 1 then
@@ -885,21 +927,17 @@ function routeSeriesFocus(dx as Integer, dy as Integer) as Boolean
             normalizeResumeWindow(resumeItems.count())
             return true
         end if
-        if dx > 0 and resumeItems.count() > 0 then
-            m.selectedResumeIndex = 0
-            m.focusArea = "resume"
-            normalizeResumeWindow(resumeItems.count())
-            return true
-        end if
+        if dx > 0 then return true
         if dy < 0 then
-            m.focusArea = "normal"
             if seriesSearchResultsActive() then
+                m.focusArea = "normal"
                 sIndex = findFocusAction("search")
                 if sIndex >= 0 then m.focusIndex = sIndex : return true
             end if
-            col = current.col
-            pIndex = findFocusByRowCol(1, col)
-            if pIndex >= 0 then m.focusIndex = pIndex : return true
+            m.focusArea = "categories"
+            m.focusedCategoryIndex = m.categoryIndex
+            normalizeSeriesCategoryWindow()
+            return true
         end if
         if dy > 0 then
             m.focusArea = "series"
@@ -923,10 +961,10 @@ function routeSeriesFocus(dx as Integer, dy as Integer) as Boolean
             normalizeSeriesWindow(visible.count())
             return true
         end if
-        if dx < 0 and visible.count() > 0 then
-            m.selectedSeriesIndex = visible.count() - 1
-            m.focusArea = "series"
-            normalizeSeriesWindow(visible.count())
+        if dx < 0 then
+            m.focusArea = "normal"
+            navIndex = findFocusByRowCol(2, 0)
+            if navIndex >= 0 then m.focusIndex = navIndex
             return true
         end if
         if dx > 0 and m.selectedSeriesIndex < visible.count() - 1 then
@@ -935,16 +973,7 @@ function routeSeriesFocus(dx as Integer, dy as Integer) as Boolean
             normalizeSeriesWindow(visible.count())
             return true
         end if
-        if dx > 0 and visible.count() > 0 then
-            m.selectedSeriesIndex = 0
-            m.focusArea = "series"
-            normalizeSeriesWindow(visible.count())
-            return true
-        end if
-        if dx <> 0 then
-            m.focusArea = "normal"
-            return false
-        end if
+        if dx > 0 then return true
         if dy < 0 then
             col = current.col
             targetCol = 1
@@ -957,8 +986,9 @@ function routeSeriesFocus(dx as Integer, dy as Integer) as Boolean
                 return true
             end if
             m.focusArea = "categories"
-            pIndex = findFocusByRowCol(1, targetCol)
-            if pIndex >= 0 then m.focusIndex = pIndex : return true
+            m.focusedCategoryIndex = m.categoryIndex
+            normalizeSeriesCategoryWindow()
+            return true
         end if
     end if
 

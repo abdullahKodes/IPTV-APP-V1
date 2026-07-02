@@ -933,7 +933,7 @@ function mockSeriesCatalog() as Object
             streamUrl: demoPlaybackUrl(),
             streamFormat: "hls",
             activeEpisodeTitle: "S3 - E7",
-            progressText: "22 min left",
+            progressText: "",
             resumePercent: 70,
             featured: true,
             accent: "green"
@@ -954,7 +954,7 @@ function mockSeriesCatalog() as Object
             streamUrl: demoPlaybackUrl(),
             streamFormat: "hls",
             activeEpisodeTitle: "S4 - E2",
-            progressText: "31 min left",
+            progressText: "",
             resumePercent: 52,
             featured: false,
             accent: "purple"
@@ -996,7 +996,7 @@ function mockSeriesCatalog() as Object
             streamUrl: demoPlaybackUrl(),
             streamFormat: "hls",
             activeEpisodeTitle: "S2 - E3",
-            progressText: "44 min left",
+            progressText: "",
             resumePercent: 30,
             featured: false,
             accent: "purple"

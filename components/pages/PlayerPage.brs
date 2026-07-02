@@ -10,6 +10,14 @@ sub init()
     m.trackMenuOpen = false
     m.trackMenuItems = []
     m.trackMenuIndex = 0
+    m.trackMenuSection = "main"
+    m.selectedAudioLabel = "Default"
+    m.selectedSubtitleLabel = "Off"
+    m.selectedQualityLabel = qualityDisplayLabel(settingsStoreText(m.settings, "defaultQuality", "Auto"))
+    m.qualityResumePosition = 0
+    m.resumePendingPosition = 0
+    m.resumeApplied = false
+    m.lastProgressSavePosition = 0
     m.audioTracks = []
     m.subtitleTracks = []
     m.playing = false
@@ -29,6 +37,7 @@ sub init()
     m.video.width = 1280
     m.video.height = 720
     m.video.enableUI = false
+    if m.video.hasField("seamlessAudioTrackSelection") then m.video.seamlessAudioTrackSelection = true
     m.video.observeField("state", "onVideoStateChange")
     m.video.observeField("errorMsg", "onVideoError")
     m.top.observeField("playbackUrl", "onPlaybackChanged")
@@ -122,6 +131,12 @@ end function
 sub onPlaybackChanged()
     m.isLive = playbackMediaType() = "live"
     if m.isLive then m.focusIndex = 0 else m.focusIndex = 2
+    m.selectedAudioLabel = "Default"
+    m.selectedSubtitleLabel = "Off"
+    m.resumePendingPosition = m.top.playbackResumePosition
+    if m.resumePendingPosition < 0 then m.resumePendingPosition = 0
+    m.resumeApplied = false
+    m.lastProgressSavePosition = m.resumePendingPosition
     startPlayback(false)
 end sub
 
@@ -159,6 +174,7 @@ sub startPlayback(force as Boolean)
 end sub
 
 sub stopPlayback()
+    persistPlaybackProgress(true)
     m.exiting = true
     m.retryTimer.control = "stop"
     if m.video <> invalid then m.video.control = "stop"
@@ -185,11 +201,20 @@ sub onVideoStateChange()
         m.errorCode = 0
         m.retryPending = false
         m.retryCount = 0
+        if m.qualityResumePosition > 0 and not m.isLive then
+            m.video.seek = m.qualityResumePosition
+            m.qualityResumePosition = 0
+            m.resumeApplied = true
+        else if not m.resumeApplied and m.resumePendingPosition >= 10 and not m.isLive then
+            m.video.seek = m.resumePendingPosition
+            m.resumeApplied = true
+        end if
         refreshAvailableTracks()
         resetHideTimer()
     else if state = "paused" then
         m.playbackState = "paused"
         m.playing = false
+        persistPlaybackProgress(true)
         showControls()
     else if state = "finished" then
         m.playing = false
@@ -197,6 +222,7 @@ sub onVideoStateChange()
             handlePlaybackFailure("The live stream ended unexpectedly.")
             return
         end if
+        removePlaybackProgress()
         m.playbackState = "finished"
         m.finishedFocusIndex = 0
         showControls()
@@ -250,6 +276,9 @@ end sub
 
 sub replayMedia()
     if m.video = invalid then return
+    removePlaybackProgress()
+    m.resumePendingPosition = 0
+    m.resumeApplied = true
     m.playbackState = "preparing"
     m.video.seek = 0
     m.video.control = "play"
@@ -258,7 +287,10 @@ sub replayMedia()
 end sub
 
 sub onProgressTick()
-    if m.controlsVisible or m.playbackState <> "playing" then render()
+    if m.playbackState = "playing" then
+        persistPlaybackProgress(false)
+        if m.controlsVisible then render()
+    end if
 end sub
 
 sub showControls()
@@ -326,8 +358,67 @@ sub seekPlayer(offset as Integer, absolute as Boolean)
     duration = videoDuration()
     if duration > 0 and target > duration - 2 then target = duration - 2
     m.video.seek = target
+    if absolute and target = 0 then removePlaybackProgress()
     render()
 end sub
+
+sub persistPlaybackProgress(force as Boolean)
+    if m.isLive or m.video = invalid then return
+    mediaId = playbackProgressMediaId()
+    playlistId = playbackProgressPlaylistId()
+    if mediaId = "" or playlistId = "" then return
+
+    playPosition = videoPosition()
+    duration = videoDuration()
+    if duration > 0 and playPosition * 100 >= duration * 92 then
+        progressStoreRemove(playlistId, playbackMediaType(), mediaId)
+        m.lastProgressSavePosition = 0
+        return
+    end if
+    if playPosition < 10 then return
+    if not force and Abs(playPosition - m.lastProgressSavePosition) < 10 then return
+
+    percent = 1
+    if duration > 0 then percent = Int(playPosition * 100 / duration)
+    if percent < 1 then percent = 1
+    if percent > 91 then percent = 91
+    entry = {
+        mediaType: playbackMediaType(),
+        mediaId: mediaId,
+        episodeId: m.top.playbackEpisodeId,
+        seasonIndex: m.top.playbackSeasonIndex,
+        episodeIndex: m.top.playbackEpisodeIndex,
+        title: playbackTitle(),
+        subtitle: playbackSubtitle(),
+        posterUrl: m.top.playbackPosterUrl,
+        streamUrl: m.top.playbackUrl,
+        streamFormat: streamFormat(),
+        position: playPosition,
+        duration: duration,
+        percent: percent
+    }
+    if progressStoreSave(playlistId, entry) then m.lastProgressSavePosition = playPosition
+end sub
+
+sub removePlaybackProgress()
+    if m.isLive then return
+    mediaId = playbackProgressMediaId()
+    playlistId = playbackProgressPlaylistId()
+    if mediaId = "" or playlistId = "" then return
+    progressStoreRemove(playlistId, playbackMediaType(), mediaId)
+end sub
+
+function playbackProgressPlaylistId() as String
+    playlistId = m.top.playbackPlaylistId
+    if playlistId = invalid then return ""
+    return playlistId
+end function
+
+function playbackProgressMediaId() as String
+    mediaId = m.top.playbackMediaId
+    if mediaId = invalid or mediaId = "" then mediaId = playbackTitle()
+    return mediaId
+end function
 
 sub applyCaptionMode()
     if m.video = invalid then return
@@ -389,34 +480,89 @@ end sub
 
 sub openTrackMenu()
     refreshAvailableTracks()
-    m.trackMenuItems = []
-    captionLabel = "Captions: Off"
-    if m.captionsEnabled then captionLabel = "Captions: On"
-    m.trackMenuItems.push({ label: captionLabel, action: "captions", value: "" })
-
-    for i = 0 to m.audioTracks.count() - 1
-        track = m.audioTracks[i]
-        m.trackMenuItems.push({ label: "Audio: " + trackDisplayName(track, i + 1), action: "audio", value: trackIdentifier(track) })
-    end for
-    for i = 0 to m.subtitleTracks.count() - 1
-        track = m.subtitleTracks[i]
-        m.trackMenuItems.push({ label: "Subtitle: " + trackDisplayName(track, i + 1), action: "subtitle", value: trackIdentifier(track) })
-    end for
-
+    if m.audioTracks.count() > 0 and Instr(1, m.selectedAudioLabel, "(Demo)") > 0 then m.selectedAudioLabel = "Default"
+    if m.subtitleTracks.count() > 0 and Instr(1, m.selectedSubtitleLabel, "(Demo)") > 0 then m.selectedSubtitleLabel = "Off"
+    m.trackMenuSection = "main"
+    buildTrackMainMenu()
     m.trackMenuIndex = 0
     m.trackMenuOpen = true
     showControls()
     render()
 end sub
 
+sub buildTrackMainMenu()
+    m.trackMenuItems = []
+    m.trackMenuItems.push({ label: "Audio", detail: m.selectedAudioLabel, action: "open_audio", value: "", selectable: true, kind: "dropdown" })
+    m.trackMenuItems.push({ label: "Subtitles", detail: m.selectedSubtitleLabel, action: "open_subtitles", value: "", selectable: true, kind: "dropdown" })
+    m.trackMenuItems.push({ label: "Quality", detail: m.selectedQualityLabel, action: "open_quality", value: "", selectable: true, kind: "dropdown" })
+end sub
+
+sub buildAudioTrackMenu()
+    m.trackMenuSection = "audio"
+    m.trackMenuItems = []
+    m.trackMenuItems.push({ label: "Default", detail: "", action: "audio_default", value: "", selectable: true, kind: "option" })
+    if m.audioTracks.count() = 0 then
+        m.trackMenuItems.push({ label: "English (Demo)", detail: "", action: "audio_preview", value: "", selectable: true, kind: "option" })
+    else
+        for i = 0 to m.audioTracks.count() - 1
+            track = m.audioTracks[i]
+            m.trackMenuItems.push({ label: trackDisplayName(track, i + 1), detail: "", action: "audio", value: trackIdentifier(track), selectable: true, kind: "option" })
+        end for
+    end if
+    m.trackMenuIndex = 0
+end sub
+
+sub buildSubtitleTrackMenu()
+    m.trackMenuSection = "subtitles"
+    m.trackMenuItems = []
+    m.trackMenuItems.push({ label: "Off", detail: "", action: "subtitle_off", value: "", selectable: true, kind: "option" })
+    if m.subtitleTracks.count() = 0 then
+        m.trackMenuItems.push({ label: "English (Demo)", detail: "", action: "subtitle_preview", value: "", selectable: true, kind: "option" })
+    else
+        for i = 0 to m.subtitleTracks.count() - 1
+            track = m.subtitleTracks[i]
+            m.trackMenuItems.push({ label: trackDisplayName(track, i + 1), detail: "", action: "subtitle", value: trackIdentifier(track), selectable: true, kind: "option" })
+        end for
+    end if
+    m.trackMenuIndex = 0
+end sub
+
+sub buildQualityMenu()
+    m.trackMenuSection = "quality"
+    m.trackMenuItems = [
+        { label: "Auto", detail: "", action: "quality", value: "Auto", selectable: true, kind: "option" },
+        { label: "1080p", detail: "", action: "quality", value: "1080p", selectable: true, kind: "option" },
+        { label: "720p", detail: "", action: "quality", value: "720p", selectable: true, kind: "option" },
+        { label: "480p", detail: "", action: "quality", value: "480p", selectable: true, kind: "option" }
+    ]
+    m.trackMenuIndex = 0
+end sub
+
+function qualityDisplayLabel(quality as String) as String
+    if quality = "1080p" then return "1080p"
+    if quality = "720p" then return "720p"
+    if quality = "480p" then return "480p"
+    return "Auto"
+end function
+
 function handleTrackMenuKey(key as String) as Boolean
+    if key = "back" and m.trackMenuSection <> "main" then
+        previousSection = m.trackMenuSection
+        m.trackMenuSection = "main"
+        buildTrackMainMenu()
+        m.trackMenuIndex = 0
+        if previousSection = "subtitles" then m.trackMenuIndex = 1
+        if previousSection = "quality" then m.trackMenuIndex = 2
+        render()
+        return true
+    end if
     if key = "back" or key = "options" then
         m.trackMenuOpen = false
         render()
         return true
     end if
-    if key = "up" and m.trackMenuIndex > 0 then m.trackMenuIndex -= 1 : render() : return true
-    if key = "down" and m.trackMenuIndex < m.trackMenuItems.count() - 1 then m.trackMenuIndex += 1 : render() : return true
+    if key = "up" then moveTrackMenuFocus(-1) : return true
+    if key = "down" then moveTrackMenuFocus(1) : return true
     if key = "OK" then
         applyTrackMenuSelection()
         return true
@@ -424,20 +570,100 @@ function handleTrackMenuKey(key as String) as Boolean
     return true
 end function
 
+sub moveTrackMenuFocus(direction as Integer)
+    nextIndex = m.trackMenuIndex + direction
+    while nextIndex >= 0 and nextIndex < m.trackMenuItems.count()
+        if m.trackMenuItems[nextIndex].selectable then
+            m.trackMenuIndex = nextIndex
+            render()
+            return
+        end if
+        nextIndex += direction
+    end while
+end sub
+
 sub applyTrackMenuSelection()
     if m.trackMenuIndex < 0 or m.trackMenuIndex >= m.trackMenuItems.count() then return
     item = m.trackMenuItems[m.trackMenuIndex]
+    if not item.selectable then return
     if item.action = "captions" then
         toggleCaptions()
-        openTrackMenu()
+        buildTrackMainMenu()
+        m.trackMenuIndex = 0
+        render()
         return
     end if
-    if item.action = "audio" and item.value <> "" and m.video.hasField("audioTrack") then m.video.audioTrack = item.value
+    if item.action = "open_audio" then
+        buildAudioTrackMenu()
+        render()
+        return
+    end if
+    if item.action = "open_subtitles" then
+        buildSubtitleTrackMenu()
+        render()
+        return
+    end if
+    if item.action = "open_quality" then
+        buildQualityMenu()
+        render()
+        return
+    end if
+    if item.action = "audio_default" then
+        if m.video.hasField("audioTrack") then m.video.audioTrack = ""
+        m.selectedAudioLabel = "Default"
+        m.trackMenuSection = "main"
+        buildTrackMainMenu()
+        m.trackMenuIndex = 0
+        render()
+        return
+    end if
+    if item.action = "audio_preview" then
+        m.selectedAudioLabel = item.label
+        m.trackMenuSection = "main"
+        buildTrackMainMenu()
+        m.trackMenuIndex = 0
+        render()
+        return
+    end if
+    if item.action = "subtitle_off" then
+        if m.captionsEnabled then toggleCaptions()
+        m.selectedSubtitleLabel = "Off"
+        m.trackMenuSection = "main"
+        buildTrackMainMenu()
+        m.trackMenuIndex = 1
+        render()
+        return
+    end if
+    if item.action = "subtitle_preview" then
+        if not m.captionsEnabled then toggleCaptions()
+        m.selectedSubtitleLabel = item.label
+        m.trackMenuSection = "main"
+        buildTrackMainMenu()
+        m.trackMenuIndex = 1
+        render()
+        return
+    end if
+    if item.action = "quality" then
+        m.selectedQualityLabel = qualityDisplayLabel(item.value)
+        m.settings.defaultQuality = item.value
+        settingsStoreSave(m.settings)
+        if not m.isLive then m.qualityResumePosition = videoPosition()
+        m.trackMenuOpen = false
+        startPlayback(true)
+        return
+    end if
+    if item.action = "audio" and item.value <> "" and m.video.hasField("audioTrack") then
+        m.video.audioTrack = item.value
+        m.selectedAudioLabel = item.label
+    end if
     if item.action = "subtitle" and item.value <> "" and m.video.hasField("subtitleTrack") then
         m.video.subtitleTrack = item.value
         if not m.captionsEnabled then toggleCaptions()
+        m.selectedSubtitleLabel = item.label
     end if
-    m.trackMenuOpen = false
+    m.trackMenuSection = "main"
+    buildTrackMainMenu()
+    if item.action = "audio" then m.trackMenuIndex = 0 else m.trackMenuIndex = 1
     render()
 end sub
 
@@ -445,17 +671,22 @@ function trackDisplayName(track as Dynamic, index as Integer) as String
     if track = invalid then return "Track " + index.toStr()
     for each key in ["description", "language", "name", "id"]
         value = trackValue(track, key)
-        if value <> "" then return value
+        if value <> "" then return shortTrackLabel(value)
     end for
     return "Track " + index.toStr()
 end function
 
 function trackIdentifier(track as Dynamic) as String
-    for each key in ["id", "name", "language"]
+    for each key in ["TrackName", "Track", "id", "name", "language"]
         value = trackValue(track, key)
         if value <> "" then return value
     end for
     return ""
+end function
+
+function shortTrackLabel(value as String) as String
+    if value.len() <= 30 then return value
+    return Left(value, 27) + "..."
 end function
 
 function trackValue(track as Dynamic, key as String) as String
@@ -475,9 +706,9 @@ sub render()
     uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.08)
     drawHeader()
 
-    if m.playbackState = "preparing" then drawCenterStatus("Preparing video", "Opening the selected stream...")
-    if m.playbackState = "buffering" then drawCenterStatus("Buffering", "Playback will continue automatically.")
-    if m.playbackState = "reconnecting" then drawCenterStatus("Reconnecting", "Attempt " + m.retryCount.toStr() + " of " + m.maxAutoRetries.toStr())
+    if m.playbackState = "preparing" then drawCenterStatus("Preparing video")
+    if m.playbackState = "buffering" then drawCenterStatus("Buffering")
+    if m.playbackState = "reconnecting" then drawCenterStatus("Reconnecting " + m.retryCount.toStr() + " of " + m.maxAutoRetries.toStr())
 
     if m.playbackState = "error" then
         drawErrorPanel()
@@ -491,13 +722,14 @@ sub render()
 end sub
 
 sub drawHeader()
-    headerHeight = 78
-    if playbackMediaType() = "series" then headerHeight = 94
+    headerHeight = 94
+    if playbackMediaType() = "series" then headerHeight = 112
     uiRect(m.canvas, 0, 0, 1280, headerHeight, "0x090D16FF", 0.76)
     uiRect(m.canvas, 0, headerHeight - 1, 1280, 1, "0xFFFFFF18", 0.32)
-    uiLabel(m.canvas, playbackTitle(), 48, 12, 830, 42, 24, m.colors.text)
+    titleLabel = uiLabel(m.canvas, playbackTitle(), 48, 22, 830, 52, 32, m.colors.text)
+    titleLabel.font.size = 32
     if playbackMediaType() = "series" and playbackSubtitle() <> "" then
-        uiLabel(m.canvas, playbackSubtitle(), 48, 52, 430, 24, 13, m.colors.textDim)
+        uiLabel(m.canvas, playbackSubtitle(), 48, 72, 430, 24, 13, m.colors.textDim)
     end if
 
     if m.isLive then
@@ -505,10 +737,9 @@ sub drawHeader()
     end if
 end sub
 
-sub drawCenterStatus(title as String, subtitle as String)
+sub drawCenterStatus(title as String)
     drawLoadingSpinner(640, 316)
     uiLabel(m.canvas, title, 430, 370, 420, 34, 20, m.colors.text, "center")
-    uiLabel(m.canvas, subtitle, 410, 408, 460, 28, 11, m.colors.textMuted, "center")
 end sub
 
 sub drawLoadingSpinner(centerX as Integer, centerY as Integer)
@@ -583,7 +814,7 @@ sub drawLiveControls()
     playIcon = "pkg:/images/ui/player_pause.png"
     if not m.playing then playIcon = "pkg:/images/ui/player_play.png"
     addIconControl(585, iconY, "playpause", 0, playIcon, true)
-    addIconControl(705, iconY, "tracks", 1, "pkg:/images/ui/player_captions.png", false)
+    addIconControl(705, iconY, "tracks", 1, "pkg:/images/ui/player_settings_user.png", false)
 end sub
 
 sub drawVodControls()
@@ -605,19 +836,20 @@ sub drawVodControls()
     uiLabel(m.canvas, formatTime(dur), 1152, panelY + 18, 80, 26, 12, m.colors.text)
 
     iconY = panelY + 70
-    addIconControl(430, iconY, "restart", 0, "pkg:/images/ui/player_restart.png", false)
+    addIconControl(430, iconY, "restart", 0, "pkg:/images/ui/player_restart_v3.png", false)
     addIconControl(535, iconY, "backward", 1, "pkg:/images/ui/player_forward.png", false)
     playIcon = "pkg:/images/ui/player_pause.png"
     if not m.playing then playIcon = "pkg:/images/ui/player_play.png"
     addIconControl(640, iconY, "playpause", 2, playIcon, true)
     addIconControl(745, iconY, "forward", 3, "pkg:/images/ui/player_rewind.png", false)
-    addIconControl(850, iconY, "tracks", 4, "pkg:/images/ui/player_captions.png", false)
+    addIconControl(850, iconY, "tracks", 4, "pkg:/images/ui/player_settings_user.png", false)
 end sub
 
 sub addIconControl(centerX as Integer, y as Integer, action as String, col as Integer, iconUri as String, primary as Boolean)
     itemIndex = m.focusItems.count()
     focused = itemIndex = m.focusIndex
     iconSize = 42
+    if action = "tracks" then iconSize = 38
     if primary then iconSize = 56
     if focused then
         if primary then
@@ -626,6 +858,7 @@ sub addIconControl(centerX as Integer, y as Integer, action as String, col as In
         else
             uiPoster(m.canvas, "pkg:/images/ui/player_focus_halo.png", centerX - 30, y + 2, 60, 60)
             iconSize = 46
+            if action = "tracks" then iconSize = 42
         end if
     end if
     iconTop = y + Int((64 - iconSize) / 2)
@@ -636,30 +869,74 @@ end sub
 sub drawTrackMenu()
     uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.46)
     panelX = 770
-    panelY = 104
     panelW = 440
-    panelH = 500
-    uiPoster(m.canvas, "pkg:/images/ui/rr_500x158_panel_purpleLine.png", panelX, panelY, panelW, panelH, 0.98)
-    uiLabel(m.canvas, "AUDIO & SUBTITLES", panelX + 32, panelY + 24, panelW - 64, 34, 18, m.colors.text)
-
     maxVisible = 8
+    visibleCount = m.trackMenuItems.count()
+    if visibleCount > maxVisible then visibleCount = maxVisible
+    if visibleCount < 1 then visibleCount = 1
+    panelH = 94 + visibleCount * 52
+    panelY = Int((720 - panelH) / 2)
+    uiPoster(m.canvas, "pkg:/images/ui/rr_500x158_panel_purpleLine.png", panelX, panelY, panelW, panelH, 0.98)
+    menuTitle = "PLAYBACK SETTINGS"
+    if m.trackMenuSection = "audio" then menuTitle = "AUDIO TRACK"
+    if m.trackMenuSection = "subtitles" then menuTitle = "SUBTITLES"
+    if m.trackMenuSection = "quality" then menuTitle = "QUALITY"
     startIndex = 0
     if m.trackMenuIndex >= maxVisible then startIndex = m.trackMenuIndex - maxVisible + 1
+    uiLabel(m.canvas, menuTitle, panelX + 32, panelY + 20, panelW - 64, 34, 18, m.colors.text)
+    if m.trackMenuItems.count() > maxVisible then
+        rangeStart = startIndex + 1
+        rangeEnd = startIndex + maxVisible
+        if rangeEnd > m.trackMenuItems.count() then rangeEnd = m.trackMenuItems.count()
+        rangeText = rangeStart.toStr() + "-" + rangeEnd.toStr() + " of " + m.trackMenuItems.count().toStr()
+        uiLabel(m.canvas, rangeText, panelX + panelW - 142, panelY + 24, 106, 26, 10, m.colors.textMuted, "right")
+    end if
+    uiRect(m.canvas, panelX + 30, panelY + 61, panelW - 60, 1, m.colors.whiteLine, 0.80)
+
     endIndex = startIndex + maxVisible - 1
     if endIndex > m.trackMenuItems.count() - 1 then endIndex = m.trackMenuItems.count() - 1
     slot = 0
     for i = startIndex to endIndex
         item = m.trackMenuItems[i]
-        y = panelY + 78 + slot * 48
-        focused = i = m.trackMenuIndex
-        uri = "pkg:/images/ui/movie_watch_176x40_panel_greenFocus.png"
-        opacity = 0.50
-        if focused then
-            uri = "pkg:/images/ui/movie_watch_176x40_greenSoft_greenFocus.png"
-            opacity = 0.84
+        y = panelY + 72 + slot * 52
+        focused = i = m.trackMenuIndex and item.selectable
+        uiPoster(m.canvas, "pkg:/images/ui/rr_500x44_bg2_bg2.png", panelX + 28, y, panelW - 56, 44, 0.64)
+        if item.kind = "option" then
+            optionColor = m.colors.text
+            if not item.selectable then optionColor = m.colors.textDim
+            if focused then
+                uiPoster(m.canvas, "pkg:/images/ui/rr_500x44_purpleSoft_greenFocus.png", panelX + 28, y, panelW - 56, 44, 1.0)
+                uiPoster(m.canvas, "pkg:/images/ui/scroll_cap_6_greenFocus.png", panelX + panelW - 56, y + 17, 10, 10, 1.0)
+            end if
+            uiLabel(m.canvas, item.label, panelX + 48, y + 7, panelW - 96, 30, 12, optionColor)
+        else
+            uiLabel(m.canvas, item.label, panelX + 48, y + 7, 150, 30, 13, m.colors.text)
         end if
-        uiPoster(m.canvas, uri, panelX + 28, y, panelW - 56, 40, opacity)
-        uiLabel(m.canvas, item.label, panelX + 48, y + 6, panelW - 96, 28, 11, m.colors.text)
+        if item.kind = "toggle" then
+            controlX = panelX + panelW - 224
+            captionUri = "pkg:/images/ui/rr_190x44_bg_whiteLine.png"
+            captionColor = m.colors.textMuted
+            if focused then
+                captionUri = "pkg:/images/ui/rr_190x44_purpleSoft_greenFocus.png"
+                captionColor = m.colors.text
+            end if
+            captionState = "Off"
+            if m.captionsEnabled then captionState = "On"
+            uiPoster(m.canvas, captionUri, controlX, y + 2, 172, 40, 1.0)
+            uiLabel(m.canvas, captionState, controlX + 8, y + 8, 156, 28, 11, captionColor, "center")
+        else if item.kind = "dropdown" then
+            detailUri = "pkg:/images/ui/rr_190x44_bg_whiteLine.png"
+            detailColor = m.colors.textMuted
+            if focused then
+                detailUri = "pkg:/images/ui/rr_190x44_purpleSoft_greenFocus.png"
+                detailColor = m.colors.text
+            end if
+            uiPoster(m.canvas, detailUri, panelX + panelW - 224, y + 2, 172, 40, 1.0)
+            uiLabel(m.canvas, item.detail, panelX + panelW - 216, y + 8, 126, 28, 11, detailColor, "center")
+            chevronUri = "pkg:/images/ui/select_chevron_down.png"
+            if focused then chevronUri = "pkg:/images/ui/select_chevron_down_focus.png"
+            uiPoster(m.canvas, chevronUri, panelX + panelW - 82, y + 18, 12, 7, 1.0)
+        end if
         slot += 1
     end for
 end sub

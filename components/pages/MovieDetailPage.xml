@@ -24,6 +24,12 @@
     <field id="playbackFormat" type="string" />
     <field id="playbackPosterUrl" type="string" />
     <field id="playbackMediaType" type="string" />
+    <field id="playbackPlaylistId" type="string" />
+    <field id="playbackMediaId" type="string" />
+    <field id="playbackEpisodeId" type="string" />
+    <field id="playbackSeasonIndex" type="integer" />
+    <field id="playbackEpisodeIndex" type="integer" />
+    <field id="playbackResumePosition" type="integer" />
     <field id="returnPage" type="string" />
     <function name="handleKey" />
     <function name="refreshClock" />
@@ -33,5 +39,6 @@
   <script type="text/brightscript" uri="pkg:/components/shared/PlaylistStore.brs" />
   <script type="text/brightscript" uri="pkg:/components/shared/MediaData.brs" />
   <script type="text/brightscript" uri="pkg:/components/shared/FavoriteStore.brs" />
+  <script type="text/brightscript" uri="pkg:/components/shared/ProgressStore.brs" />
   <script type="text/brightscript" uri="pkg:/components/pages/MovieDetailPage.brs" />
 </component>

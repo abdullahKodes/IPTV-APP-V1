@@ -12,11 +12,18 @@
     <field id="playbackFormat" type="string" />
     <field id="playbackPosterUrl" type="string" />
     <field id="playbackMediaType" type="string" />
+    <field id="playbackPlaylistId" type="string" />
+    <field id="playbackMediaId" type="string" />
+    <field id="playbackEpisodeId" type="string" />
+    <field id="playbackSeasonIndex" type="integer" />
+    <field id="playbackEpisodeIndex" type="integer" />
+    <field id="playbackResumePosition" type="integer" />
     <field id="returnPage" type="string" />
     <function name="handleKey" />
     <function name="refreshClock" />
   </interface>
   <script type="text/brightscript" uri="pkg:/components/shared/AppUi.brs" />
   <script type="text/brightscript" uri="pkg:/components/shared/SettingsStore.brs" />
+  <script type="text/brightscript" uri="pkg:/components/shared/ProgressStore.brs" />
   <script type="text/brightscript" uri="pkg:/components/pages/PlayerPage.brs" />
 </component>

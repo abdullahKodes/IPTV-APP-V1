@@ -13,6 +13,7 @@ sub refreshClock()
 end sub
 
 sub syncDetail()
+    restoreSeriesProgressSelection()
     normalizeSeasonIndex()
     normalizeEpisodeIndex()
     render()
@@ -187,6 +188,12 @@ sub playDetail()
     m.top.playbackFormat = detailPlaybackFormat()
     m.top.playbackPosterUrl = m.top.detailPosterUrl
     m.top.playbackMediaType = "series"
+    m.top.playbackPlaylistId = detailPlaylistId()
+    m.top.playbackMediaId = detailProgressMediaId()
+    m.top.playbackEpisodeId = selectedEpisodeProgressId()
+    m.top.playbackSeasonIndex = m.seasonIndex
+    m.top.playbackEpisodeIndex = m.episodeIndex
+    m.top.playbackResumePosition = progressStorePosition(detailPlaylistId(), "series", detailProgressMediaId(), selectedEpisodeProgressId())
     m.top.returnPage = "SeriesDetailPage"
     m.top.navigateTo = "PlayerPage"
 end sub
@@ -315,6 +322,23 @@ function detailPlaylistId() as String
     if playlistId = invalid or playlistId = "" then return playlistStoreActiveId()
     return playlistId
 end function
+
+function detailProgressMediaId() as String
+    mediaId = m.top.detailId
+    if mediaId = invalid or mediaId = "" then return detailTitle()
+    return mediaId
+end function
+
+function selectedEpisodeProgressId() as String
+    return "S" + (m.seasonIndex + 1).toStr() + "-E" + selectedSeasonEpisodeNumber(m.episodeIndex).toStr()
+end function
+
+sub restoreSeriesProgressSelection()
+    item = progressStoreFind(detailPlaylistId(), "series", detailProgressMediaId())
+    if item = invalid then return
+    m.seasonIndex = progressStoreInt(item, "seasonIndex")
+    m.episodeIndex = progressStoreInt(item, "episodeIndex")
+end sub
 
 sub drawSeasonTabs()
     seasonCount = detailSeasonCount()
@@ -572,7 +596,7 @@ function seriesDetailBackdropIsComposed(url as String) as Boolean
 end function
 
 function seriesPrimaryActionLabel() as String
-    if selectedSeasonEpisodeCount() > 1 then return "Resume"
+    if progressStorePosition(detailPlaylistId(), "series", detailProgressMediaId(), selectedEpisodeProgressId()) >= 10 then return "Resume"
     return "Watch"
 end function
 
