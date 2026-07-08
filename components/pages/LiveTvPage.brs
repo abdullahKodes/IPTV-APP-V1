@@ -274,12 +274,14 @@ sub drawCategoryPills()
             if selected then pillUri = "pkg:/images/ui/rr_190x44_purpleSoft_greenFocus.png"
             if focused then pillUri = "pkg:/images/ui/rr_172x48_greenSoft_greenFocus.png"
         end if
-        uiPoster(m.canvas, pillUri, x, 106, pillW, 40, opacity)
-        uiScaledLabel(m.canvas, categoryLabel, x + 8, 115, pillW - 16, 20, 11, textColor, "center", 0.82)
+        uiPoster(m.canvas, pillUri, x, 104, pillW, 36, opacity)
+        labelScale = 0.80
+        if categoryLabel = "All" then labelScale = 0.74
+        uiScaledLabel(m.canvas, categoryLabel, x, 112, pillW, 22, 11, textColor, "center", labelScale)
         m.focusItems.push({
-            x: x, y: 106, w: pillW, h: 40,
+            x: x, y: 104, w: pillW, h: 36,
             icon: "", label: m.categories[i], subtitle: "",
-            iconSize: 1, titleSize: 11, subSize: 9,
+            iconSize: 1, titleSize: 12, subSize: 10,
             bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim,
             focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
             row: 1, col: slot + 1, page: "", action: "category", categoryIndex: i, mode: "manual"
