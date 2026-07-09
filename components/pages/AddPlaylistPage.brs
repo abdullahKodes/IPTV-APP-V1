@@ -12,7 +12,7 @@ sub init()
     m.editPlaylistId = ""
     m.keyboardIndex = 0
     m.keyboardUpper = true
-    m.keyboardKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "CASE", "SPACE", "DEL", "DONE"]
+    m.keyboardKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "CASE", "SPACE", "DEL", "CLEAR", "DONE"]
     m.inputs = {
         playlistTitle: "",
         m3uUrl: "",
@@ -150,7 +150,7 @@ sub render()
 
     pageTitle = "Add New Playlist"
     if m.editPlaylistId <> "" then pageTitle = "Edit Playlist"
-    uiLabel(m.canvas, pageTitle, 380, 108, 760, 56, 36, m.colors.text, "center")
+    uiLabel(m.canvas, pageTitle, 380, 108, 760, 56, 39, m.colors.text, "center")
     addSmallButton(505, 198, 230, 48, "", "M3U Playlist", row, 1, "m3u")
     addSmallButton(765, 198, 230, 48, "", "Xtreme Account", row, 2, "xtreme")
 
@@ -309,7 +309,9 @@ sub pressKeyboardKey()
         render()
         return
     end if
-    if selected = "DEL" then
+    if selected = "CLEAR" then
+        current = ""
+    else if selected = "DEL" then
         if current.len() > 0 then current = current.left(current.len() - 1)
     else if selected = "SPACE" then
         current += " "
@@ -435,36 +437,19 @@ end function
 
 sub drawKeyboardOverlay()
     uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.92)
-    uiRect(m.canvas, 260, 116, 760, 488, m.colors.panel, 0.98)
+    uiRect(m.canvas, 220, 104, 840, 524, m.colors.panel, 0.98)
     uiLabel(m.canvas, m.editLabel, 300, 142, 680, 32, 20, m.colors.textGreen, "center")
-    uiRect(m.canvas, 330, 188, 620, 48, m.colors.bg2)
-    uiLabel(m.canvas, m.inputs[m.editField], 350, 196, 580, 32, 17, m.colors.text, "left")
+    uiPoster(m.canvas, "pkg:/images/ui/rr_680x168_panel_whiteLine.png", 300, 188, 680, 48, 0.54)
+    uiLabel(m.canvas, m.inputs[m.editField], 324, 196, 632, 32, 17, m.colors.text, "left")
 
-    keyW = 56
-    keyH = 42
-    gap = 8
-    startX = 324
+    keyW = 68
+    keyH = 40
+    gap = 7
+    startX = 268
     startY = 268
     for i = 0 to m.keyboardKeys.count() - 1
-        row = Int(i / 10)
-        col = i mod 10
-        x = startX + col * (keyW + gap)
-        y = startY + row * (keyH + gap)
         keyLabel = m.keyboardKeys[i]
-        w = keyW
-        keyLabel = keyboardDisplayLabel(keyLabel)
-        bg = m.colors.bg
-        border = m.colors.whiteLine
-        text = m.colors.text
-        if i = m.keyboardIndex then
-            bg = m.colors.purpleSoft
-            border = m.colors.purpleLine
-        end if
-        uiRect(m.canvas, x, y, w, keyH, bg)
-        uiRect(m.canvas, x, y, w, 2, border)
-        uiRect(m.canvas, x, y + keyH - 2, w, 2, border)
-        uiRect(m.canvas, x, y, 2, keyH, border)
-        uiRect(m.canvas, x + w - 2, y, 2, keyH, border)
-        uiLabel(m.canvas, keyLabel, x, y + 5, w, 28, 14, text, "center")
+        keyRect = uiKeyboardKeyRect(m.keyboardKeys, i, startX, startY, keyW, keyH, gap)
+        uiDrawKeyboardKey(m.canvas, keyLabel, keyboardDisplayLabel(keyLabel), keyRect.x, keyRect.y, keyRect.w, keyRect.h, i = m.keyboardIndex, m.colors)
     end for
 end sub

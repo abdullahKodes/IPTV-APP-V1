@@ -21,7 +21,8 @@ sub init()
     m.playlistWindowSize = 6
     m.initialFocusPlaylistId = playlistStoreActiveId()
     m.initialFocusApplied = false
-    m.searchKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "SPACE", "DEL", "CLEAR", "DONE"]
+    m.searchKeyboardUpper = true
+    m.searchKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "CASE", "SPACE", "DEL", "CLEAR", "DONE"]
     m.playlists = playlistStoreList()
 
     m.refreshTimer = CreateObject("roSGNode", "Timer")
@@ -860,8 +861,12 @@ sub pressSearchKey()
         if m.searchQuery.len() > 0 then m.searchQuery = m.searchQuery.left(m.searchQuery.len() - 1)
     else if selected = "SPACE" then
         if m.searchQuery.len() < 28 then m.searchQuery += " "
+    else if selected = "CASE" then
+        m.searchKeyboardUpper = not m.searchKeyboardUpper
+        render()
+        return
     else
-        if m.searchQuery.len() < 28 then m.searchQuery += selected
+        if m.searchQuery.len() < 28 then m.searchQuery += uiKeyboardInputText(selected, m.searchKeyboardUpper)
     end if
     m.focusIndex = 7
     render()
@@ -882,36 +887,20 @@ end sub
 
 sub drawSearchKeyboardOverlay()
     uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.92)
-    uiRect(m.canvas, 260, 116, 760, 488, m.colors.panel)
-    uiRectBorder(m.canvas, 260, 116, 760, 488, m.colors.purpleLine, 2)
+    uiRect(m.canvas, 220, 104, 840, 524, m.colors.panel)
+    uiRectBorder(m.canvas, 220, 104, 840, 524, m.colors.purpleLine, 2)
     uiLabel(m.canvas, "Search Playlists", 300, 142, 680, 32, 20, m.colors.textGreen, "center")
-    uiRect(m.canvas, 330, 188, 620, 48, m.colors.bg2)
-    uiLabel(m.canvas, m.searchQuery, 350, 196, 580, 32, 17, m.colors.text, "left")
+    uiPoster(m.canvas, "pkg:/images/ui/rr_680x168_panel_whiteLine.png", 300, 188, 680, 48, 0.54)
+    uiLabel(m.canvas, m.searchQuery, 324, 196, 632, 32, 17, m.colors.text, "left")
 
-    keyW = 56
-    keyH = 42
-    gap = 8
-    startX = 324
+    keyW = 68
+    keyH = 40
+    gap = 7
+    startX = 268
     startY = 268
     for i = 0 to m.searchKeys.count() - 1
-        r = Int(i / 10)
-        c = i mod 10
-        x = startX + c * (keyW + gap)
-        y = startY + r * (keyH + gap)
+        keyRect = uiKeyboardKeyRect(m.searchKeys, i, startX, startY, keyW, keyH, gap)
         keyLabel = m.searchKeys[i]
-        if keyLabel = "SPACE" then keyLabel = "Space"
-        if keyLabel = "DEL" then keyLabel = "Del"
-        if keyLabel = "CLEAR" then keyLabel = "Clear"
-        if keyLabel = "DONE" then keyLabel = "Done"
-
-        bg = m.colors.bg
-        border = m.colors.whiteLine
-        if i = m.searchKeyboardIndex then
-            bg = m.colors.purpleSoft
-            border = m.colors.greenFocus
-        end if
-        uiRect(m.canvas, x, y, keyW, keyH, bg)
-        uiRectBorder(m.canvas, x, y, keyW, keyH, border, 2)
-        uiLabel(m.canvas, keyLabel, x, y + 5, keyW, 28, 14, m.colors.text, "center")
+        uiDrawKeyboardKey(m.canvas, keyLabel, uiKeyboardDisplayText(keyLabel, m.searchKeyboardUpper), keyRect.x, keyRect.y, keyRect.w, keyRect.h, i = m.searchKeyboardIndex, m.colors)
     end for
 end sub

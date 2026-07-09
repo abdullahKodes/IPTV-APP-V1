@@ -6,7 +6,8 @@ sub init()
     m.searchQuery = ""
     m.searchEditing = false
     m.searchKeyboardIndex = 0
-    m.searchKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "SPACE", "DEL", "CLEAR", "DONE"]
+    m.searchKeyboardUpper = true
+    m.searchKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "CASE", "SPACE", "DEL", "CLEAR", "DONE"]
     m.selectedSection = 0
     m.selectedIndexes = [0, 0, 0]
     m.windowStarts = [0, 0, 0]
@@ -25,6 +26,12 @@ end sub
 
 sub refreshClock()
     if m.clock <> invalid then now = uiNowStrings() : m.clock.text = now.time : m.date.text = now.date
+end sub
+
+sub refreshFavorites()
+    loadFavorites()
+    normalizeFavoritesSelection()
+    render()
 end sub
 
 function handleKey(key as String) as Boolean
@@ -97,7 +104,10 @@ function routeFavoritesFocus(dx as Integer, dy as Integer) as Boolean
             if cardIndex < 0 then cardIndex = firstFavoriteFocusInSection(1)
             if cardIndex < 0 then cardIndex = firstFavoriteFocusInSection(2)
             if cardIndex >= 0 then m.focusArea = "cards" : m.focusIndex = cardIndex : return true
+            navIndex = findFavoriteFocusByRowCol(4, 0)
+            if navIndex >= 0 then m.focusArea = "nav" : m.focusIndex = navIndex : return true
         end if
+        if dy < 0 and totalFavoriteCount() = 0 then return true
         if dx < 0 then
             navIndex = findFavoriteFocusByRowCol(4, 0)
             if navIndex >= 0 then m.focusArea = "nav" : m.focusIndex = navIndex : return true
@@ -181,6 +191,8 @@ sub playLiveFavorite(channel as Object)
     m.top.playbackUrl = mediaPlaybackUrl(channel)
     m.top.playbackFormat = mediaPlaybackFormat(channel)
     m.top.playbackPosterUrl = favoritePosterUrl(channel)
+    if m.top.hasField("playbackPlaylistId") then m.top.playbackPlaylistId = m.activePlaylistId
+    if m.top.hasField("playbackMediaId") then m.top.playbackMediaId = favItemText(channel, "id", favoriteTitle(channel))
     if favItemFlag(channel, "live") then
         m.top.playbackMediaType = "live"
     else
@@ -218,9 +230,6 @@ sub drawFavoritesBackdrop()
     if url <> "" then
         poster = uiPoster(m.canvas, url, 0, 0, 1280, 720, 0.58)
         poster.loadDisplayMode = "scaleToZoom"
-    else
-        poster = uiPoster(m.canvas, "pkg:/images/demo/backgrounds/iptv_max_art_backdrop.jpg", 0, 0, 1280, 720, 0.72)
-        poster.loadDisplayMode = "scaleToFill"
     end if
     uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.54)
     uiRect(m.canvas, 226, 86, 1054, 634, "0x000000FF", 0.10)
@@ -240,7 +249,7 @@ end sub
 
 sub addFavoriteNavItem(x as Integer, y as Integer, icon as String, label as String, page as String, row as Integer, active as Boolean)
     itemIndex = m.focusItems.count()
-    focused = itemIndex = m.focusIndex
+    focused = m.focusArea = "nav" and itemIndex = m.focusIndex
     fill = m.colors.bg
     border = m.colors.whiteLine
     opacity = 0.42
@@ -273,7 +282,7 @@ end sub
 
 sub addFavoriteProfileItem()
     itemIndex = m.focusItems.count()
-    focused = itemIndex = m.focusIndex
+    focused = m.focusArea = "nav" and itemIndex = m.focusIndex
     fill = m.colors.bg
     border = m.colors.whiteLine
     opacity = 0.42
@@ -300,7 +309,7 @@ end sub
 
 sub drawSearchBox()
     itemIndex = m.focusItems.count()
-    focused = itemIndex = m.focusIndex
+    focused = m.focusArea = "search" and itemIndex = m.focusIndex
     bg = m.colors.panel
     border = m.colors.whiteLine
     textColor = m.colors.textDim
@@ -356,6 +365,7 @@ sub drawVisibleSections()
     series = filteredFavorites("series")
     live = filteredFavorites("live")
     searchActive = m.searchQuery <> ""
+    if movies.count() + series.count() + live.count() = 0 then return
     rowY = 112
     rowGap = 196
 
@@ -463,8 +473,18 @@ end sub
 
 sub drawEmptyStateIfNeeded()
     if filteredFavorites("movie").count() + filteredFavorites("series").count() + filteredFavorites("live").count() > 0 then return
-    uiLabel(m.canvas, "No favorites match this search", 244, 332, 860, 28, 16, m.colors.text, "center")
+    if m.searchQuery <> "" then
+        uiLabel(m.canvas, "No favorites match this search", 244, 332, 860, 28, 15, m.colors.textDim, "center")
+        uiLabel(m.canvas, "Clear search to show your saved movies, series, and live channels.", 244, 366, 860, 24, 11, m.colors.textMuted, "center")
+    else
+        uiLabel(m.canvas, "No favorites yet", 244, 332, 860, 28, 15, m.colors.textDim, "center")
+        uiLabel(m.canvas, "Save movies, series, or live channels and they will appear here.", 244, 366, 860, 24, 11, m.colors.textMuted, "center")
+    end if
 end sub
+
+function totalFavoriteCount() as Integer
+    return filteredFavorites("movie").count() + filteredFavorites("series").count() + filteredFavorites("live").count()
+end function
 
 function filteredFavorites(kind as String) as Object
     res = []
@@ -569,12 +589,35 @@ sub ensureFavoritesFocus()
         m.focusIndex = 0
         return
     end if
+    if totalFavoriteCount() = 0 and m.focusArea = "cards" then
+        searchIndex = findFavoriteFocusAction("search")
+        if searchIndex >= 0 then
+            m.focusArea = "search"
+            m.focusIndex = searchIndex
+            return
+        end if
+    end if
     if m.focusIndex >= 0 and m.focusIndex < m.focusItems.count() then return
     searchIndex = findFavoriteFocusAction("search")
     if searchIndex >= 0 then
         m.focusIndex = searchIndex
     else
         m.focusIndex = 0
+    end if
+end sub
+
+sub normalizeFavoritesSelection()
+    for section = 0 to 2
+        items = sectionItems(section)
+        normalizeSectionWindow(section, items.count())
+    end for
+    if sectionItems(m.selectedSection).count() <= 0 then
+        for section = 0 to 2
+            if sectionItems(section).count() > 0 then
+                m.selectedSection = section
+                exit for
+            end if
+        end for
     end if
 end sub
 
@@ -613,6 +656,7 @@ function favoritePosterUrl(item as Dynamic) as String
 end function
 
 function favoriteBackgroundArtworkUrl(item as Dynamic) as String
+    if favItemText(item, "favoriteKind") = "live" then return "pkg:/images/live/live_tv_background_v4_full.jpg"
     heroUrl = favItemText(item, "heroUrl")
     if heroUrl <> "" then return heroUrl
     backdropUrl = favItemText(item, "backdropUrl")
@@ -702,9 +746,13 @@ sub pressSearchKey()
     else if selected = "SPACE" then
         if current.len() >= 64 then return
         current += " "
+    else if selected = "CASE" then
+        m.searchKeyboardUpper = not m.searchKeyboardUpper
+        render()
+        return
     else
         if current.len() >= 64 then return
-        current += selected
+        current += uiKeyboardInputText(selected, m.searchKeyboardUpper)
     end if
     m.searchQuery = current
     m.selectedIndexes = [0, 0, 0]
@@ -727,35 +775,20 @@ end sub
 
 sub drawSearchKeyboardOverlay()
     uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.92)
-    uiRect(m.canvas, 260, 116, 760, 488, m.colors.panel, 0.98)
+    uiRect(m.canvas, 220, 104, 840, 524, m.colors.panel, 0.98)
     uiLabel(m.canvas, "Search Favorites", 300, 142, 680, 32, 20, m.colors.textGreen, "center")
-    uiRect(m.canvas, 330, 188, 620, 48, m.colors.bg2)
+    uiPoster(m.canvas, "pkg:/images/ui/rr_680x168_panel_whiteLine.png", 300, 188, 680, 48, 0.54)
     searchText = m.searchQuery
     if searchText = "" then searchText = "Search movies, series, or live TV"
-    uiLabel(m.canvas, searchText, 350, 196, 580, 32, 17, m.colors.text, "left")
-    keyW = 56
-    keyH = 42
-    gap = 8
-    startX = 324
+    uiLabel(m.canvas, searchText, 324, 196, 632, 32, 17, m.colors.text, "left")
+    keyW = 68
+    keyH = 40
+    gap = 7
+    startX = 268
     startY = 268
     for i = 0 to m.searchKeys.count() - 1
-        row = Int(i / 10)
-        col = i mod 10
-        x = startX + col * (keyW + gap)
-        y = startY + row * (keyH + gap)
+        keyRect = uiKeyboardKeyRect(m.searchKeys, i, startX, startY, keyW, keyH, gap)
         keyLabel = m.searchKeys[i]
-        if keyLabel = "SPACE" then keyLabel = "Space"
-        if keyLabel = "DEL" then keyLabel = "Del"
-        if keyLabel = "CLEAR" then keyLabel = "Clear"
-        if keyLabel = "DONE" then keyLabel = "Done"
-        bg = m.colors.bg
-        border = m.colors.whiteLine
-        if i = m.searchKeyboardIndex then
-            bg = m.colors.purpleSoft
-            border = m.colors.greenFocus
-        end if
-        uiRect(m.canvas, x, y, keyW, keyH, bg)
-        uiRectBorder(m.canvas, x, y, keyW, keyH, border, 2, 0.72)
-        uiLabel(m.canvas, keyLabel, x, y + 5, keyW, 28, 12, m.colors.text, "center")
+        uiDrawKeyboardKey(m.canvas, keyLabel, uiKeyboardDisplayText(keyLabel, m.searchKeyboardUpper), keyRect.x, keyRect.y, keyRect.w, keyRect.h, i = m.searchKeyboardIndex, m.colors)
     end for
 end sub

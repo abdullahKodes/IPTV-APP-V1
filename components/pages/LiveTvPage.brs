@@ -17,8 +17,10 @@ sub init()
     m.searchEditing = false
     m.searchReturnPending = false
     m.searchPreviousCategoryIndex = 0
+    m.favoriteMessage = ""
     m.searchKeyboardIndex = 0
-    m.searchKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "SPACE", "DEL", "CLEAR", "DONE"]
+    m.searchKeyboardUpper = true
+    m.searchKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "CASE", "SPACE", "DEL", "CLEAR", "DONE"]
     m.activePlaylist = playlistStoreActive()
     m.activePlaylistId = playlistStoreText(m.activePlaylist, "id", playlistStoreDemoId())
     m.activePlaylistTitle = playlistStoreText(m.activePlaylist, "title", "Demo Playlist")
@@ -42,6 +44,7 @@ function handleKey(key as String) as Boolean
     if key = "right" then move(1, 0) : return true
     if key = "up" then move(0, -1) : return true
     if key = "down" then move(0, 1) : return true
+    if key = "options" then toggleSelectedChannelFavorite() : return true
     if key = "OK" then activate() : return true
     return false
 end function
@@ -103,10 +106,14 @@ sub render()
     uiClear(m.canvas)
     m.focusItems = []
     uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg)
-    liveBackground = uiPoster(m.canvas, "pkg:/images/live/live_tv_background_v4_full.jpg", 0, 0, 1280, 720, 0.54)
-    liveBackground.loadDisplayMode = "scaleToFill"
-    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.30)
-    uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.08)
+    visible = filteredChannels()
+    hasChannels = visible.count() > 0
+    if hasChannels then
+        liveBackground = uiPoster(m.canvas, "pkg:/images/live/live_tv_background_v4_full.jpg", 0, 0, 1280, 720, 0.54)
+        liveBackground.loadDisplayMode = "scaleToFill"
+        uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.30)
+        uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.08)
+    end if
 
     clockParts = uiTopBar(m.canvas, m.colors)
     m.clock = clockParts.clock
@@ -115,19 +122,19 @@ sub render()
 
     drawLiveSideNav()
     drawSearchBox()
-    drawCategoryPills()
 
-    visible = filteredChannels()
     normalizeChannelWindow(visible.count())
-    sectionTitle = "LIVE TV"
-    if m.categoryIndex > 0 and m.categoryIndex < m.categories.count() then sectionTitle = UCase(m.categories[m.categoryIndex])
-    uiLabel(m.canvas, sectionTitle, 244, 174, 520, 32, 18, m.colors.text)
-    uiLabel(m.canvas, visible.count().toStr() + " channels", 926, 179, 188, 24, 11, m.colors.textDim, "right")
 
     if visible.count() = 0 then
-        uiLabel(m.canvas, "No live channels in " + m.activePlaylistTitle, 316, 338, 724, 34, 18, m.colors.textDim, "center")
-        uiLabel(m.canvas, "Choose another category or switch playlists.", 316, 378, 724, 26, 12, m.colors.textMuted, "center")
+        uiLabel(m.canvas, "No live channels in " + m.activePlaylistTitle, 244, 332, 860, 28, 15, m.colors.textDim, "center")
+        uiLabel(m.canvas, "Choose another category or switch playlists.", 244, 366, 860, 24, 11, m.colors.textMuted, "center")
     else
+        drawCategoryPills()
+        sectionTitle = "LIVE TV"
+        if m.categoryIndex > 0 and m.categoryIndex < m.categories.count() then sectionTitle = UCase(m.categories[m.categoryIndex])
+        uiLabel(m.canvas, sectionTitle, 244, 160, 520, 32, 18, m.colors.text)
+        uiLabel(m.canvas, visible.count().toStr() + " channels", 926, 156, 188, 24, 11, m.colors.textDim, "right")
+        drawLiveFavoriteHint(visible)
         drawChannelGrid(visible)
         drawChannelScrollbar(visible.count())
     end if
@@ -152,7 +159,7 @@ end sub
 
 sub addLiveNavItem(x as Integer, y as Integer, icon as String, label as String, page as String, row as Integer, active as Boolean)
     itemIndex = m.focusItems.count()
-    focused = itemIndex = m.focusIndex
+    focused = m.focusArea = "normal" and itemIndex = m.focusIndex
     fill = m.colors.bg
     border = m.colors.whiteLine
     opacity = 0.42
@@ -185,7 +192,7 @@ end sub
 
 sub addLiveProfileItem()
     itemIndex = m.focusItems.count()
-    focused = itemIndex = m.focusIndex
+    focused = m.focusArea = "normal" and itemIndex = m.focusIndex
     fill = m.colors.bg
     border = m.colors.whiteLine
     opacity = 0.42
@@ -212,7 +219,7 @@ end sub
 
 sub drawSearchBox()
     itemIndex = m.focusItems.count()
-    focused = itemIndex = m.focusIndex
+    focused = m.focusArea = "normal" and itemIndex = m.focusIndex
     bg = m.colors.panel
     border = m.colors.whiteLine
     textColor = m.colors.textDim
@@ -274,12 +281,12 @@ sub drawCategoryPills()
             if selected then pillUri = "pkg:/images/ui/rr_190x44_purpleSoft_greenFocus.png"
             if focused then pillUri = "pkg:/images/ui/rr_172x48_greenSoft_greenFocus.png"
         end if
-        uiPoster(m.canvas, pillUri, x, 104, pillW, 36, opacity)
+        uiPoster(m.canvas, pillUri, x, 105, pillW, 34, opacity)
         labelScale = 0.80
         if categoryLabel = "All" then labelScale = 0.74
-        uiScaledLabel(m.canvas, categoryLabel, x, 112, pillW, 22, 11, textColor, "center", labelScale)
+        uiScaledLabel(m.canvas, categoryLabel, x, 111, pillW, 22, 11, textColor, "center", labelScale)
         m.focusItems.push({
-            x: x, y: 104, w: pillW, h: 36,
+            x: x, y: 105, w: pillW, h: 34,
             icon: "", label: m.categories[i], subtitle: "",
             iconSize: 1, titleSize: 12, subSize: 10,
             bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim,
@@ -368,6 +375,7 @@ sub drawChannelCard(channel as Object, channelIndex as Integer, visibleIndex as 
     if liveFlag(channel, "live") then
         uiPoster(cardCanvas, "pkg:/images/ui/live_badge.png", 8, 8, 52, 19, 1.0)
     end if
+    drawChannelFavoriteBadge(cardCanvas, channel, focused, cardW)
 
     channelName = liveText(channel, "name", liveText(channel, "title", "Untitled channel"))
     uiRect(cardCanvas, 0, artH, cardW, textH, "0x000000FF", 0.34)
@@ -390,6 +398,29 @@ sub drawChannelCard(channel as Object, channelIndex as Integer, visibleIndex as 
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         row: row, col: col, page: "", action: "channel", channelIndex: channelIndex, visibleIndex: visibleIndex, mode: "manual"
     })
+end sub
+
+sub drawChannelFavoriteBadge(parent as Object, channel as Object, focused as Boolean, cardW as Integer)
+    if not favoriteStoreIsFavorite("live", liveFavoriteItem(channel), m.activePlaylistId) then return
+    badgeBg = m.colors.bg2
+    badgeBorder = m.colors.whiteLine
+    if focused then
+        badgeBg = m.colors.greenSoft
+        badgeBorder = m.colors.greenFocus
+    end if
+    uiRoundRect(parent, cardW - 38, 8, 30, 24, badgeBg, badgeBorder, 0.78)
+    uiDrawIcon(parent, "heart", cardW - 31, 14, 16, 14, true, m.colors.text, 10)
+end sub
+
+sub drawLiveFavoriteHint(visible as Object)
+    if visible.count() <= 0 then return
+    text = "Press * to favorite"
+    selected = selectedVisibleChannel()
+    if selected <> invalid and favoriteStoreIsFavorite("live", liveFavoriteItem(selected), m.activePlaylistId) then
+        text = "Press * to remove favorite"
+    end if
+    if m.favoriteMessage <> "" then text = m.favoriteMessage
+    uiScaledLabel(m.canvas, text, 776, 190, 338, 18, 10, m.colors.textMuted, "right", 0.68)
 end sub
 
 sub animateLiveCardFocus(cardCanvas as Object, x as Integer, y as Integer)
@@ -489,6 +520,7 @@ function routeLiveFocus(dx as Integer, dy as Integer) as Boolean
     if action = "channel" then
         visible = filteredChannels()
         if current.doesExist("visibleIndex") then m.selectedChannelIndex = current.visibleIndex
+        m.favoriteMessage = ""
         nextChannel = m.selectedChannelIndex + dx + (dy * m.channelColumns)
         currentCol = m.selectedChannelIndex mod m.channelColumns
         if dx < 0 and currentCol = 0 then
@@ -512,6 +544,58 @@ function routeLiveFocus(dx as Integer, dy as Integer) as Boolean
         return true
     end if
     return false
+end function
+
+sub toggleSelectedChannelFavorite()
+    if m.focusIndex < 0 or m.focusIndex >= m.focusItems.count() then return
+    current = m.focusItems[m.focusIndex]
+    if not current.doesExist("action") or current.action <> "channel" then return
+    if current.doesExist("visibleIndex") then m.selectedChannelIndex = current.visibleIndex
+    selected = selectedVisibleChannel()
+    if selected = invalid then return
+    saved = favoriteStoreToggle("live", liveFavoriteItem(selected), m.activePlaylistId)
+    if saved then
+        m.favoriteMessage = "Press * to remove favorite"
+    else
+        m.favoriteMessage = "Press * to favorite"
+    end if
+    render()
+end sub
+
+function selectedVisibleChannel() as Dynamic
+    visible = filteredChannels()
+    if visible.count() = 0 then return invalid
+    if m.selectedChannelIndex < 0 then m.selectedChannelIndex = 0
+    if m.selectedChannelIndex > visible.count() - 1 then m.selectedChannelIndex = visible.count() - 1
+    data = visible[m.selectedChannelIndex]
+    if data = invalid or not data.doesExist("channel") then return invalid
+    return data.channel
+end function
+
+function liveFavoriteItem(channel as Object) as Object
+    return {
+        id: liveText(channel, "id", liveText(channel, "name", liveText(channel, "title", ""))),
+        playlistId: m.activePlaylistId,
+        title: liveText(channel, "title", liveText(channel, "name", "Live TV")),
+        name: liveText(channel, "name", liveText(channel, "title", "Live TV")),
+        category: liveChannelCategory(channel),
+        groupTitle: liveText(channel, "groupTitle"),
+        now: liveText(channel, "now", liveText(channel, "programTitle", "Live stream")),
+        programTitle: liveText(channel, "programTitle"),
+        posterUrl: liveCardPosterUrl(channel),
+        cardUrl: liveCardPosterUrl(channel),
+        logoUrl: liveLogoArtUrl(channel),
+        badgeUrl: liveText(channel, "badgeUrl"),
+        backdropUrl: liveCardBackgroundUrl(channel),
+        streamUrl: mediaPlaybackUrl(channel),
+        streamFormat: mediaPlaybackFormat(channel),
+        logoText: liveText(channel, "logoText"),
+        brandColor: liveText(channel, "brandColor"),
+        brandColor2: liveText(channel, "brandColor2"),
+        channelNumber: liveText(channel, "channelNumber"),
+        live: liveFlag(channel, "live"),
+        description: liveText(channel, "description")
+    }
 end function
 
 sub syncLiveFocus()
@@ -731,8 +815,12 @@ sub pressSearchKey()
         if current.len() > 0 then current = current.left(current.len() - 1)
     else if selected = "SPACE" then
         if current.len() < 64 then current += " "
+    else if selected = "CASE" then
+        m.searchKeyboardUpper = not m.searchKeyboardUpper
+        render()
+        return
     else
-        if current.len() < 64 then current += selected
+        if current.len() < 64 then current += uiKeyboardInputText(selected, m.searchKeyboardUpper)
     end if
     m.searchQuery = current
     m.selectedChannelIndex = 0
@@ -776,33 +864,21 @@ end sub
 
 sub drawSearchKeyboardOverlay()
     uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.92)
-    uiRect(m.canvas, 260, 116, 760, 488, m.colors.panel, 0.98)
+    uiRect(m.canvas, 220, 104, 840, 524, m.colors.panel, 0.98)
     uiLabel(m.canvas, "Search Channels or Categories", 300, 142, 680, 32, 20, m.colors.textGreen, "center")
-    uiRect(m.canvas, 330, 188, 620, 48, m.colors.bg2)
+    uiPoster(m.canvas, "pkg:/images/ui/rr_680x168_panel_whiteLine.png", 300, 188, 680, 48, 0.54)
     searchText = m.searchQuery
     if searchText = "" then searchText = "Search channels"
-    uiLabel(m.canvas, searchText, 350, 196, 580, 32, 17, m.colors.text, "left")
+    uiLabel(m.canvas, searchText, 324, 196, 632, 32, 17, m.colors.text, "left")
 
-    keyW = 56
-    keyH = 42
-    gap = 8
-    startX = 324
+    keyW = 68
+    keyH = 40
+    gap = 7
+    startX = 268
     startY = 268
     for i = 0 to m.searchKeys.count() - 1
-        row = Int(i / 10)
-        col = i mod 10
-        x = startX + col * (keyW + gap)
-        y = startY + row * (keyH + gap)
+        keyRect = uiKeyboardKeyRect(m.searchKeys, i, startX, startY, keyW, keyH, gap)
         keyLabel = m.searchKeys[i]
-        if keyLabel = "SPACE" then keyLabel = "Space"
-        if keyLabel = "DEL" then keyLabel = "Del"
-        if keyLabel = "CLEAR" then keyLabel = "Clear"
-        if keyLabel = "DONE" then keyLabel = "Done"
-        bg = m.colors.bg
-        border = m.colors.whiteLine
-        if i = m.searchKeyboardIndex then bg = m.colors.purpleSoft : border = m.colors.greenFocus
-        uiRect(m.canvas, x, y, keyW, keyH, bg)
-        uiRectBorder(m.canvas, x, y, keyW, keyH, border, 2, 0.9)
-        uiLabel(m.canvas, keyLabel, x, y + 5, keyW, 28, 12, m.colors.text, "center")
+        uiDrawKeyboardKey(m.canvas, keyLabel, uiKeyboardDisplayText(keyLabel, m.searchKeyboardUpper), keyRect.x, keyRect.y, keyRect.w, keyRect.h, i = m.searchKeyboardIndex, m.colors)
     end for
 end sub

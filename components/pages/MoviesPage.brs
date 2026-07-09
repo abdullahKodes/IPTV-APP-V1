@@ -9,12 +9,13 @@ sub init()
     m.searchReturnPending = false
     m.searchPreviousCategoryIndex = 0
     m.searchKeyboardIndex = 0
+    m.searchKeyboardUpper = true
     m.movieWindowStart = 0
     m.movieWindowSize = 5
     m.selectedMovieIndex = 0
     m.featuredMovieIndex = -1
     m.focusArea = "normal"
-    m.searchKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "SPACE", "DEL", "CLEAR", "DONE"]
+    m.searchKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "CASE", "SPACE", "DEL", "CLEAR", "DONE"]
     m.activePlaylist = playlistStoreActive()
     m.activePlaylistId = playlistStoreText(m.activePlaylist, "id", playlistStoreDemoId())
     m.activePlaylistTitle = playlistStoreText(m.activePlaylist, "title", "Demo Playlist")
@@ -95,7 +96,7 @@ sub render()
     uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg)
     visible = filteredMovies()
     normalizeMovieWindow(visible.count())
-    drawSelectedBackdrop(visible)
+    if visible.count() > 0 then drawSelectedBackdrop(visible)
     clockParts = uiTopBar(m.canvas, m.colors)
     m.clock = clockParts.clock
     m.date = clockParts.date
@@ -111,8 +112,8 @@ sub render()
         return
     end if
     if visible.count() = 0 then
-        uiLabel(m.canvas, "No movies in " + m.activePlaylistTitle, 244, 332, 746, 28, 15, m.colors.textDim, "center")
-        uiLabel(m.canvas, "Switch playlist or add one with movie content.", 244, 366, 746, 24, 11, m.colors.textMuted, "center")
+        uiLabel(m.canvas, "No movies in " + m.activePlaylistTitle, 244, 332, 860, 28, 15, m.colors.textDim, "center")
+        uiLabel(m.canvas, "Switch playlist or add one with movie content.", 244, 366, 860, 24, 11, m.colors.textMuted, "center")
         ensureMovieFocus()
         uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
         if m.searchEditing then drawSearchKeyboardOverlay()
@@ -379,12 +380,12 @@ sub drawFeatured(movie as Object, row as Integer)
     meta = movieText(movie, "year") + " - " + movieText(movie, "duration") + " - " + movieText(movie, "genre")
     uiLabel(featuredCanvas, title, 160, 54, 320, 28, 17, titleColor)
     uiScaledLabel(featuredCanvas, meta, 160, 87, 360, 18, 8, subColor, "left", 0.68)
-    uiPoster(featuredCanvas, buttonUri, 160, 120, 126, 36)
-    uiScaledLabel(featuredCanvas, "Watch now", 167, 126, 112, 20, 10, buttonText, "center", 0.78)
+    uiPoster(featuredCanvas, buttonUri, 160, 121, 126, 34, 0.74)
+    uiScaledLabel(featuredCanvas, "Watch now", 167, 128, 112, 18, 8, buttonText, "center", 0.78)
     if focused then uiAnimatePanelFocus(m.canvas, featuredCanvas)
 
     m.focusItems.push({
-        x: 404, y: 326, w: 126, h: 36,
+        x: 404, y: 327, w: 126, h: 34,
         icon: "", label: title, subtitle: "Featured",
         iconSize: 1, titleSize: 1, subSize: 1,
         bg: m.colors.panel, border: m.colors.whiteSoft, textColor: m.colors.text, subColor: m.colors.textDim,
@@ -966,9 +967,13 @@ sub pressSearchKey()
     else if selected = "SPACE" then
         if current.len() >= 64 then return
         current += " "
+    else if selected = "CASE" then
+        m.searchKeyboardUpper = not m.searchKeyboardUpper
+        render()
+        return
     else
         if current.len() >= 64 then return
-        current += selected
+        current += uiKeyboardInputText(selected, m.searchKeyboardUpper)
     end if
     m.searchQuery = current
     m.movieWindowStart = 0
@@ -1014,40 +1019,21 @@ end sub
 
 sub drawSearchKeyboardOverlay()
     uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.92)
-    uiRect(m.canvas, 260, 116, 760, 488, m.colors.panel, 0.98)
+    uiRect(m.canvas, 220, 104, 840, 524, m.colors.panel, 0.98)
     uiLabel(m.canvas, "Search Movies or Categories", 300, 142, 680, 32, 20, m.colors.textGreen, "center")
-    uiRect(m.canvas, 330, 188, 620, 48, m.colors.bg2)
+    uiPoster(m.canvas, "pkg:/images/ui/rr_680x168_panel_whiteLine.png", 300, 188, 680, 48, 0.54)
     searchText = m.searchQuery
     if searchText = "" then searchText = "Search movies"
-    uiLabel(m.canvas, searchText, 350, 196, 580, 32, 17, m.colors.text, "left")
+    uiLabel(m.canvas, searchText, 324, 196, 632, 32, 17, m.colors.text, "left")
 
-    keyW = 56
-    keyH = 42
-    gap = 8
-    startX = 324
+    keyW = 68
+    keyH = 40
+    gap = 7
+    startX = 268
     startY = 268
     for i = 0 to m.searchKeys.count() - 1
-        row = Int(i / 10)
-        col = i mod 10
-        x = startX + col * (keyW + gap)
-        y = startY + row * (keyH + gap)
+        keyRect = uiKeyboardKeyRect(m.searchKeys, i, startX, startY, keyW, keyH, gap)
         keyLabel = m.searchKeys[i]
-        if keyLabel = "SPACE" then keyLabel = "Space"
-        if keyLabel = "DEL" then keyLabel = "Del"
-        if keyLabel = "CLEAR" then keyLabel = "Clear"
-        if keyLabel = "DONE" then keyLabel = "Done"
-        bg = m.colors.bg
-        border = m.colors.whiteLine
-        text = m.colors.text
-        if i = m.searchKeyboardIndex then
-            bg = m.colors.purpleSoft
-            border = m.colors.greenFocus
-        end if
-        uiRect(m.canvas, x, y, keyW, keyH, bg)
-        uiRect(m.canvas, x, y, keyW, 2, border)
-        uiRect(m.canvas, x, y + keyH - 2, keyW, 2, border)
-        uiRect(m.canvas, x, y, 2, keyH, border)
-        uiRect(m.canvas, x + keyW - 2, y, 2, keyH, border)
-        uiLabel(m.canvas, keyLabel, x, y + 5, keyW, 28, 12, text, "center")
+        uiDrawKeyboardKey(m.canvas, keyLabel, uiKeyboardDisplayText(keyLabel, m.searchKeyboardUpper), keyRect.x, keyRect.y, keyRect.w, keyRect.h, i = m.searchKeyboardIndex, m.colors)
     end for
 end sub

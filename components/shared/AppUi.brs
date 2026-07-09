@@ -246,6 +246,98 @@ function uiPosterCard(parent as Object, x as Integer, y as Integer, w as Integer
     return g
 end function
 
+function uiKeyboardKeyWidth(keyId as String) as Integer
+    if keyId = "SPACE" then return 150
+    if keyId = "CLEAR" then return 112
+    if keyId = "DONE" then return 112
+    if keyId = "DEL" then return 92
+    if keyId = "CASE" then return 92
+    return 70
+end function
+
+function uiKeyboardIsLetter(keyId as String) as Boolean
+    if keyId = invalid or keyId.len() <> 1 then return false
+    return Instr(1, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", keyId) > 0
+end function
+
+function uiKeyboardDisplayText(keyId as String, upper as Boolean) as String
+    if keyId = "SPACE" then return ""
+    if keyId = "DEL" then return "Del"
+    if keyId = "CLEAR" then return "Clear"
+    if keyId = "DONE" then return "Done"
+    if keyId = "CASE" then
+        if upper then return "abc"
+        return "ABC"
+    end if
+    if not upper and uiKeyboardIsLetter(keyId) then return LCase(keyId)
+    return keyId
+end function
+
+function uiKeyboardInputText(keyId as String, upper as Boolean) as String
+    if not upper and uiKeyboardIsLetter(keyId) then return LCase(keyId)
+    return keyId
+end function
+
+function uiKeyboardKeyRect(keys as Object, index as Integer, startX as Integer, startY as Integer, baseW as Integer, keyH as Integer, gap as Integer) as Object
+    row = Int(index / 10)
+    y = startY + row * (keyH + gap)
+    if row < 4 then
+        col = index mod 10
+        return { x: startX + col * (baseW + gap), y: y, w: baseW, h: keyH }
+    end if
+
+    rowStart = row * 10
+    rowEnd = rowStart + 9
+    if rowEnd > keys.count() - 1 then rowEnd = keys.count() - 1
+
+    totalW = 0
+    for i = rowStart to rowEnd
+        totalW += uiKeyboardKeyWidth(keys[i])
+        if i < rowEnd then totalW += gap
+    end for
+
+    fullRowW = 10 * baseW + 9 * gap
+    x = startX + Int((fullRowW - totalW) / 2)
+    for i = rowStart to index - 1
+        x += uiKeyboardKeyWidth(keys[i]) + gap
+    end for
+    return { x: x, y: y, w: uiKeyboardKeyWidth(keys[index]), h: keyH }
+end function
+
+sub uiDrawKeyboardKey(parent as Object, keyId as String, displayText as String, x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean, colors as Object)
+    bgUri = "pkg:/images/ui/rr_70x36_panel_whiteLine.png"
+    if focused then bgUri = "pkg:/images/ui/rr_70x36_purpleSoft_greenFocus.png"
+    if w = 92 then
+        bgUri = "pkg:/images/ui/rr_92x36_panel_whiteLine.png"
+        if focused then bgUri = "pkg:/images/ui/rr_92x36_purpleSoft_greenFocus.png"
+    else if w = 112 then
+        bgUri = "pkg:/images/ui/rr_112x36_panel_whiteLine.png"
+        if focused then bgUri = "pkg:/images/ui/rr_112x36_purpleSoft_greenFocus.png"
+    else if w = 150 then
+        bgUri = "pkg:/images/ui/rr_150x40_panel_whiteLine.png"
+        if focused then bgUri = "pkg:/images/ui/rr_150x40_purpleSoft_greenFocus.png"
+    end if
+    uiPoster(parent, bgUri, x, y, w, h, 0.92)
+
+    if keyId = "SPACE" then
+        iconW = 58
+        iconX = x + Int((w - iconW) / 2)
+        iconY = y + Int(h / 2) + 1
+        uiRect(parent, iconX, iconY, iconW, 3, colors.text, 0.92)
+        uiRect(parent, iconX, iconY - 6, 3, 9, colors.text, 0.92)
+        uiRect(parent, iconX + iconW - 3, iconY - 6, 3, 9, colors.text, 0.92)
+        return
+    end if
+
+    label = displayText
+    if label = "DEL" then label = "Del"
+    if label = "CLEAR" then label = "Clear"
+    if label = "DONE" then label = "Done"
+    textSize = 12
+    if keyId = "CLEAR" or keyId = "DONE" or keyId = "DEL" or keyId = "CASE" then textSize = 11
+    uiLabel(parent, label, x, y + 5, w, h - 8, textSize, colors.text, "center")
+end sub
+
 sub uiCardFocusTint(parent as Object, x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean)
     if not focused then return
     uiRect(parent, x + 1, y + 1, w - 2, h - 2, "0x1EE0CAFF", 0.08)

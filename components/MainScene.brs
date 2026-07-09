@@ -77,15 +77,20 @@ sub restorePage(history as Object)
     uiClear(m.pageHost)
     m.currentPageName = history.name
     m.currentPage = history.page
+    if m.currentPage.hasField("navigateTo") then m.currentPage.navigateTo = ""
     m.pageHost.appendChild(m.currentPage)
     m.currentPage.setFocus(true)
     if history.name = "MovieDetailPage" or history.name = "SeriesDetailPage" then m.currentPage.callFunc("syncDetail")
     if history.name = "SeriesPage" then m.currentPage.callFunc("refreshProgress")
+    if history.name = "FavoritesPage" then m.currentPage.callFunc("refreshFavorites")
 end sub
 
 sub onPageNavigation()
     target = m.currentPage.navigateTo
     if target <> invalid and target <> "" then
+        if target = m.currentPageName then return
+        currentName = m.currentPageName
+        if m.currentPage.hasField("navigateTo") then m.currentPage.navigateTo = ""
         if target = "PlayerPage" and m.currentPage.hasField("playbackUrl") then
             m.pendingPlayback = {
                 title: m.currentPage.playbackTitle,
@@ -125,15 +130,15 @@ sub onPageNavigation()
         end if
         if m.pageStack.count() > 0 then
             previous = m.pageStack[m.pageStack.count() - 1]
-            if previous.name = target then
+            if previous.name = target and shouldRestorePreviousForTarget(target, currentName) then
                 restored = m.pageStack.pop()
                 restorePage(restored)
                 return
             end if
         end if
 
-        if shouldPreservePageForTarget(target) then
-            m.pageStack.push({ name: m.currentPageName, page: m.currentPage })
+        if shouldPreservePageForTarget(target, currentName) then
+            m.pageStack.push({ name: currentName, page: m.currentPage })
         else
             m.pageStack = []
         end if
@@ -141,8 +146,28 @@ sub onPageNavigation()
     end if
 end sub
 
-function shouldPreservePageForTarget(target as String) as Boolean
-    return target = "MovieDetailPage" or target = "SeriesDetailPage" or target = "PlayerPage"
+function shouldRestorePreviousForTarget(target as String, currentName as String) as Boolean
+    if currentName = "MovieDetailPage" or currentName = "SeriesDetailPage" or currentName = "PlayerPage" then return true
+    if currentName = "AddPlaylistPage" or currentName = "ManagePlaylistsPage" then return true
+    return false
+end function
+
+function shouldPreservePageForTarget(target as String, currentName as String) as Boolean
+    if target = "MovieDetailPage" or target = "SeriesDetailPage" or target = "PlayerPage" then return true
+    if isHistoryPage(currentName) and isHistoryPage(target) then return true
+    return false
+end function
+
+function isHistoryPage(pageName as String) as Boolean
+    if pageName = "HomePage" then return true
+    if pageName = "MyPlaylistsPage" then return true
+    if pageName = "LiveTvPage" then return true
+    if pageName = "SeriesPage" then return true
+    if pageName = "MoviesPage" then return true
+    if pageName = "FavoritesPage" then return true
+    if pageName = "SettingsPage" then return true
+    if pageName = "ProfilePage" then return true
+    return false
 end function
 
 function playbackPendingText(page as Object) as String
@@ -165,6 +190,11 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
 
     if key = "back" then
         if m.currentPage <> invalid and m.currentPage.callFunc("handleKey", key) then return true
+        if m.pageStack.count() > 0 then
+            restored = m.pageStack.pop()
+            restorePage(restored)
+            return true
+        end if
         if m.currentPage <> invalid and m.currentPageName <> "HomePage" then
             showPage("HomePage")
             return true
