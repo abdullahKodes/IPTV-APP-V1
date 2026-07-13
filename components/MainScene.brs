@@ -4,6 +4,7 @@ sub init()
     m.currentPageName = ""
     m.pendingPlayback = invalid
     m.pendingDetail = invalid
+    m.pendingAddPlaylistReturnPage = ""
     m.pageStack = []
     m.pageHost = m.top.findNode("pageHost")
     m.top.backgroundColor = m.colors.bg
@@ -67,6 +68,9 @@ sub showPage(componentName as String)
         if m.currentPage.hasField("detailActiveEpisodeTitle") then m.currentPage.detailActiveEpisodeTitle = m.pendingDetail.activeEpisodeTitle
         m.currentPage.detailReturnPage = m.pendingDetail.returnPage
         m.currentPage.callFunc("syncDetail")
+    else if componentName = "AddPlaylistPage" and m.pendingAddPlaylistReturnPage <> "" then
+        if m.currentPage.hasField("returnPage") then m.currentPage.returnPage = m.pendingAddPlaylistReturnPage
+        m.pendingAddPlaylistReturnPage = ""
     end if
     m.pageHost.appendChild(m.currentPage)
     m.currentPage.setFocus(true)
@@ -91,6 +95,7 @@ sub onPageNavigation()
         if target = m.currentPageName then return
         currentName = m.currentPageName
         if m.currentPage.hasField("navigateTo") then m.currentPage.navigateTo = ""
+        if target = "AddPlaylistPage" then m.pendingAddPlaylistReturnPage = addPlaylistReturnPageForCurrent(currentName)
         if target = "PlayerPage" and m.currentPage.hasField("playbackUrl") then
             m.pendingPlayback = {
                 title: m.currentPage.playbackTitle,
@@ -168,6 +173,11 @@ function isHistoryPage(pageName as String) as Boolean
     if pageName = "SettingsPage" then return true
     if pageName = "ProfilePage" then return true
     return false
+end function
+
+function addPlaylistReturnPageForCurrent(currentName as String) as String
+    if currentName <> invalid and currentName <> "" and currentName <> "AddPlaylistPage" then return currentName
+    return "MyPlaylistsPage"
 end function
 
 function playbackPendingText(page as Object) as String

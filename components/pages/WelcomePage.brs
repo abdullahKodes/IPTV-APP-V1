@@ -50,7 +50,6 @@ sub render()
 
     drawWelcomeButton(68, 274, "7-Day Free Trial", "Includes the Demo Playlist", 0)
     drawWelcomeButton(68, 364, "Buy Subscription", "Continue to playlist setup", 1)
-    uiScaledLabel(m.canvas, "No card information is required for the free trial.", 70, 474, 650, 24, 10, m.colors.textMuted, "left", 0.66)
 end sub
 
 sub drawWelcomeButton(x as Integer, y as Integer, title as String, subtitle as String, index as Integer)

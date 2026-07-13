@@ -1,6 +1,6 @@
 # IPTV App Progress
 
-Last updated: 2026-06-29
+Last updated: 2026-07-13
 
 Read this file before starting a new session. Update it only after a meaningful milestone is completed, such as finishing a screen, fixing a major workflow, committing/pushing, or changing project structure. Do not update it for every tiny visual tweak.
 
@@ -18,6 +18,15 @@ Read this file before starting a new session. Update it only after a meaningful 
   `C:\Users\M Abdullah\Documents\GitHub\IPTV-APP-V1\build\roku-iptv-app.zip`
 
 ## Current Design Progress
+
+- Movies and Series now use dedicated aesthetic fallback backdrops when provider hero/backdrop artwork is missing, and overlay a larger selected poster on the fallback background on both list and detail pages.
+- Experimental v3 fallback backdrops add center/right Movies/Series word art, move fallback poster anchors farther right, enlarge them again, and add a poster-only demo Series item for fallback review.
+- Experimental v4 fallback backdrops align Movies/Series typography to the same bold block style, add more subtle left-side texture, enlarge/lower fallback poster anchors, and soften their drop shadows.
+- Movies/Series fallback backdrops were converted from large PNGs to optimized JPGs so focus changes load the fallback background immediately instead of appearing late on Roku.
+- Movies Featured now behaves as a stable session spotlight: active backend flags use optional priority/expiry metadata, followed by recently added, newest-year, and first-playable fallbacks; the card opens details and no longer arbitrarily features the second M3U item.
+- Restored the Movies Featured card's internal `watch` focus action so category pills, Featured, and movie cards keep their original remote-control focus routing while the visible CTA still opens details.
+- Live TV now uses a purpose-made teal/emerald broadcast-studio background with separately colored screens, reflections, and studio accents instead of a flat recolor.
+- Add Playlist Back behavior is source-aware: opening it from Home now returns to Home, while playlist edit/manage flows keep their existing playlist return targets.
 
 ### Player Controls
 
@@ -667,3 +676,4 @@ Do not update this file for:
 - Keyboard fit follow-up in build `00224`: tightened keyboard key width/gaps so the full row fits inside the overlay panel, lowered key labels slightly for better optical centering, and made the Space icon wider/flatter.
 - Keyboard layout follow-up in build `00225`: enlarged the keyboard overlay panel, switched the search/input field to a rounded surface, added case toggle support to search keyboards, centered Space between three left-side and three right-side action keys, and moved the Space icon upward.
 - Keyboard completion follow-up in build `00226`: added the missing Clear action to the Add/Edit Playlist field keyboard so it matches the completed action-row behavior used by the search keyboards.
+- Pre-subscription cleanup in build `00240`: removed the inactive Notifications row from the Home screen, tightened the Home side-nav row order, and removed the no-card/free-trial note from the Welcome screen while leaving Settings unchanged.

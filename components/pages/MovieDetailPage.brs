@@ -81,10 +81,12 @@ sub drawBackdrop()
     if heroUrl <> invalid and heroUrl <> "" then
         drawMovieDetailHeroPoster(heroUrl)
     else
-        bg = uiPoster(m.canvas, "pkg:/images/demo/backgrounds/iptv_max_art_backdrop.jpg", 0, 0, 1280, 720, 0.74)
+        bg = uiPoster(m.canvas, "pkg:/images/demo/backgrounds/movies_fallback_backdrop_v4.jpg", 0, 0, 1280, 720, 0.74)
         bg.loadDisplayMode = "scaleToFill"
         uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.52)
         uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.12)
+        posterUrl = m.top.detailPosterUrl
+        if posterUrl <> invalid and posterUrl <> "" then drawMoviePosterAnchor(posterUrl)
     end if
 end sub
 
@@ -92,12 +94,12 @@ sub drawTopBar()
 end sub
 
 sub drawMoviePosterAnchor(posterUrl as String)
-    x = 884
-    y = 126
-    w = 220
-    h = 330
-    uiRect(m.canvas, x + 16, y + 20, w, h, "0x000000FF", 0.40)
-    poster = uiPoster(m.canvas, posterUrl, x, y, w, h, 0.96)
+    x = 838
+    y = 76
+    w = 368
+    h = 552
+    uiRect(m.canvas, x + 22, y + 26, w, h, "0x000000FF", 0.24)
+    poster = uiPoster(m.canvas, posterUrl, x, y, w, h, 0.88)
     poster.loadDisplayMode = "scaleToFit"
     uiRectBorder(m.canvas, x, y, w, h, "0xFFFFFF30", 1, 0.88)
 end sub

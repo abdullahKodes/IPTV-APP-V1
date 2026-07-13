@@ -109,10 +109,10 @@ sub render()
     visible = filteredChannels()
     hasChannels = visible.count() > 0
     if hasChannels then
-        liveBackground = uiPoster(m.canvas, "pkg:/images/live/live_tv_background_v4_full.jpg", 0, 0, 1280, 720, 0.54)
+        liveBackground = uiPoster(m.canvas, "pkg:/images/live/live_tv_background_v6_art.jpg", 0, 0, 1280, 720, 0.44)
         liveBackground.loadDisplayMode = "scaleToFill"
-        uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.30)
-        uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.08)
+        uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.42)
+        uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.16)
     end if
 
     clockParts = uiTopBar(m.canvas, m.colors)

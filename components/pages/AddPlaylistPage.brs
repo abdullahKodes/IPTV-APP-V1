@@ -64,11 +64,7 @@ function handleKey(key as String) as Boolean
     if m.submitState = "validating" then return true
     if m.editing then return handleKeyboardKey(key)
     if key = "back" then
-        if m.editPlaylistId <> "" then
-            m.top.navigateTo = "ManagePlaylistsPage"
-        else
-            m.top.navigateTo = "MyPlaylistsPage"
-        end if
+        m.top.navigateTo = addPlaylistBackTarget()
         return true
     end if
     if key = "left" then move(-1, 0) : return true
@@ -77,6 +73,15 @@ function handleKey(key as String) as Boolean
     if key = "down" then move(0, 1) : return true
     if key = "OK" then activate() : return true
     return false
+end function
+
+function addPlaylistBackTarget() as String
+    if m.editPlaylistId <> "" then return "ManagePlaylistsPage"
+    if m.top <> invalid and m.top.hasField("returnPage") then
+        target = m.top.returnPage
+        if target <> invalid and target <> "" and target <> "AddPlaylistPage" then return target
+    end if
+    return "MyPlaylistsPage"
 end function
 
 sub move(dx as Integer, dy as Integer)

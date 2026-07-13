@@ -656,7 +656,7 @@ function favoritePosterUrl(item as Dynamic) as String
 end function
 
 function favoriteBackgroundArtworkUrl(item as Dynamic) as String
-    if favItemText(item, "favoriteKind") = "live" then return "pkg:/images/live/live_tv_background_v4_full.jpg"
+    if favItemText(item, "favoriteKind") = "live" then return "pkg:/images/live/live_tv_background_v6_art.jpg"
     heroUrl = favItemText(item, "heroUrl")
     if heroUrl <> "" then return heroUrl
     backdropUrl = favItemText(item, "backdropUrl")

@@ -518,14 +518,28 @@ sub drawSelectedSeriesBackdrop(visible as Object)
     if heroUrl <> "" then
         drawSeriesBackdropPosterAnchor(heroUrl, 370, 28, 770, 664)
     else
-        bgUrl = seriesBackgroundUrl(series)
-        if bgUrl <> "" then
-            backdrop = uiPoster(m.canvas, bgUrl, 0, 0, 1280, 720, seriesListBackdropOpacity())
-            backdrop.loadDisplayMode = "scaleToFill"
-        end if
-        uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.46)
-        uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", seriesListScrimOpacity())
+        drawSeriesFallbackBackdrop(series)
     end if
+end sub
+
+sub drawSeriesFallbackBackdrop(series as Object)
+    bgUrl = seriesBackgroundUrl(series)
+    if bgUrl <> "" then
+        backdrop = uiPoster(m.canvas, bgUrl, 0, 0, 1280, 720, seriesListBackdropOpacity())
+        backdrop.loadDisplayMode = "scaleToFill"
+    end if
+    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.46)
+    uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", seriesListScrimOpacity())
+
+    posterUrl = seriesCardUrl(series)
+    if posterUrl <> "" then drawSeriesFallbackPosterAnchor(posterUrl, 850, 64, 360, 540)
+end sub
+
+sub drawSeriesFallbackPosterAnchor(posterUrl as String, x as Integer, y as Integer, w as Integer, h as Integer)
+    uiRect(m.canvas, x + 22, y + 26, w, h, "0x000000FF", 0.22)
+    poster = uiPoster(m.canvas, posterUrl, x, y, w, h, 0.74)
+    poster.loadDisplayMode = "scaleToFit"
+    uiRectBorder(m.canvas, x, y, w, h, "0xFFFFFF30", 1, 0.78)
 end sub
 
 sub drawSeriesBackdropPosterAnchor(heroUrl as String, x as Integer, y as Integer, w as Integer, h as Integer)
@@ -581,7 +595,7 @@ function seriesBackdropUrl(series as Object) as String
 end function
 
 function seriesBackgroundUrl(series as Object) as String
-    return "pkg:/images/demo/backgrounds/iptv_max_art_backdrop.jpg"
+    return "pkg:/images/demo/backgrounds/series_fallback_backdrop_v4.jpg"
 end function
 
 function seriesHeroArtworkUrl(series as Object) as String

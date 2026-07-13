@@ -69,7 +69,6 @@ function drawHomeSideNav() as Integer
     addHomeNavItem(12, 112, "list", "My Playlists", "MyPlaylistsPage", 0, false)
     addHomeNavItem(12, 168, "heart", "Favorites", "FavoritesPage", 1, false)
     addHomeNavItem(12, 224, "settings", "Settings", "SettingsPage", 2, false)
-    addHomeNavItem(12, 280, "bell", "Notifications", "", 3, false)
 
     addHomeProfileItem()
     return 5
@@ -102,7 +101,7 @@ sub addHomeProfileItem()
         bg: m.colors.bg, border: m.colors.whiteLine, textColor: m.colors.textPurple, subColor: m.colors.textDim,
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         opacity: 0.42, focusOpacity: 0.66,
-        row: 4, col: 0, page: "ProfilePage", mode: "row", noFocusShift: true
+        row: 3, col: 0, page: "ProfilePage", mode: "row", noFocusShift: true
     }
     m.focusItems.push(item)
 end sub

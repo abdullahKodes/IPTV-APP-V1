@@ -220,7 +220,7 @@ function mediaM3uBuildItem(extinf as String, streamUrl as String, playlistId as 
             streamUrl: streamUrl,
             streamFormat: mediaStreamFormat(streamUrl),
             resumePercent: 0,
-            featured: itemIndex = 1,
+            featured: false,
             accent: accent
         }
     end if
@@ -806,6 +806,7 @@ function mockMovieCatalog() as Object
             streamFormat: "hls",
             resumePercent: 0,
             featured: true,
+            featuredPriority: 100,
             accent: "purple"
         },
         {
@@ -1084,6 +1085,27 @@ function mockSeriesCatalog() as Object
             resumePercent: 0,
             featured: false,
             accent: "purple"
+        },
+        {
+            id: "series_fallback_test",
+            playlistId: "demo_series",
+            title: "Fallback Test",
+            year: "2026",
+            seasons: "1 Season",
+            episodeCount: "8 Episodes",
+            genre: "Drama - Mystery",
+            rating: "TV-14",
+            posterUrl: "pkg:/images/demo/series_posters_hd/only_murders.jpg",
+            cardUrl: "pkg:/images/demo/series_posters_hd/only_murders.jpg",
+            heroUrl: "",
+            backdropUrl: "",
+            streamUrl: demoPlaybackUrl(),
+            streamFormat: "hls",
+            activeEpisodeTitle: "",
+            progressText: "",
+            resumePercent: 0,
+            featured: false,
+            accent: "green"
         }
     ]
 end function
