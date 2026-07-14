@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<component name="WelcomePage" extends="Group">
+<component name="SubscriptionPage" extends="Group">
   <children>
-    <Group id="welcomeCanvas" />
+    <Group id="subscriptionCanvas" />
   </children>
   <interface>
     <field id="navigateTo" type="string" alwaysNotify="true" />
@@ -10,7 +10,7 @@
   </interface>
   <script type="text/brightscript" uri="pkg:/components/shared/AppUi.brs" />
   <script type="text/brightscript" uri="pkg:/components/shared/PlaylistStore.brs" />
-  <script type="text/brightscript" uri="pkg:/components/shared/OnboardingStore.brs" />
+  <script type="text/brightscript" uri="pkg:/components/shared/SettingsStore.brs" />
   <script type="text/brightscript" uri="pkg:/components/shared/EntitlementStore.brs" />
-  <script type="text/brightscript" uri="pkg:/components/pages/WelcomePage.brs" />
+  <script type="text/brightscript" uri="pkg:/components/pages/SubscriptionPage.brs" />
 </component>

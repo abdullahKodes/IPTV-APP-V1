@@ -172,6 +172,7 @@ function isHistoryPage(pageName as String) as Boolean
     if pageName = "FavoritesPage" then return true
     if pageName = "SettingsPage" then return true
     if pageName = "ProfilePage" then return true
+    if pageName = "SubscriptionPage" then return true
     return false
 end function
 

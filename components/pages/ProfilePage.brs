@@ -38,7 +38,7 @@ sub activate()
     if m.focusIndex < 0 or m.focusIndex >= m.focusItems.count() then return
     item = m.focusItems[m.focusIndex]
     if item.page <> invalid and item.page <> "" then m.top.navigateTo = item.page : return
-    if item.action = "manage" then m.settings.lastSync = "Subscription portal pending"
+    if item.action = "manage" then m.top.navigateTo = "SubscriptionPage" : return
     if item.action = "settings" then m.top.navigateTo = "SettingsPage" : return
     if item.action = "signout" then openProfileDialog()
     settingsStoreSave(m.settings)
@@ -204,6 +204,9 @@ function profileSubscriptionLabel(value as String) as String
 end function
 
 function profileStatusLabel() as String
+    entitlement = entitlementStatusLoad()
+    entitlementLabel = entitlementProfileLabel(entitlement)
+    if entitlementLabel <> "Preview" then return entitlementLabel
     activePlaylist = playlistStoreActive()
     playlistType = playlistStoreText(activePlaylist, "type")
     status = playlistStoreText(activePlaylist, "status")

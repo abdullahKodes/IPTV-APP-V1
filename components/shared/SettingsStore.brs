@@ -8,10 +8,10 @@ function settingsStoreDefaults() as Object
         parentalLock: false,
         lastSync: "Not synced yet",
         syncCount: 0,
-        signedIn: true,
-        userName: "John Doe",
-        userEmail: "john.doe@email.com",
-        subscription: "Premium"
+        signedIn: false,
+        userName: "IPTV Viewer",
+        userEmail: "Roku account pending",
+        subscription: "Preview"
     }
 end function
 
@@ -45,10 +45,10 @@ sub settingsStoreSave(settings as Object)
     section.Write("parentalLock", settingsStoreBoolValue(settings, "parentalLock", false))
     section.Write("lastSync", settingsStoreText(settings, "lastSync", "Not synced yet"))
     section.Write("syncCount", settingsStoreIntValue(settings, "syncCount", 0).toStr())
-    section.Write("signedIn", settingsStoreBoolValue(settings, "signedIn", true))
-    section.Write("userName", settingsStoreText(settings, "userName", "John Doe"))
-    section.Write("userEmail", settingsStoreText(settings, "userEmail", "john.doe@email.com"))
-    section.Write("subscription", settingsStoreText(settings, "subscription", "Premium"))
+    section.Write("signedIn", settingsStoreBoolValue(settings, "signedIn", false))
+    section.Write("userName", settingsStoreText(settings, "userName", "IPTV Viewer"))
+    section.Write("userEmail", settingsStoreText(settings, "userEmail", "Roku account pending"))
+    section.Write("subscription", settingsStoreText(settings, "subscription", "Preview"))
     section.Flush()
 end sub
 

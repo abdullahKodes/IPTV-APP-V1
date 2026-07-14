@@ -13,6 +13,11 @@ end sub
 
 sub onboardingCompleteWithPlaylist()
     onboardingComplete("playlist")
+    entitlement = CreateObject("roRegistrySection", "iptvmax_entitlement")
+    entitlementState = ""
+    if entitlement.Exists("state") then entitlementState = entitlement.Read("state")
+    if entitlementState = "trial" or entitlementState = "active" or entitlementState = "grace" then return
+
     settings = CreateObject("roRegistrySection", "iptvmax_settings")
     settings.Write("subscription", "Free")
     settings.Write("signedIn", "0")
