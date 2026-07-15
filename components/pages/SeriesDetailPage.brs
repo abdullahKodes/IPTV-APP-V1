@@ -222,6 +222,7 @@ sub drawBackdrop()
         bg.loadDisplayMode = "scaleToFill"
         uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.52)
         uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.12)
+        drawSeriesDetailSmokeBlend()
         posterUrl = m.top.detailPosterUrl
         if posterUrl <> invalid and posterUrl <> "" then drawSeriesPosterAnchor(posterUrl)
     end if

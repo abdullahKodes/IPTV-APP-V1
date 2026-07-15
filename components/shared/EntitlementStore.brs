@@ -49,7 +49,7 @@ function entitlementPlans() as Object
         {
             id: "monthly",
             label: "Monthly",
-            price: "$9.99",
+            price: "$3.49",
             billingTerm: "per month",
             badge: "Popular",
             title: "Subscribe Monthly",
@@ -59,7 +59,7 @@ function entitlementPlans() as Object
         {
             id: "annual",
             label: "Annual",
-            price: "$79.99",
+            price: "$12.99",
             billingTerm: "per year",
             badge: "Save",
             title: "Subscribe Annual",
@@ -104,7 +104,7 @@ sub entitlementRestoreMock()
         state: "active",
         planId: "monthly",
         planName: "Monthly",
-        price: "$9.99",
+        price: "$3.49",
         billingTerm: "per month",
         renewsAt: "Renews after Roku validation",
         customerName: "Roku Viewer",
@@ -123,7 +123,7 @@ sub entitlementSetMockState(state as String)
     if state = "grace" then
         status.planName = "Monthly"
         status.planId = "monthly"
-        status.price = "$9.99"
+        status.price = "$3.49"
         status.billingTerm = "per month"
         status.renewsAt = "Payment recovery grace period"
         status.lastAction = "Mock grace-period state"
@@ -131,7 +131,7 @@ sub entitlementSetMockState(state as String)
     else if state = "on_hold" then
         status.planName = "Monthly"
         status.planId = "monthly"
-        status.price = "$9.99"
+        status.price = "$3.49"
         status.billingTerm = "per month"
         status.renewsAt = "Payment update required"
         status.lastAction = "Mock on-hold state"

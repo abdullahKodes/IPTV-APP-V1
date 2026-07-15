@@ -1,6 +1,6 @@
 # IPTV App Progress
 
-Last updated: 2026-07-13
+Last updated: 2026-07-15
 
 Read this file before starting a new session. Update it only after a meaningful milestone is completed, such as finishing a screen, fixing a major workflow, committing/pushing, or changing project structure. Do not update it for every tiny visual tweak.
 
@@ -614,6 +614,14 @@ Do not update this file for:
 - Roku follow-up in build `00184`: shifted Welcome button text farther inward, replaced the heavy cyan outlines with subtle rounded transparent surfaces in both normal and focused states, and changed the trial note to the white `No card information is required for the free trial.` copy.
 - Roku follow-up in build `00185`: restored the more rounded detail-page button shape with reduced normal/focus opacity for sleeker borders, while changing the no-card trial note to the shared muted subtitle color.
 
+## 2026-07-15 Subscription Onboarding Polish
+
+- Reworked the current Welcome subscription screen into a TV-first paywall layout with a `SUBSCRIPTION` badge, concise headline, fuller premium-benefit bullets, and plan cards for Free Trial, Monthly, and Yearly options.
+- Replaced the earlier empty plan rows with card-style plan controls using app-matched room artwork, rounded card artwork, blue rounded right-side badges, and the shared green focus behavior.
+- Tuned the focus treatment to stay recognizable on Roku: low-opacity green focused fill, rounded green border, centered badge labels, and reduced focused artwork strength so the selected card remains readable.
+- Restored the full `Restore Subscription` button label and kept it in the plan stack for future Roku entitlement restoration.
+- Current frontend flow remains mock/frontend-ready until Roku Pay product catalog and backend entitlement validation are connected.
+
 ## 2026-07-01 Phase 2 Playlist Lifecycle
 
 - Extended Add Playlist into a reusable Add/Edit flow with one-shot edit routing, prefilled M3U/Xtreme fields, duplicate-name validation that excludes the current record, secure password display, a visible validation state, and protected built-in playlist safeguards.
@@ -677,3 +685,8 @@ Do not update this file for:
 - Keyboard layout follow-up in build `00225`: enlarged the keyboard overlay panel, switched the search/input field to a rounded surface, added case toggle support to search keyboards, centered Space between three left-side and three right-side action keys, and moved the Space icon upward.
 - Keyboard completion follow-up in build `00226`: added the missing Clear action to the Add/Edit Playlist field keyboard so it matches the completed action-row behavior used by the search keyboards.
 - Pre-subscription cleanup in build `00240`: removed the inactive Notifications row from the Home screen, tightened the Home side-nav row order, and removed the no-card/free-trial note from the Welcome screen while leaving Settings unchanged.
+
+## 2026-07-15 Subscription V1 Polish
+
+- Built the onboarding subscription screen around a simple left-aligned plan-card layout with first-card default focus, longer benefit copy, rounded artwork cards, and updated mock prices of `$3.49` monthly and `$12.99` yearly.
+- Cleaned `SubscriptionPage` toward a v1 customer-facing Manage Subscription screen: removed Review States, direct Monthly/Annual mock shortcuts, and duplicate Restore; the account action panel now explains the plan flow and keeps View Plans as the only action.

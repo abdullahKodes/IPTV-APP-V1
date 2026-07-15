@@ -147,6 +147,7 @@ sub render()
     uiClear(m.canvas)
     m.focusItems = []
     uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg)
+    drawAddPlaylistArtwork()
     clockParts = uiTopBar(m.canvas, m.colors)
     m.clock = clockParts.clock
     m.date = clockParts.date
@@ -178,6 +179,14 @@ sub render()
     uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
     if m.editing then drawKeyboardOverlay()
     if m.submitState = "validating" then drawValidationOverlay()
+end sub
+
+sub drawAddPlaylistArtwork()
+    backdrop = uiPoster(m.canvas, "pkg:/images/add_playlist/add_playlist_background_v2.jpg", 0, 0, 1280, 720, 0.58)
+    backdrop.loadDisplayMode = "scaleToFill"
+    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.5)
+    uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.16)
+    uiRect(m.canvas, 334, 92, 850, 604, m.colors.bg, 0.28)
 end sub
 
 sub drawValidationOverlay()

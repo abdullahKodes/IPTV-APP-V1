@@ -2,7 +2,7 @@ sub init()
     m.colors = appColors()
     m.canvas = m.top.findNode("welcomeCanvas")
     m.plans = entitlementPlans()
-    m.focusIndex = 1
+    m.focusIndex = 0
     m.mode = "plans"
     m.pendingAction = ""
     m.pendingPlanId = ""
@@ -136,26 +136,26 @@ end sub
 
 sub drawPlanSelection()
     drawWelcomeIntro()
-    uiLabel(m.canvas, "One subscription.", 112, 134, 400, 42, 33, m.colors.text)
-    uiLabel(m.canvas, "Unlimited entertainment.", 112, 174, 430, 42, 33, m.colors.text)
+    uiLabel(m.canvas, "One account.", 112, 126, 400, 42, 33, m.colors.text)
+    uiLabel(m.canvas, "Unlimited entertainment.", 112, 164, 430, 42, 33, m.colors.text)
 
-    drawWelcomeBenefit(116, 246, "Unlimited Streaming Hours")
-    drawWelcomeBenefit(116, 294, "Unlimited Playlist")
-    drawWelcomeBenefit(116, 342, "Ad-free Experience")
+    drawWelcomeBenefit(116, 236, "Unlimited streaming hours for live TV and VOD")
+    drawWelcomeBenefit(116, 284, "Unlimited playlist access under one profile")
+    drawWelcomeBenefit(116, 332, "Ad-free premium experience after activation")
 
-    drawPlanButton(112, 408, "Free Trial", "trial", 0, m.focusIndex = 0)
-    drawPlanButton(112, 478, "Monthly/$1.49", "monthly", 1, m.focusIndex = 1)
-    drawPlanButton(112, 548, "Yearly/$5.99", "annual", 2, m.focusIndex = 2)
-    drawRestoreButton(147, 634, m.focusIndex = 3)
+    drawPlanButton(112, 388, "7 Days", "Free Trial", 0, m.focusIndex = 0)
+    drawPlanButton(112, 458, "Monthly", "$3.49", 1, m.focusIndex = 1)
+    drawPlanButton(112, 528, "Yearly", "$12.99", 2, m.focusIndex = 2)
+    drawRestoreButton(147, 614, m.focusIndex = 3)
     m.previousFocusIndex = m.focusIndex
 end sub
 
 sub drawWelcomeBenefit(x as Integer, y as Integer, label as String)
     uiPoster(m.canvas, "pkg:/images/ui/scroll_cap_6_greenFocus.png", x + 6, y + 10, 12, 12, 0.95)
-    uiScaledLabel(m.canvas, label, x + 36, y - 2, 360, 32, 15, m.colors.textMuted, "left", 0.76)
+    uiScaledLabel(m.canvas, label, x + 36, y - 2, 440, 32, 15, m.colors.textMuted, "left", 0.74)
 end sub
 
-sub drawPlanButton(x as Integer, y as Integer, label as String, planId as String, index as Integer, focused as Boolean)
+sub drawPlanButton(x as Integer, y as Integer, leftLabel as String, rightLabel as String, index as Integer, focused as Boolean)
     g = CreateObject("roSGNode", "Group")
     g.id = "welcomePlanButton" + index.toStr()
     g.translation = [x, y]
@@ -166,27 +166,21 @@ sub drawPlanButton(x as Integer, y as Integer, label as String, planId as String
     artworkUri = "pkg:/images/onboarding/subscription_card_simple.png"
 
     surfaceUri = "pkg:/images/ui/rr_300x58_panel_panel.png"
-    artworkOpacity = 0.58
-    surfaceOpacity = 0.9
+    artworkOpacity = 0.72
+    surfaceOpacity = 0.76
+    topSurfaceOpacity = 0.28
     textColor = m.colors.text
-    tagColor = m.colors.textGreen
     if focused then
         surfaceUri = "pkg:/images/ui/rr_300x58_greenSoft_greenFocus.png"
-        artworkOpacity = 0.42
-        surfaceOpacity = 0.74
-        tagColor = m.colors.text
+        artworkOpacity = 0.46
+        surfaceOpacity = 0.52
+        topSurfaceOpacity = 0.42
     end if
     uiPoster(g, surfaceUri, 0, 0, 300, 58, surfaceOpacity)
-    uiPoster(g, artworkUri, 8, 5, 284, 48, artworkOpacity)
-    uiPoster(g, surfaceUri, 0, 0, 300, 58, surfaceOpacity)
-    uiScaledLabel(g, label, 28, 13, 176, 30, 20, textColor, "left", 0.86)
-
-    if planId = "trial" then
-        uiScaledLabel(g, "7 DAYS", 206, 18, 74, 14, 8, tagColor, "center", 0.56)
-    else
-        uiPoster(g, "pkg:/images/ui/rr_92x36_greenSoft_greenFocus.png", 198, 15, 88, 26, 0.78)
-        uiScaledLabel(g, "SUBSCRIBE", 198, 20, 88, 14, 8, tagColor, "center", 0.54)
-    end if
+    uiPoster(g, artworkUri, 2, 2, 296, 54, artworkOpacity)
+    uiPoster(g, surfaceUri, 0, 0, 300, 58, topSurfaceOpacity)
+    uiScaledLabel(g, leftLabel, 28, 13, 128, 30, 20, textColor, "left", 0.86)
+    uiScaledLabel(g, rightLabel, 152, 13, 120, 30, 20, textColor, "right", 0.86)
 
     if focused and m.previousFocusIndex <> index then uiAnimateActionFocus(m.canvas, g)
 end sub

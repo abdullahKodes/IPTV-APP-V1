@@ -21,7 +21,7 @@ function handleKey(key as String) as Boolean
     if key = "up" then move(0, -1) : return true
     if key = "down" then move(0, 1) : return true
     if key = "OK" then activate() : return true
-    if key = "back" then m.top.navigateTo = "ProfilePage" : return true
+    if key = "back" then return false
     return false
 end function
 
@@ -33,14 +33,7 @@ end sub
 sub activate()
     if m.focusIndex < 0 or m.focusIndex >= m.focusItems.count() then return
     action = m.focusItems[m.focusIndex].action
-    if action = "restore" then entitlementRestoreMock()
-    if action = "monthly" then entitlementActivateMockPlan("monthly")
-    if action = "annual" then entitlementActivateMockPlan("annual")
-    if action = "grace" then entitlementSetMockState("grace")
-    if action = "hold" then entitlementSetMockState("on_hold")
-    if action = "cancel" then entitlementSetMockState("canceled")
     if action = "subscribe" then m.top.navigateTo = "WelcomePage" : return
-    if action = "profile" then m.top.navigateTo = "ProfilePage" : return
     m.status = entitlementStatusLoad()
     render()
 end sub
@@ -58,48 +51,37 @@ sub render()
     drawSubscriptionHeader()
     drawStatusPanel()
     drawActionPanel()
-    drawStatePanel()
 end sub
 
 sub drawSubscriptionHeader()
-    uiLabel(m.canvas, "Subscription", 300, 88, 520, 70, 46, m.colors.text)
+    title = uiLabel(m.canvas, "Manage Subscription", 300, 98, 620, 56, 28, m.colors.text)
+    title.font.size = 28
 end sub
 
 sub drawStatusPanel()
     x = 300
     y = 184
-    uiRoundRect(m.canvas, x, y, 680, 168, m.colors.panel, m.colors.whiteLine, 0.94)
+    uiPoster(m.canvas, "pkg:/images/ui/rr_720x168_panel_whiteLine.png", x, y, 720, 168, 0.94)
     badge = entitlementProfileLabel(m.status)
-    badgeW = subscriptionBadgeWidth(badge)
-    uiPoster(m.canvas, "pkg:/images/ui/movie_featured_badge_100x34_purpleDeep.png", x + 34, y + 34, badgeW, 24, 0.8)
-    uiScaledLabel(m.canvas, badge, x + 34, y + 39, badgeW, 14, 8, m.colors.text, "center", 0.58)
+    badgeW = 100
+    if badge = "Canceled" or badge = "On Hold" then badgeW = 112
+    uiPoster(m.canvas, "pkg:/images/ui/movie_featured_badge_100x34_purpleDeep.png", x + 34, y + 28, badgeW, 34, 0.95)
+    uiScaledLabel(m.canvas, badge, x + 34, y + 35, badgeW, 20, 10, m.colors.text, "center", 0.78)
 
     uiLabel(m.canvas, entitlementStatusTitle(m.status), x + 34, y + 82, 300, 36, 24, m.colors.text)
 
-    uiLabel(m.canvas, entitlementText(m.status, "planName", "No subscription"), x + 410, y + 34, 210, 30, 18, m.colors.text, "right")
-    uiLabel(m.canvas, entitlementText(m.status, "price", ""), x + 410, y + 66, 210, 30, 18, m.colors.textGreen, "right")
-    uiScaledLabel(m.canvas, entitlementText(m.status, "renewsAt", "Not active"), x + 330, y + 104, 290, 28, 9, m.colors.textDim, "right", 0.66)
+    uiLabel(m.canvas, entitlementText(m.status, "planName", "No subscription"), x + 460, y + 34, 210, 30, 18, m.colors.text, "right")
+    uiLabel(m.canvas, entitlementText(m.status, "price", ""), x + 460, y + 66, 210, 30, 18, m.colors.textGreen, "right")
+    uiScaledLabel(m.canvas, entitlementText(m.status, "renewsAt", "Not active"), x + 380, y + 104, 290, 28, 9, m.colors.textDim, "right", 0.66)
 end sub
 
 sub drawActionPanel()
     x = 300
     y = 390
-    uiPoster(m.canvas, "pkg:/images/ui/rr_680x236_panel_whiteLine.png", x, y, 680, 194, 0.94)
-    uiLabel(m.canvas, "Account Actions", x + 90, y + 20, 260, 34, 22, m.colors.textGreen)
-    drawSubscriptionAction(x + 90, y + 70, 148, "Restore", "restore", 0, 0)
-    drawSubscriptionAction(x + 400, y + 70, 166, "Subscribe", "subscribe", 0, 1)
-    drawSubscriptionAction(x + 90, y + 130, 148, "Monthly", "monthly", 1, 0)
-    drawSubscriptionAction(x + 400, y + 130, 138, "Annual", "annual", 1, 1)
-end sub
-
-sub drawStatePanel()
-    x = 1010
-    y = 184
-    uiPoster(m.canvas, "pkg:/images/ui/rr_210x320_panel_panel.png", x, y, 210, 260, 0.94)
-    uiScaledLabel(m.canvas, "Review States", x + 20, y + 20, 170, 34, 18, m.colors.text, "center", 0.78)
-    drawSubscriptionAction(x + 48, y + 76, 114, "Grace", "grace", 0, 2)
-    drawSubscriptionAction(x + 42, y + 134, 126, "On Hold", "hold", 1, 2)
-    drawSubscriptionAction(x + 36, y + 192, 138, "Canceled", "cancel", 2, 2)
+    uiPoster(m.canvas, "pkg:/images/ui/rr_720x218_panel_whiteLine.png", x, y, 720, 190, 0.94)
+    uiLabel(m.canvas, "Account Actions", x + 34, y + 22, 300, 34, 24, m.colors.textGreen)
+    uiScaledLabel(m.canvas, "Review available plans and update your access from the plan screen.", x + 34, y + 68, 580, 24, 11, m.colors.textMuted, "left", 0.72)
+    drawSubscriptionAction(x + 34, y + 118, 190, "View Plans", "subscribe", 0, 0)
 end sub
 
 sub drawSubscriptionAction(x as Integer, y as Integer, w as Integer, label as String, action as String, row as Integer, col as Integer)
@@ -107,11 +89,11 @@ sub drawSubscriptionAction(x as Integer, y as Integer, w as Integer, label as St
     focused = index = m.focusIndex
     surfaceUri = "pkg:/images/ui/movie_watch_176x40_panel_greenFocus.png"
     textColor = m.colors.textPurple
-    opacity = 0.76
+    opacity = 0.62
     if focused then
         surfaceUri = "pkg:/images/ui/movie_watch_176x40_greenSoft_greenFocus.png"
         textColor = m.colors.text
-        opacity = 0.82
+        opacity = 0.58
     end if
     h = 44
     uiPoster(m.canvas, surfaceUri, x, y, w, h, opacity)
@@ -128,13 +110,4 @@ end function
 function subscriptionBadgeBorder(state as String) as String
     if state = "on_hold" or state = "canceled" then return m.colors.whiteLine
     return m.colors.greenFocus
-end function
-
-function subscriptionBadgeWidth(label as String) as Integer
-    if label = "Trial" then return 62
-    if label = "Premium" then return 82
-    if label = "Grace" then return 68
-    if label = "On Hold" then return 82
-    if label = "Canceled" then return 86
-    return 76
 end function

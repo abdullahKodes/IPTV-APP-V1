@@ -106,8 +106,8 @@ sub addProfileProfileItem()
 end sub
 
 sub drawProfileHeader()
-    title = uiLabel(m.canvas, "My Profile", 300, 96, 520, 64, 32, m.colors.text)
-    title.font.size = 32
+    title = uiLabel(m.canvas, "Profile", 300, 98, 520, 56, 28, m.colors.text)
+    title.font.size = 28
 end sub
 
 sub drawProfileSummary()
@@ -122,11 +122,11 @@ sub drawProfileSummary()
     uiLabel(m.canvas, settingsStoreText(m.settings, "userName", "John Doe"), x + 150, y + 44, 340, 34, 23, m.colors.text)
     uiLabel(m.canvas, settingsStoreText(m.settings, "userEmail", "john.doe@email.com"), x + 150, y + 82, 360, 28, 15, m.colors.purpleLine)
     badge = profileStatusLabel()
-    badgeW = profileBadgeWidth(badge)
+    badgeW = 100
+    if badge = "Canceled" or badge = "On Hold" then badgeW = 112
     badgeX = x + w - badgeW - 76
-    uiRoundRect(m.canvas, badgeX, y + 64, badgeW, 38, m.colors.greenSoft, m.colors.greenFocus)
-    badgeLabel = uiLabel(m.canvas, badge, badgeX + 4, y + 64, badgeW - 8, 38, 17, m.colors.textGreen, "center")
-    badgeLabel.font.size = 17
+    uiPoster(m.canvas, "pkg:/images/ui/movie_featured_badge_100x34_purpleDeep.png", badgeX, y + 66, badgeW, 34, 0.95)
+    uiScaledLabel(m.canvas, badge, badgeX, y + 73, badgeW, 20, 10, m.colors.text, "center", 0.78)
     status = "Signed in"
     if not settingsStoreBool(m.settings, "signedIn", true) then status = "Signed out locally"
     uiLabel(m.canvas, status, x + 150, y + 116, 340, 24, 13, m.colors.textDim)
@@ -138,7 +138,7 @@ sub drawProfileActions()
     w = 680
     uiRoundRect(m.canvas, x, y, w, 236, m.colors.panel, m.colors.whiteLine, 0.94)
     buttonX = x + 90
-    actionsTitle = uiLabel(m.canvas, "PROFILE ACTIONS", buttonX + 4, y + 16, 280, 34, 21, m.colors.textGreen)
+    actionsTitle = uiLabel(m.canvas, "PROFILE ACTIONS", buttonX + 4, y + 16, 280, 34, 21, m.colors.text)
     actionsTitle.font.size = 21
     drawProfileAction(buttonX, y + 62, 500, "Manage Subscription", "manage", "", 0)
     drawProfileAction(buttonX, y + 116, 500, "App Settings", "settings", "", 1)
@@ -148,18 +148,18 @@ end sub
 sub drawProfileAction(x as Integer, y as Integer, w as Integer, label as String, action as String, page as String, row as Integer)
     index = m.focusItems.count()
     focused = index = m.focusIndex
-    bg = m.colors.bg2
-    border = m.colors.bg2
+    surfaceUri = "pkg:/images/ui/rr_500x44_bg2_bg2.png"
     textColor = m.colors.textPurple
+    opacity = 0.62
     if action = "signout" then textColor = "0xFFB2A8FF"
     if focused then
-        bg = m.colors.purpleSoft
-        border = m.colors.greenFocus
+        surfaceUri = "pkg:/images/ui/rr_500x44_greenSoft_greenFocus.png"
         textColor = m.colors.text
+        opacity = 0.78
     end if
-    uiRoundRect(m.canvas, x, y, w, 44, bg, border, 0.92)
+    uiPoster(m.canvas, surfaceUri, x, y, w, 44, opacity)
     uiLabel(m.canvas, label, x + 22, y + 6, w - 44, 30, 14, textColor)
-    m.focusItems.push({ x: x, y: y, w: w, h: 44, icon: "", label: label, subtitle: "", iconSize: 1, titleSize: 14, subSize: 10, bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: 0, page: page, action: action, mode: "manual", noFocusShift: true })
+    m.focusItems.push({ x: x, y: y, w: w, h: 44, icon: "", label: label, subtitle: "", iconSize: 1, titleSize: 14, subSize: 10, bg: m.colors.bg2, border: m.colors.bg2, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: 0, page: page, action: action, mode: "manual", noFocusShift: true })
 end sub
 
 sub openProfileDialog()
@@ -217,12 +217,4 @@ function profileStatusLabel() as String
     if subscription <> "" then return subscription
     if playlistType <> "" then return playlistType
     return "Demo"
-end function
-
-function profileBadgeWidth(label as String) as Integer
-    length = label.len()
-    if length <= 5 then return 100
-    if length <= 7 then return 120
-    if length <= 12 then return 160
-    return 200
 end function
