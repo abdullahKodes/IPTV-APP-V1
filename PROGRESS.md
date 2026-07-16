@@ -1,6 +1,6 @@
 # IPTV App Progress
 
-Last updated: 2026-07-15
+Last updated: 2026-07-16
 
 Read this file before starting a new session. Update it only after a meaningful milestone is completed, such as finishing a screen, fixing a major workflow, committing/pushing, or changing project structure. Do not update it for every tiny visual tweak.
 
@@ -690,3 +690,28 @@ Do not update this file for:
 
 - Built the onboarding subscription screen around a simple left-aligned plan-card layout with first-card default focus, longer benefit copy, rounded artwork cards, and updated mock prices of `$3.49` monthly and `$12.99` yearly.
 - Cleaned `SubscriptionPage` toward a v1 customer-facing Manage Subscription screen: removed Review States, direct Monthly/Annual mock shortcuts, and duplicate Restore; the account action panel now explains the plan flow and keeps View Plans as the only action.
+
+## 2026-07-16 Roku Pay-Ready Foundation
+
+- Created the Roku Developer beta app in the dashboard as `IPTV MAX`; beta Channel ID is `874326` and access code is `5C2XCT9`.
+- Added Roku Pay-ready placeholder billing config in `EntitlementStore.brs` using `iptvmax_premium`, `iptvmax_monthly`, and `iptvmax_yearly`, while keeping local mock mode as the default until payout enrollment and product catalog approval are complete.
+- Added a `ChannelStore` node to `WelcomePage` and wired the live-flow structure for `getCatalog`, `doOrder`, and `getAllPurchases`, including catalog-unavailable, product-not-found, canceled/interrupted, purchase-failed, restore-failed, and no-subscription-found states.
+- Mapped Roku purchase status into app entitlement states: `active`, `trial`, `grace`, `on_hold`, and `canceled`; grace allows access, while on-hold/canceled/no-subscription routes users back to the subscription screen.
+- Updated `MainScene` routing so app pages require a valid entitlement instead of relying only on onboarding completion. `WelcomePage` and `SubscriptionPage` remain reachable without entitlement.
+- Bumped the manifest build version to `00247`; `npm.cmd run check` passes and creates `build\roku-iptv-app.zip`.
+- Still left for real Roku Pay: complete private payout/tax enrollment, create approved Product Catalog products/purchase options, enable billing testing/test users, switch billing mode from mock to live, and test purchase/restore on a Roku device.
+
+## 2026-07-16 Sidebar Navigation Cleanup
+
+- Changed Add Playlist so its sidebar no longer highlights My Playlists while the playlist form is open.
+- Kept My Playlists as a Home/My Playlists hub entry, while Live TV, Movies, Series, Favorites, Settings, Profile, and Add Playlist now show a first-row Home shortcut instead of a My Playlists shortcut.
+- Kept the current section highlighted on browse pages and preserved the existing profile row/focus structure.
+- Added a dedicated Home sidebar icon asset and wired the Home sidebar rows to use it instead of the temporary IPTV image icon.
+- Bumped the manifest build version to `00250`; validation is required before Roku testing.
+
+## 2026-07-16 Pre-Backend Subscription QA
+
+- Expanded `SubscriptionPage` while billing remains in mock mode, then simplified it back to customer-facing actions only: View Plans and Restore.
+- Kept Restore wired to the local Roku Pay-ready test state, while removing visible Grace, On Hold, Canceled, and Clear Access controls until real Roku Pay recovery rules are needed.
+- Added clear test-mode messaging and feedback after Restore.
+- Bumped the manifest build version to `00252`; validation is required before Roku testing.

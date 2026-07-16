@@ -14,7 +14,7 @@ function entitlementStatusLoad() as Object
         customerEmail: entitlementReadString(section, "customerEmail", "Roku account pending"),
         lastAction: entitlementReadString(section, "lastAction", "Ready"),
         message: entitlementReadString(section, "message", "Connect Roku Pay to validate this subscription."),
-        mockMode: true
+        mockMode: entitlementReadString(section, "mockMode", entitlementBillingMockValue())
     }
 end function
 
@@ -30,14 +30,40 @@ function entitlementDefaultStatus() as Object
         customerEmail: "Roku account pending",
         lastAction: "Ready for Roku Pay",
         message: "Choose a plan to unlock playlist setup and premium playback.",
-        mockMode: true
+        mockMode: entitlementBillingMockValue()
     }
 end function
 
+function entitlementBillingConfig() as Object
+    return {
+        mode: entitlementBillingMode(),
+        productId: "iptvmax_premium",
+        monthlyCode: "iptvmax_monthly",
+        annualCode: "iptvmax_yearly",
+        trialCode: "iptvmax_monthly"
+    }
+end function
+
+function entitlementBillingMode() as String
+    section = CreateObject("roRegistrySection", "iptvmax_billing")
+    return entitlementReadString(section, "mode", "mock")
+end function
+
+function entitlementBillingUseMock() as Boolean
+    return entitlementBillingMode() <> "live"
+end function
+
+function entitlementBillingMockValue() as String
+    if entitlementBillingUseMock() then return "1"
+    return "0"
+end function
+
 function entitlementPlans() as Object
+    config = entitlementBillingConfig()
     return [
         {
             id: "trial",
+            storeCode: config.trialCode,
             label: "Free Trial",
             price: "$0.00",
             billingTerm: "7 days",
@@ -48,6 +74,7 @@ function entitlementPlans() as Object
         },
         {
             id: "monthly",
+            storeCode: config.monthlyCode,
             label: "Monthly",
             price: "$3.49",
             billingTerm: "per month",
@@ -58,6 +85,7 @@ function entitlementPlans() as Object
         },
         {
             id: "annual",
+            storeCode: config.annualCode,
             label: "Annual",
             price: "$12.99",
             billingTerm: "per year",
@@ -76,6 +104,19 @@ function entitlementPlanById(planId as String) as Object
     return entitlementPlans()[1]
 end function
 
+function entitlementPlanByStoreCode(code as String) as Object
+    if code = invalid or code = "" then return entitlementPlanById("monthly")
+    for each plan in entitlementPlans()
+        if entitlementText(plan, "storeCode", "") = code then return plan
+    end for
+    return entitlementPlanById("monthly")
+end function
+
+function entitlementPlanStoreCode(planId as String) as String
+    plan = entitlementPlanById(planId)
+    return entitlementText(plan, "storeCode", "")
+end function
+
 sub entitlementActivateMockPlan(planId as String)
     plan = entitlementPlanById(planId)
     state = "active"
@@ -91,8 +132,8 @@ sub entitlementActivateMockPlan(planId as String)
         customerName: "Roku Viewer",
         customerEmail: "roku-account@example.com",
         lastAction: "Mock Roku Pay activation complete",
-        message: "Frontend state is ready. Backend validation will replace this mock activation.",
-        mockMode: true
+        message: "Roku Pay-ready test mode is active. Real product IDs can replace this after payout enrollment.",
+        mockMode: "1"
     }
     entitlementStatusSave(status)
     entitlementCompleteOnboarding(plan.id)
@@ -110,11 +151,45 @@ sub entitlementRestoreMock()
         customerName: "Roku Viewer",
         customerEmail: "roku-account@example.com",
         lastAction: "Mock restore completed",
-        message: "Restore will later call getAllPurchases and backend validation.",
-        mockMode: true
+        message: "Restore path is ready for getAllPurchases once Roku Pay products are approved.",
+        mockMode: "1"
     }
     entitlementStatusSave(status)
     entitlementCompleteOnboarding("restore")
+end sub
+
+sub entitlementActivateRokuPurchase(purchase as Object, fallbackPlanId as String, action as String)
+    planId = fallbackPlanId
+    code = entitlementNodeText(purchase, "code", entitlementPlanStoreCode(fallbackPlanId))
+    if code <> "" then planId = entitlementText(entitlementPlanByStoreCode(code), "id", fallbackPlanId)
+    plan = entitlementPlanById(planId)
+
+    purchaseStatus = LCase(entitlementNodeText(purchase, "status", "Valid"))
+    inDunning = LCase(entitlementNodeText(purchase, "inDunning", "false"))
+    state = "active"
+    if planId = "trial" then state = "trial"
+    if inDunning = "true" and purchaseStatus = "valid" then state = "grace"
+    if inDunning = "true" and purchaseStatus <> "valid" then state = "on_hold"
+    if purchaseStatus = "invalid" and inDunning <> "true" then state = "canceled"
+
+    lastAction = "Roku Pay purchase validated"
+    if action = "restore" then lastAction = "Roku Pay restore validated"
+
+    status = {
+        state: state,
+        planId: plan.id,
+        planName: plan.label,
+        price: entitlementNodeText(purchase, "cost", plan.price),
+        billingTerm: plan.billingTerm,
+        renewsAt: entitlementRokuRenewalLabel(purchase, plan.id),
+        customerName: "Roku Viewer",
+        customerEmail: "Roku account",
+        lastAction: lastAction,
+        message: entitlementAccessMessageForState(state),
+        mockMode: "0"
+    }
+    entitlementStatusSave(status)
+    if entitlementCanEnterApp(status) then entitlementCompleteOnboarding(action)
 end sub
 
 sub entitlementSetMockState(state as String)
@@ -162,6 +237,7 @@ sub entitlementStatusSave(status as Object)
     section.Write("customerEmail", entitlementText(status, "customerEmail", "Roku account pending"))
     section.Write("lastAction", entitlementText(status, "lastAction", "Ready"))
     section.Write("message", entitlementText(status, "message", ""))
+    section.Write("mockMode", entitlementText(status, "mockMode", entitlementBillingMockValue()))
     section.Flush()
     entitlementWriteSettings(status)
 end sub
@@ -187,6 +263,19 @@ end sub
 function entitlementCanEnterApp(status as Object) as Boolean
     state = entitlementText(status, "state", "none")
     return state = "trial" or state = "active" or state = "grace"
+end function
+
+function entitlementRequiresSubscriptionPage(status as Object) as Boolean
+    return not entitlementCanEnterApp(status)
+end function
+
+function entitlementAccessMessageForState(state as String) as String
+    if state = "trial" then return "Trial access is active."
+    if state = "active" then return "Premium playback is active."
+    if state = "grace" then return "Playback can continue during Roku Pay payment recovery."
+    if state = "on_hold" then return "Premium playback is blocked until Roku Pay payment recovery succeeds."
+    if state = "canceled" then return "Choose a plan again to regain access."
+    return "Choose a plan to unlock playlist setup and premium playback."
 end function
 
 function entitlementProfileLabel(status as Object) as String
@@ -218,8 +307,21 @@ function entitlementRenewalLabel(planId as String) as String
     return "Renews monthly after activation"
 end function
 
+function entitlementRokuRenewalLabel(purchase as Object, planId as String) as String
+    renewal = entitlementNodeText(purchase, "renewalDate", "")
+    if renewal <> "" then return "Renews " + renewal
+    expiration = entitlementNodeText(purchase, "expirationDate", "")
+    if expiration <> "" then return "Expires " + expiration
+    return entitlementRenewalLabel(planId)
+end function
+
 function entitlementText(status as Object, key as String, fallback = "" as String) as String
     if status <> invalid and status.doesExist(key) and status[key] <> invalid then return status[key]
+    return fallback
+end function
+
+function entitlementNodeText(node as Object, key as String, fallback = "" as String) as String
+    if node <> invalid and node.hasField(key) and node[key] <> invalid then return node[key].toStr()
     return fallback
 end function
 

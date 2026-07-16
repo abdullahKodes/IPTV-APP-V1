@@ -1,6 +1,8 @@
 sub init()
     m.colors = appColors()
     m.canvas = m.top.findNode("welcomeCanvas")
+    m.rokuPay = m.top.findNode("rokuPayStore")
+    m.billingConfig = entitlementBillingConfig()
     m.plans = entitlementPlans()
     m.focusIndex = 0
     m.mode = "plans"
@@ -13,6 +15,11 @@ sub init()
     m.mockTimer.repeat = false
     m.mockTimer.duration = 0.75
     m.mockTimer.observeField("fire", "onMockFlowComplete")
+    if m.rokuPay <> invalid then
+        m.rokuPay.observeField("catalog", "onRokuCatalogLoaded")
+        m.rokuPay.observeField("orderStatus", "onRokuOrderComplete")
+        m.rokuPay.observeField("purchases", "onRokuPurchasesLoaded")
+    end if
     render()
 end sub
 
@@ -62,17 +69,26 @@ sub activate()
     end if
 
     if m.focusIndex = 3 then
-        startMockFlow("restore", "")
+        startBillingFlow("restore", "")
         return
     end if
 
     if m.focusIndex = 0 then
-        startMockFlow("purchase", "trial")
+        startBillingFlow("purchase", "trial")
     else if m.focusIndex = 1 then
-        startMockFlow("purchase", "monthly")
+        startBillingFlow("purchase", "monthly")
     else if m.focusIndex = 2 then
-        startMockFlow("purchase", "annual")
+        startBillingFlow("purchase", "annual")
     end if
+end sub
+
+sub startBillingFlow(action as String, planId as String)
+    if entitlementBillingUseMock() then
+        startMockFlow(action, planId)
+        return
+    end if
+
+    startRokuPayFlow(action, planId)
 end sub
 
 sub startMockFlow(action as String, planId as String)
@@ -81,14 +97,38 @@ sub startMockFlow(action as String, planId as String)
     m.mode = "loading"
     if action = "restore" then
         m.statusTitle = "Restoring Subscription"
-        m.statusMessage = "Checking your Roku account."
+        m.statusMessage = "Checking your Roku account in test mode."
     else
         plan = entitlementPlanById(planId)
-        m.statusTitle = "Preparing Roku Pay"
-        m.statusMessage = "Opening Roku Pay for " + plan.label + "."
+        m.statusTitle = "Roku Pay Test Mode"
+        m.statusMessage = "Preparing " + plan.label + " with placeholder product IDs."
     end if
     render()
     m.mockTimer.control = "start"
+end sub
+
+sub startRokuPayFlow(action as String, planId as String)
+    if m.rokuPay = invalid then
+        showBillingError("Roku Pay Unavailable", "This Roku build could not open ChannelStore.")
+        return
+    end if
+
+    m.pendingAction = action
+    m.pendingPlanId = planId
+    m.mode = "loading"
+
+    if action = "restore" then
+        m.statusTitle = "Restoring Subscription"
+        m.statusMessage = "Checking Roku Pay purchase history."
+        render()
+        m.rokuPay.command = "getAllPurchases"
+    else
+        plan = entitlementPlanById(planId)
+        m.statusTitle = "Checking Roku Pay"
+        m.statusMessage = "Looking for " + plan.label + " in the Roku Pay catalog."
+        render()
+        m.rokuPay.command = "getCatalog"
+    end if
 end sub
 
 sub onMockFlowComplete()
@@ -111,6 +151,128 @@ sub onMockFlowComplete()
     m.mode = "success"
     render()
 end sub
+
+sub onRokuCatalogLoaded()
+    catalog = m.rokuPay.catalog
+    if not billingResultSucceeded(catalog) then
+        showBillingError("Catalog Unavailable", billingStatusMessage(catalog, "Roku Pay products are not ready yet."))
+        return
+    end if
+
+    code = entitlementPlanStoreCode(m.pendingPlanId)
+    if code = "" or not catalogContainsCode(catalog, code) then
+        showBillingError("Product Not Found", "The Roku Pay product ID is not linked to this app yet.")
+        return
+    end if
+
+    order = CreateObject("roSGNode", "ContentNode")
+    item = order.createChild("ContentNode")
+    item.addFields({ code: code, qty: 1 })
+    m.rokuPay.order = order
+    plan = entitlementPlanById(m.pendingPlanId)
+    m.statusTitle = "Opening Roku Pay"
+    m.statusMessage = "Confirm " + plan.label + " on the Roku Pay screen."
+    render()
+    m.rokuPay.command = "doOrder"
+end sub
+
+sub onRokuOrderComplete()
+    orderStatus = m.rokuPay.orderStatus
+    if not billingResultSucceeded(orderStatus) then
+        if billingStatusCode(orderStatus) = 2 then
+            showBillingError("Purchase Canceled", "Roku Pay was closed before the subscription was completed.")
+        else
+            showBillingError("Purchase Failed", billingStatusMessage(orderStatus, "Roku Pay could not complete this purchase."))
+        end if
+        return
+    end if
+
+    purchase = firstBillingChild(orderStatus)
+    entitlementActivateRokuPurchase(purchase, m.pendingPlanId, "purchase")
+    plan = entitlementPlanById(m.pendingPlanId)
+    m.statusTitle = plan.label + " Subscription Ready"
+    if m.pendingPlanId = "trial" then m.statusTitle = plan.label + " Ready"
+    m.statusMessage = entitlementText(entitlementStatusLoad(), "message", "Your subscription is active.")
+    m.mode = "success"
+    render()
+end sub
+
+sub onRokuPurchasesLoaded()
+    purchases = m.rokuPay.purchases
+    if not billingResultSucceeded(purchases) then
+        showBillingError("Restore Failed", billingStatusMessage(purchases, "Roku Pay purchase history is not available."))
+        return
+    end if
+
+    purchase = firstValidEntitlementPurchase(purchases)
+    if purchase = invalid then
+        showBillingError("No Subscription Found", "This Roku account does not have an active IPTV MAX subscription.")
+        return
+    end if
+
+    entitlementActivateRokuPurchase(purchase, entitlementText(entitlementPlanByStoreCode(entitlementNodeText(purchase, "code", "")), "id", "monthly"), "restore")
+    restored = entitlementStatusLoad()
+    m.pendingPlanId = entitlementText(restored, "planId", "monthly")
+    m.statusTitle = "Subscription Restored"
+    m.statusMessage = entitlementText(restored, "message", "Your subscription is active.")
+    m.mode = "success"
+    render()
+end sub
+
+sub showBillingError(title as String, message as String)
+    m.statusTitle = title
+    m.statusMessage = message
+    m.mode = "error"
+    render()
+end sub
+
+function billingResultSucceeded(result as Object) as Boolean
+    return billingStatusCode(result) = 1
+end function
+
+function billingStatusCode(result as Object) as Integer
+    if result <> invalid and result.hasField("status") and result.status <> invalid then return Int(result.status)
+    return -3
+end function
+
+function billingStatusMessage(result as Object, fallback as String) as String
+    if result <> invalid and result.hasField("statusMessage") and result.statusMessage <> invalid and result.statusMessage <> "" then return result.statusMessage
+    return fallback
+end function
+
+function catalogContainsCode(catalog as Object, code as String) as Boolean
+    if catalog = invalid or code = "" then return false
+    for i = 0 to catalog.getChildCount() - 1
+        item = catalog.getChild(i)
+        if entitlementNodeText(item, "code", "") = code then return true
+    end for
+    return false
+end function
+
+function firstBillingChild(result as Object) as Object
+    if result <> invalid and result.getChildCount() > 0 then return result.getChild(0)
+    return invalid
+end function
+
+function firstValidEntitlementPurchase(purchases as Object) as Object
+    if purchases = invalid then return invalid
+    for i = 0 to purchases.getChildCount() - 1
+        purchase = purchases.getChild(i)
+        code = entitlementNodeText(purchase, "code", "")
+        if isKnownSubscriptionCode(code) then
+            status = LCase(entitlementNodeText(purchase, "status", "Valid"))
+            inDunning = LCase(entitlementNodeText(purchase, "inDunning", "false"))
+            if status = "valid" or inDunning = "true" then return purchase
+        end if
+    end for
+    return invalid
+end function
+
+function isKnownSubscriptionCode(code as String) as Boolean
+    if code = "" then return false
+    config = entitlementBillingConfig()
+    return code = config.monthlyCode or code = config.annualCode or code = config.trialCode
+end function
 
 sub render()
     uiClear(m.canvas)

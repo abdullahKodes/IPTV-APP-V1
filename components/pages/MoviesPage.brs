@@ -173,7 +173,7 @@ function drawMoviesSideNav() as Integer
     uiRect(m.canvas, 0, 86, 226, 634, m.colors.panel, 0.24)
     uiRect(m.canvas, 225, 86, 1, 634, "0xFFFFFF14", 0.26)
 
-    addMoviesNavItem(12, 112, "list", "My Playlists", "MyPlaylistsPage", 0, false)
+    addMoviesNavItem(12, 112, "home", "Home", "HomePage", 0, false)
     addMoviesNavItem(12, 168, "tv", "Live TV", "LiveTvPage", 1, false)
     addMoviesNavItem(12, 224, "series", "Series", "SeriesPage", 2, false)
     addMoviesNavItem(12, 280, "movies", "Movies", "MoviesPage", 3, true)

@@ -2,6 +2,7 @@
 <component name="WelcomePage" extends="Group">
   <children>
     <Group id="welcomeCanvas" />
+    <ChannelStore id="rokuPayStore" />
   </children>
   <interface>
     <field id="navigateTo" type="string" alwaysNotify="true" />

@@ -16,11 +16,7 @@ sub init()
     m.timer.observeField("fire", "onClockTick")
     m.timer.control = "start"
 
-    if onboardingShouldShow() then
-        showPage("WelcomePage")
-    else
-        showPage("HomePage")
-    end if
+    showPage(initialPageForEntitlement())
 end sub
 
 sub onClockTick()
@@ -30,7 +26,7 @@ sub onClockTick()
 end sub
 
 sub showPage(componentName as String)
-    if componentName = "HomePage" and onboardingShouldShow() then componentName = "WelcomePage"
+    componentName = gatedPageName(componentName)
     uiClear(m.pageHost)
     m.currentPageName = componentName
     m.currentPage = CreateObject("roSGNode", componentName)
@@ -92,6 +88,7 @@ end sub
 sub onPageNavigation()
     target = m.currentPage.navigateTo
     if target <> invalid and target <> "" then
+        target = gatedPageName(target)
         if target = m.currentPageName then return
         currentName = m.currentPageName
         if m.currentPage.hasField("navigateTo") then m.currentPage.navigateTo = ""
@@ -150,6 +147,19 @@ sub onPageNavigation()
         showPage(target)
     end if
 end sub
+
+function initialPageForEntitlement() as String
+    if onboardingShouldShow() then return "WelcomePage"
+    if entitlementRequiresSubscriptionPage(entitlementStatusLoad()) then return "WelcomePage"
+    return "HomePage"
+end function
+
+function gatedPageName(componentName as String) as String
+    if componentName = invalid or componentName = "" then return "WelcomePage"
+    if componentName = "WelcomePage" or componentName = "SubscriptionPage" then return componentName
+    if entitlementRequiresSubscriptionPage(entitlementStatusLoad()) then return "WelcomePage"
+    return componentName
+end function
 
 function shouldRestorePreviousForTarget(target as String, currentName as String) as Boolean
     if currentName = "MovieDetailPage" or currentName = "SeriesDetailPage" or currentName = "PlayerPage" then return true
