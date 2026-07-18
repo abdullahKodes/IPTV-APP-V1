@@ -354,9 +354,9 @@ sub normalizePlaylistWindowForIndex(visibleIndex as Integer, visibleCount as Int
 end sub
 
 sub drawPageBackdrop()
-    uiPosterZoom(m.canvas, "pkg:/images/playlists/my_playlists_background_v3.jpg", 0, 0, 1280, 720, 0.78)
-    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.34)
-    uiRect(m.canvas, 226, 86, 1054, 634, m.colors.bg, 0.58)
+    uiPosterZoom(m.canvas, "pkg:/images/playlists/my_playlists_background_v3.jpg", 0, 0, 1280, 720, 0.56)
+    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.46)
+    uiRect(m.canvas, 226, 86, 1054, 634, m.colors.bg, 0.66)
 end sub
 
 function drawPlaylistSideNav() as Integer
@@ -497,16 +497,15 @@ sub drawPlaylistCard(p as Object, x as Integer, y as Integer, w as Integer, h as
     cardCanvas.id = "playlistCard" + visibleIndex.toStr()
     cardCanvas.translation = [x, y]
     m.canvas.appendChild(cardCanvas)
-    shellOpacity = 0.84
+    uiPoster(cardCanvas, "pkg:/images/playlists/playlist_card_background.png", 0, 0, w, h, 1.0)
+    shellOpacity = 0.22
     if cardFocused then
-        shellOpacity = 0.94
+        shellOpacity = 0.58
     end if
     drawPlaylistCardShell(cardCanvas, 0, 0, w, h, fill, border, shellOpacity)
     drawStatusPill(p, cardCanvas, 18, 18, cardFocused)
-    uiLabel(cardCanvas, playlistStoreText(p, "title", "Playlist"), 18, 68, w - 36, 28, 14, titleColor)
-    uiLabel(cardCanvas, playlistTypeLabel(p), 18, 94, w - 36, 22, 11, m.colors.textPurple)
-    uiRect(cardCanvas, 18, 124, w - 36, 1, "0xFFFFFF14")
-    uiLabel(cardCanvas, playlistStoreText(p, "time", "Ready"), 18, 134, w - 36, 22, 8, m.colors.textDim)
+    uiLabel(cardCanvas, playlistStoreText(p, "title", "Playlist"), 18, 82, w - 36, 28, 14, titleColor)
+    uiScaledLabel(cardCanvas, playlistTypeLabel(p), 18, 112, w - 36, 18, 8, m.colors.textDim, "left", 0.72)
     if cardFocused then uiAnimateCardFocus(m.canvas, cardCanvas, x, y)
 
     playlistTitle = playlistStoreText(p, "title", "Playlist")

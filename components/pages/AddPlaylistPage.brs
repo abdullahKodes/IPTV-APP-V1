@@ -12,6 +12,7 @@ sub init()
     m.editPlaylistId = ""
     m.keyboardIndex = 0
     m.keyboardUpper = true
+    m.previousFocusIndex = -1
     m.keyboardKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "CASE", "SPACE", "DEL", "CLEAR", "DONE"]
     m.inputs = {
         playlistTitle: "",
@@ -156,7 +157,7 @@ sub render()
 
     pageTitle = "Add New Playlist"
     if m.editPlaylistId <> "" then pageTitle = "Edit Playlist"
-    uiLabel(m.canvas, pageTitle, 380, 108, 760, 56, 39, m.colors.text, "center")
+    uiLabel(m.canvas, pageTitle, 380, 104, 760, 62, 43, m.colors.text, "center")
     addSmallButton(505, 198, 230, 48, "", "M3U Playlist", row, 1, "m3u")
     addSmallButton(765, 198, 230, 48, "", "Xtreme Account", row, 2, "xtreme")
 
@@ -179,10 +180,11 @@ sub render()
     uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
     if m.editing then drawKeyboardOverlay()
     if m.submitState = "validating" then drawValidationOverlay()
+    m.previousFocusIndex = m.focusIndex
 end sub
 
 sub drawAddPlaylistArtwork()
-    backdrop = uiPoster(m.canvas, "pkg:/images/add_playlist/add_playlist_background_v2.jpg", 0, 0, 1280, 720, 0.58)
+    backdrop = uiPoster(m.canvas, "pkg:/images/add_playlist/add_playlist_background_v4.png", 0, 0, 1280, 720, 0.48)
     backdrop.loadDisplayMode = "scaleToFill"
     uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.5)
     uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.16)
@@ -272,12 +274,51 @@ sub addInputField(x as Integer, y as Integer, w as Integer, label as String, fie
 end sub
 
 sub addSmallButton(x as Integer, y as Integer, w as Integer, h as Integer, icon as String, label as String, row as Integer, col as Integer, action as String)
-    item = { x: x, y: y, w: w, h: h, icon: icon, label: label, subtitle: "", iconSize: 14, titleSize: 15, subSize: 10, bg: m.colors.bg, border: m.colors.whiteLine, textColor: m.colors.text, subColor: m.colors.textDim, focusBg: m.colors.purpleSoft, focusBorder: m.colors.purpleLine, focusTextColor: m.colors.text, row: row, col: col, action: action, page: "", mode: "row", noFocusShift: true }
+    itemIndex = m.focusItems.count()
+    focused = itemIndex = m.focusIndex
+    surfaceUri = "pkg:/images/ui/add_playlist_tab_base_230x48.png"
+    surfaceOpacity = 0.44
+    textColor = m.colors.textPurple
+    if focused then
+        surfaceUri = "pkg:/images/ui/add_playlist_tab_focus_230x48.png"
+        surfaceOpacity = 0.74
+        textColor = m.colors.text
+    end if
+
+    buttonCanvas = CreateObject("roSGNode", "Group")
+    buttonCanvas.id = "addPlaylistModeButton" + itemIndex.toStr()
+    buttonCanvas.translation = [x, y]
+    buttonCanvas.scaleRotateCenter = [w / 2, h / 2]
+    m.canvas.appendChild(buttonCanvas)
+    uiPoster(buttonCanvas, surfaceUri, 0, 0, w, h, surfaceOpacity)
+    uiLabel(buttonCanvas, label, 0, 8, w, 30, 15, textColor, "center")
+    if focused and m.previousFocusIndex <> itemIndex then uiAnimateActionFocus(m.canvas, buttonCanvas)
+
+    item = { x: x, y: y, w: w, h: h, icon: icon, label: label, subtitle: "", iconSize: 14, titleSize: 15, subSize: 10, bg: m.colors.bg, border: m.colors.whiteLine, textColor: m.colors.text, subColor: m.colors.textDim, focusBg: m.colors.purpleSoft, focusBorder: m.colors.purpleLine, focusTextColor: m.colors.text, row: row, col: col, action: action, page: "", mode: "manual", noFocusShift: true }
     m.focusItems.push(item)
 end sub
 
 sub addWideAction(x as Integer, y as Integer, w as Integer, h as Integer, icon as String, label as String, row as Integer, col as Integer)
-    item = { x: x, y: y, w: w, h: h, icon: icon, label: label, subtitle: "", iconSize: 15, iconW: 22, iconH: 22, iconX: 124, labelX: 0, labelW: w, labelAlign: "center", titleSize: 17, subSize: 10, bg: m.colors.purpleActive, border: m.colors.purpleActive, textColor: m.colors.text, subColor: m.colors.textDim, focusBg: m.colors.purpleSoft, focusBorder: m.colors.purpleLine, focusTextColor: m.colors.text, row: row, col: col, action: "submit", page: "", mode: "row", noFocusShift: true }
+    itemIndex = m.focusItems.count()
+    focused = itemIndex = m.focusIndex
+    surfaceUri = "pkg:/images/ui/add_playlist_submit_base_460x56.png"
+    surfaceOpacity = 0.82
+    if focused then
+        surfaceUri = "pkg:/images/ui/add_playlist_submit_focus_460x56.png"
+        surfaceOpacity = 0.86
+    end if
+
+    buttonCanvas = CreateObject("roSGNode", "Group")
+    buttonCanvas.id = "addPlaylistSubmitButton" + itemIndex.toStr()
+    buttonCanvas.translation = [x, y]
+    buttonCanvas.scaleRotateCenter = [w / 2, h / 2]
+    m.canvas.appendChild(buttonCanvas)
+    uiPoster(buttonCanvas, surfaceUri, 0, 0, w, h, surfaceOpacity)
+    if icon <> "" then uiDrawIcon(buttonCanvas, icon, 142, 17, 22, 22, focused, m.colors.text, 15)
+    uiLabel(buttonCanvas, label, 0, 11, w, 34, 17, m.colors.text, "center")
+    if focused and m.previousFocusIndex <> itemIndex then uiAnimateActionFocus(m.canvas, buttonCanvas)
+
+    item = { x: x, y: y, w: w, h: h, icon: icon, label: label, subtitle: "", iconSize: 15, iconW: 22, iconH: 22, iconX: 124, labelX: 0, labelW: w, labelAlign: "center", titleSize: 17, subSize: 10, bg: m.colors.purpleActive, border: m.colors.purpleActive, textColor: m.colors.text, subColor: m.colors.textDim, focusBg: m.colors.purpleSoft, focusBorder: m.colors.purpleLine, focusTextColor: m.colors.text, row: row, col: col, action: "submit", page: "", mode: "manual", noFocusShift: true }
     m.focusItems.push(item)
 end sub
 
