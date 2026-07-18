@@ -354,7 +354,9 @@ sub normalizePlaylistWindowForIndex(visibleIndex as Integer, visibleCount as Int
 end sub
 
 sub drawPageBackdrop()
-    uiRect(m.canvas, 226, 86, 1054, 634, m.colors.bg, 0.98)
+    uiPosterZoom(m.canvas, "pkg:/images/playlists/my_playlists_background_v3.jpg", 0, 0, 1280, 720, 0.78)
+    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.34)
+    uiRect(m.canvas, 226, 86, 1054, 634, m.colors.bg, 0.58)
 end sub
 
 function drawPlaylistSideNav() as Integer
@@ -406,7 +408,7 @@ end sub
 sub drawPageHeader(row as Integer)
     summary = playlistSummary(m.playlists)
     uiLabel(m.canvas, "MY PLAYLISTS", 258, 106, 300, 34, 18, m.colors.text)
-    uiLabel(m.canvas, summary.countText, 258, 140, 300, 26, 13, m.colors.purpleLine)
+    uiLabel(m.canvas, summary.countText, 258, 140, 300, 26, 13, m.colors.greenFocus)
 
     addSearchAction(686, 24, 260, 40, 0, 3)
     addHeaderAction(664, 108, 230, 48, "plus", "Add Playlist", row, 2, "AddPlaylistPage", "")
@@ -461,7 +463,7 @@ end sub
 
 sub drawPlaylistGrid(visible as Object, rowStart as Integer)
     x0 = 250
-    y0 = 186
+    y0 = 206
     cardW = 300
     cardH = 174
     gapX = 12
@@ -495,22 +497,16 @@ sub drawPlaylistCard(p as Object, x as Integer, y as Integer, w as Integer, h as
     cardCanvas.id = "playlistCard" + visibleIndex.toStr()
     cardCanvas.translation = [x, y]
     m.canvas.appendChild(cardCanvas)
-    drawCardArtwork(p, cardCanvas, 0, 0, w, h)
-    overlayOpacity = 0.18
-    shellOpacity = 0.46
+    shellOpacity = 0.84
     if cardFocused then
-        overlayOpacity = 0.16
-        shellOpacity = 0.52
+        shellOpacity = 0.94
     end if
-    uiRect(cardCanvas, 0, 0, w, h, fill, overlayOpacity)
-    uiCardFocusTint(cardCanvas, 0, 0, w, h, cardFocused)
-    uiRect(cardCanvas, 1, h - 58, w - 2, 54, m.colors.bg, 0.66)
     drawPlaylistCardShell(cardCanvas, 0, 0, w, h, fill, border, shellOpacity)
     drawStatusPill(p, cardCanvas, 18, 18, cardFocused)
     uiLabel(cardCanvas, playlistStoreText(p, "title", "Playlist"), 18, 68, w - 36, 28, 14, titleColor)
     uiLabel(cardCanvas, playlistTypeLabel(p), 18, 94, w - 36, 22, 11, m.colors.textPurple)
     uiRect(cardCanvas, 18, 124, w - 36, 1, "0xFFFFFF14")
-    uiLabel(cardCanvas, playlistStoreText(p, "time", "Ready"), 18, 127, w - 36, 22, 8, m.colors.textDim)
+    uiLabel(cardCanvas, playlistStoreText(p, "time", "Ready"), 18, 134, w - 36, 22, 8, m.colors.textDim)
     if cardFocused then uiAnimateCardFocus(m.canvas, cardCanvas, x, y)
 
     playlistTitle = playlistStoreText(p, "title", "Playlist")
@@ -526,31 +522,6 @@ sub drawPlaylistCardShell(parent as Object, x as Integer, y as Integer, w as Int
     uri = "pkg:/images/ui/thin_280x152_" + fillKey + "_" + borderKey + ".png"
     uiPoster(parent, uri, x, y, w, h, opacity)
 end sub
-
-sub drawCardArtwork(p as Object, parent as Object, x as Integer, y as Integer, w as Integer, h as Integer)
-    art = playlistArtworkUri(p)
-    if art <> "" then
-        poster = uiPosterZoom(parent, art, x, y, w, h, 1.0)
-        uiRect(parent, x, y, w, h, m.colors.bg, 0.08)
-    end if
-end sub
-
-function playlistArtworkUri(p as Object) as String
-    id = playlistStoreText(p, "id")
-    if id = playlistStoreDemoId() then return "pkg:/images/home/home_background.jpg"
-    if id = "demo_live_tv" then return "pkg:/images/logos/live/backdrops/espn_backdrop.jpg"
-    if id = "demo_movies" then return "pkg:/images/logos/live/backdrops/movie_channel_backdrop.jpg"
-    if id = "demo_series" then return "pkg:/images/logos/live/backdrops/bbc_news_backdrop.jpg"
-    if id = "demo_sports" then return "pkg:/images/logos/live/backdrops/bein_sports_backdrop.jpg"
-    if id = "demo_news" then return "pkg:/images/logos/live/backdrops/cnn_backdrop.jpg"
-    if id = "demo_music" then return "pkg:/images/logos/live/backdrops/mtv_hits_backdrop.jpg"
-    if id = "demo_kids" then return "pkg:/images/logos/live/backdrops/cartoon_network_backdrop.jpg"
-    if id = "demo_documentary" then return "pkg:/images/logos/live/backdrops/discovery_backdrop.jpg"
-    if id = "demo_favourites" then return "pkg:/images/logos/live/backdrops/bbc_news_backdrop.jpg"
-    if id = "demo_family" then return "pkg:/images/logos/live/backdrops/movie_channel_backdrop.jpg"
-    if playlistStoreText(p, "type") = "Xtreme" then return "pkg:/images/logos/live/backdrops/bein_sports_backdrop.jpg"
-    return "pkg:/images/logos/live/backdrops/cnn_backdrop.jpg"
-end function
 
 function playlistStoreBoolField(item as Object, key as String, fallback as Boolean) as Boolean
     if item = invalid then return fallback
@@ -574,7 +545,6 @@ end function
 sub drawStatusPill(p as Object, parent as Object, x as Integer, y as Integer, focused as Boolean)
     status = playlistStoreText(p, "status", "Active")
     textColor = "0xFFFFFFFF"
-    uri = "pkg:/images/ui/movie_featured_badge_100x34_purpleDeep.png"
     label = status
     isActive = playlistStoreText(p, "id") = playlistStoreActiveId()
     if isActive then
@@ -589,9 +559,24 @@ sub drawStatusPill(p as Object, parent as Object, x as Integer, y as Integer, fo
         label = "Expires"
         textColor = m.colors.amber
     end if
-    uiPoster(parent, uri, x, y, 88, 30)
-    uiLabel(parent, label, x + 4, y - 1, 80, 30, 9, textColor, "center")
+    badgeW = statusPillWidth(label)
+    uiPoster(parent, statusPillUri(label), x, y, badgeW, 28, 0.96)
+    uiScaledLabel(parent, label, x, y + 4, badgeW, 20, 10, textColor, "center", 0.78)
 end sub
+
+function statusPillWidth(label as String) as Integer
+    if label = "Trial" then return 62
+    if label = "Ready" then return 68
+    if label = "Active" then return 74
+    if label = "Offline" or label = "Expires" then return 84
+    if label = "Syncing" then return 94
+    return 84
+end function
+
+function statusPillUri(label as String) as String
+    width = statusPillWidth(label)
+    return "pkg:/images/ui/playlist_badge_" + width.toStr() + "x28.png"
+end function
 
 sub drawCardAction(label as String, action as String, playlistId as String, playlistTitle as String, playlistProtected as Boolean, x as Integer, y as Integer, row as Integer, col as Integer, visibleIndex as Integer)
     itemIndex = m.focusItems.count()
@@ -622,7 +607,7 @@ end sub
 sub drawPlaylistScrollbar(totalCount as Integer)
     if totalCount <= m.playlistWindowSize then return
     trackX = 1200
-    trackY = 186
+    trackY = 206
     trackH = 374
     uiVerticalPill(m.canvas, trackX, trackY, 3, trackH, "0xFFFFFF18", "pkg:/images/ui/scroll_cap_4_whiteLine.png", 0.42)
     maxStart = totalCount - m.playlistWindowSize
