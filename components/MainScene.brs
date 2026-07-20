@@ -7,6 +7,15 @@ sub init()
     m.pendingAddPlaylistReturnPage = ""
     m.pageStack = []
     m.pageHost = m.top.findNode("pageHost")
+    m.parentalGateHost = m.top.findNode("parentalGateHost")
+    m.parentalGateOpen = false
+    m.parentalGateTarget = ""
+    m.parentalGateCurrentName = ""
+    m.parentalGatePinInput = ""
+    m.parentalGatePinError = ""
+    m.parentalGateKeyboardIndex = 0
+    m.parentalGateKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "DEL", "0", "DONE"]
+    m.parentalUnlockedToken = ""
     m.top.backgroundColor = m.colors.bg
     m.top.setFocus(true)
 
@@ -27,6 +36,7 @@ end sub
 
 sub showPage(componentName as String)
     componentName = gatedPageName(componentName)
+    clearParentalUnlockForPage(componentName)
     uiClear(m.pageHost)
     m.currentPageName = componentName
     m.currentPage = CreateObject("roSGNode", componentName)
@@ -74,6 +84,7 @@ end sub
 
 sub restorePage(history as Object)
     if history = invalid or history.page = invalid then return
+    clearParentalUnlockForPage(history.name)
     uiClear(m.pageHost)
     m.currentPageName = history.name
     m.currentPage = history.page
@@ -130,22 +141,30 @@ sub onPageNavigation()
                 returnPage: m.currentPage.detailReturnPage
             }
         end if
-        if m.pageStack.count() > 0 then
-            previous = m.pageStack[m.pageStack.count() - 1]
-            if previous.name = target and shouldRestorePreviousForTarget(target, currentName) then
-                restored = m.pageStack.pop()
-                restorePage(restored)
-                return
-            end if
+        if parentalGateNeededForTarget(target, currentName) then
+            openParentalGate(target, currentName)
+            return
         end if
-
-        if shouldPreservePageForTarget(target, currentName) then
-            m.pageStack.push({ name: currentName, page: m.currentPage })
-        else
-            m.pageStack = []
-        end if
-        showPage(target)
+        completePageNavigation(target, currentName)
     end if
+end sub
+
+sub completePageNavigation(target as String, currentName as String)
+    if m.pageStack.count() > 0 then
+        previous = m.pageStack[m.pageStack.count() - 1]
+        if previous.name = target and shouldRestorePreviousForTarget(target, currentName) then
+            restored = m.pageStack.pop()
+            restorePage(restored)
+            return
+        end if
+    end if
+
+    if shouldPreservePageForTarget(target, currentName) then
+        m.pageStack.push({ name: currentName, page: m.currentPage })
+    else
+        m.pageStack = []
+    end if
+    showPage(target)
 end sub
 
 function initialPageForEntitlement() as String
@@ -191,6 +210,206 @@ function addPlaylistReturnPageForCurrent(currentName as String) as String
     return "MyPlaylistsPage"
 end function
 
+sub clearParentalUnlockForPage(pageName as String)
+    if pageName = "MovieDetailPage" or pageName = "SeriesDetailPage" or pageName = "PlayerPage" then return
+    m.parentalUnlockedToken = ""
+end sub
+
+function parentalGateNeededForTarget(target as String, currentName as String) as Boolean
+    if target <> "MovieDetailPage" and target <> "SeriesDetailPage" and target <> "PlayerPage" then return false
+    if not parentalControlLockEnabled() then return false
+    if not parentalControlPinIsSet() then return false
+    gateToken = parentalGateTokenForTarget(target, currentName)
+    if gateToken <> "" and gateToken = m.parentalUnlockedToken then return false
+
+    if target = "MovieDetailPage" or target = "SeriesDetailPage" then
+        return parentalControlIsRestrictedDetailPayload(m.pendingDetail)
+    end if
+
+    if currentName = "MovieDetailPage" or currentName = "SeriesDetailPage" then
+        return parentalControlTextIsRestricted(currentDetailGateText())
+    end if
+    return parentalControlIsRestrictedPlaybackPayload(m.pendingPlayback)
+end function
+
+function parentalGateTokenForTarget(target as String, currentName as String) as String
+    if target = "MovieDetailPage" or target = "SeriesDetailPage" then return parentalPayloadToken(m.pendingDetail)
+    if target = "PlayerPage" and (currentName = "MovieDetailPage" or currentName = "SeriesDetailPage") then return currentDetailGateToken()
+    if target = "PlayerPage" then return parentalPayloadToken(m.pendingPlayback)
+    return ""
+end function
+
+function parentalPayloadToken(payload as Object) as String
+    if payload = invalid then return ""
+    id = parentalControlPayloadText(payload, "id")
+    title = parentalControlPayloadText(payload, "title")
+    mediaType = parentalControlPayloadText(payload, "mediaType")
+    if id = "" then id = title
+    if id = "" then return ""
+    return LCase(mediaType + ":" + id)
+end function
+
+function currentDetailGateToken() as String
+    if m.currentPage = invalid then return ""
+    id = ""
+    title = ""
+    mediaType = ""
+    if m.currentPage.hasField("detailId") then id = playbackPendingFieldText(m.currentPage, "detailId")
+    if m.currentPage.hasField("detailTitle") then title = playbackPendingFieldText(m.currentPage, "detailTitle")
+    if m.currentPage.hasField("detailMediaType") then mediaType = playbackPendingFieldText(m.currentPage, "detailMediaType")
+    if id = "" then id = title
+    if id = "" then return ""
+    return LCase(mediaType + ":" + id)
+end function
+
+function currentDetailGateText() as String
+    if m.currentPage = invalid then return ""
+    text = ""
+    if m.currentPage.hasField("detailTitle") then text += playbackPendingFieldText(m.currentPage, "detailTitle") + " "
+    if m.currentPage.hasField("detailSubtitle") then text += playbackPendingFieldText(m.currentPage, "detailSubtitle") + " "
+    if m.currentPage.hasField("detailMeta") then text += playbackPendingFieldText(m.currentPage, "detailMeta")
+    return text
+end function
+
+sub openParentalGate(target as String, currentName as String)
+    m.parentalGateOpen = true
+    m.parentalGateTarget = target
+    m.parentalGateCurrentName = currentName
+    m.parentalGatePinInput = ""
+    m.parentalGatePinError = ""
+    m.parentalGateKeyboardIndex = 0
+    drawParentalGate()
+end sub
+
+sub closeParentalGate()
+    m.parentalGateOpen = false
+    m.parentalGateTarget = ""
+    m.parentalGateCurrentName = ""
+    m.parentalGatePinInput = ""
+    m.parentalGatePinError = ""
+    if m.parentalGateHost <> invalid then uiClear(m.parentalGateHost)
+end sub
+
+function handleParentalGateKey(key as String) as Boolean
+    keyCount = m.parentalGateKeys.count()
+    if key = "back" then closeParentalGate() : return true
+    if key = "left" and m.parentalGateKeyboardIndex > 0 then m.parentalGateKeyboardIndex -= 1 : drawParentalGate() : return true
+    if key = "right" and m.parentalGateKeyboardIndex < keyCount - 1 then m.parentalGateKeyboardIndex += 1 : drawParentalGate() : return true
+    if key = "up" and m.parentalGateKeyboardIndex - 3 >= 0 then m.parentalGateKeyboardIndex -= 3 : drawParentalGate() : return true
+    if key = "down" and m.parentalGateKeyboardIndex + 3 < keyCount then m.parentalGateKeyboardIndex += 3 : drawParentalGate() : return true
+    if key = "OK" then pressParentalGateKey() : return true
+    return true
+end function
+
+sub pressParentalGateKey()
+    selected = m.parentalGateKeys[m.parentalGateKeyboardIndex]
+    m.parentalGatePinError = ""
+    if selected = "DEL" then
+        if m.parentalGatePinInput.len() > 0 then m.parentalGatePinInput = Left(m.parentalGatePinInput, m.parentalGatePinInput.len() - 1)
+        drawParentalGate()
+        return
+    end if
+    if selected = "DONE" then
+        submitParentalGatePin()
+        return
+    end if
+    if m.parentalGatePinInput.len() < 4 then m.parentalGatePinInput += selected
+    drawParentalGate()
+end sub
+
+sub submitParentalGatePin()
+    if not parentalControlPinValid(m.parentalGatePinInput) then
+        m.parentalGatePinError = "Enter your 4-digit PIN."
+        drawParentalGate()
+        return
+    end if
+    if not parentalControlVerifyPin(m.parentalGatePinInput) then
+        m.parentalGatePinInput = ""
+        m.parentalGatePinError = "Incorrect PIN."
+        drawParentalGate()
+        return
+    end if
+    target = m.parentalGateTarget
+    currentName = m.parentalGateCurrentName
+    m.parentalUnlockedToken = parentalGateTokenForTarget(target, currentName)
+    closeParentalGate()
+    completePageNavigation(target, currentName)
+end sub
+
+sub drawParentalGate()
+    if m.parentalGateHost = invalid then return
+    uiClear(m.parentalGateHost)
+    uiRect(m.parentalGateHost, 0, 0, 1280, 720, "0x000000FF", 0.62)
+    x = 390
+    y = 126
+    w = 500
+    h = 468
+    uiPoster(m.parentalGateHost, "pkg:/images/ui/rr_500x468_panel_greenFocus.png", x, y, w, h, 0.98)
+    titleLabel = uiLabel(m.parentalGateHost, "Parental Lock", x + 32, y + 20, w - 64, 42, 26, m.colors.textGreen, "center")
+    titleLabel.font.size = 26
+    subtitleLabel = uiLabel(m.parentalGateHost, "Locked category: " + parentalGateRestrictedCategoryLabel(), x + 42, y + 72, w - 84, 34, 18, m.colors.textMuted, "center")
+    subtitleLabel.font.size = 18
+    drawParentalGateDots(x + 142, y + 124)
+    if m.parentalGatePinError <> "" then
+        errorLabel = uiLabel(m.parentalGateHost, m.parentalGatePinError, x + 36, y + 182, w - 72, 34, 18, m.colors.red, "center")
+        errorLabel.font.size = 18
+    else
+        continueLabel = uiLabel(m.parentalGateHost, "Enter PIN to continue", x + 36, y + 182, w - 72, 34, 18, m.colors.textDim, "center")
+        continueLabel.font.size = 18
+    end if
+    drawParentalGateKeyboard(x + 118, y + 222)
+    uiLabel(m.parentalGateHost, "Back cancels", x + 32, y + h - 42, w - 64, 22, 11, m.colors.textDim, "center")
+end sub
+
+sub drawParentalGateDots(x as Integer, y as Integer)
+    for i = 0 to 3
+        filled = i < m.parentalGatePinInput.len()
+        dotX = x + i * 56
+        drawParentalGatePinSlot(m.parentalGateHost, dotX, y, filled)
+    end for
+end sub
+
+sub drawParentalGatePinSlot(parent as Object, x as Integer, y as Integer, filled as Boolean)
+    slotUri = "pkg:/images/ui/rr_42x42_panel_purpleLine.png"
+    if filled then slotUri = "pkg:/images/ui/rr_42x42_greenSoft_green.png"
+    uiPoster(parent, slotUri, x, y, 42, 42, 0.94)
+    if filled then
+        uiPoster(parent, "pkg:/images/ui/rr_16x16_text_text.png", x + 13, y + 13, 16, 16, 0.94)
+    else
+        uiRect(parent, x + 12, y + 20, 18, 2, m.colors.textDim, 0.28)
+    end if
+end sub
+
+sub drawParentalGateKeyboard(startX as Integer, startY as Integer)
+    keyW = 70
+    keyH = 36
+    gap = 12
+    for i = 0 to m.parentalGateKeys.count() - 1
+        keyRect = parentalGateKeyRect(i, startX, startY, keyW, keyH, gap)
+        keyLabel = m.parentalGateKeys[i]
+        uiDrawKeyboardKey(m.parentalGateHost, keyLabel, uiKeyboardDisplayText(keyLabel, true), keyRect.x, keyRect.y, keyRect.w, keyRect.h, i = m.parentalGateKeyboardIndex, m.colors)
+    end for
+end sub
+
+function parentalGateKeyRect(index as Integer, startX as Integer, startY as Integer, keyW as Integer, keyH as Integer, gap as Integer) as Object
+    row = Int(index / 3)
+    col = index MOD 3
+    return { x: startX + col * (keyW + gap), y: startY + row * (keyH + gap), w: keyW, h: keyH }
+end function
+
+function parentalGateTargetLabel() as String
+    if m.parentalGateTarget = "PlayerPage" then return "playback item"
+    if m.parentalGateTarget = "SeriesDetailPage" then return "series"
+    return "movie"
+end function
+
+function parentalGateRestrictedCategoryLabel() as String
+    if m.parentalGateTarget = "PlayerPage" and m.pendingPlayback <> invalid and LCase(parentalControlPayloadText(m.pendingPlayback, "mediaType")) = "live" then
+        return parentalControlRestrictedLiveCategory()
+    end if
+    return parentalControlRestrictedCategory()
+end function
+
 function playbackPendingText(page as Object) as String
     if page <> invalid and page.hasField("playbackMediaType") then return page.playbackMediaType
     return ""
@@ -208,6 +427,7 @@ end function
 
 function onKeyEvent(key as String, press as Boolean) as Boolean
     if not press then return false
+    if m.parentalGateOpen then return handleParentalGateKey(key)
 
     if key = "back" then
         if m.currentPage <> invalid and m.currentPage.callFunc("handleKey", key) then return true

@@ -775,9 +775,9 @@ end sub
 
 sub drawSearchKeyboardOverlay()
     uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.92)
-    uiRect(m.canvas, 220, 104, 840, 524, m.colors.panel, 0.98)
+    uiPoster(m.canvas, "pkg:/images/ui/rr_840x524_panel_purpleLine.png", 220, 104, 840, 524, 0.98)
     uiLabel(m.canvas, "Search Favorites", 300, 142, 680, 32, 20, m.colors.textGreen, "center")
-    uiPoster(m.canvas, "pkg:/images/ui/rr_680x168_panel_whiteLine.png", 300, 188, 680, 48, 0.54)
+    uiPoster(m.canvas, "pkg:/images/ui/rr_680x168_panel_whiteLine.png", 300, 188, 680, 48, 0.90)
     searchText = m.searchQuery
     if searchText = "" then searchText = "Search movies, series, or live TV"
     uiLabel(m.canvas, searchText, 324, 196, 632, 32, 17, m.colors.text, "left")

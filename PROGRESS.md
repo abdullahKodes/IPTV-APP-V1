@@ -715,3 +715,23 @@ Do not update this file for:
 - Kept Restore wired to the local Roku Pay-ready test state, while removing visible Grace, On Hold, Canceled, and Clear Access controls until real Roku Pay recovery rules are needed.
 - Added clear test-mode messaging and feedback after Restore.
 - Bumped the manifest build version to `00252`; validation is required before Roku testing.
+
+## 2026-07-20 Parental Control V1
+
+- Replaced the mock Settings parental-lock toggle with a real local PIN flow: first use creates and confirms a 4-digit PIN, and later enable/disable actions require the saved PIN.
+- Added `components/shared/ParentalControlStore.brs` for registry-backed PIN verification, local lock state, and the temporary restricted demo category rule.
+- Added a MainScene parental gate overlay so restricted Movies/Series detail pages and playback are blocked before navigation continues.
+- While the backend is not ready, `Drama` is the restricted demo VOD category and `Sports` is the restricted demo Live TV category so behavior can be tested with existing demo metadata.
+- Added a visible Settings > Change PIN action that verifies the current PIN before accepting and confirming a new 4-digit PIN.
+- Added a short-lived unlock behavior: after entering the correct PIN for a restricted title, playing that same title from its detail page does not ask again, but returning to Movies/Series/Favorites/Home clears the unlock so reopening restricted content asks for the PIN again.
+- Reused the existing keyboard key styling for the PIN keypad and kept the overlay independent from missing generated rounded-panel assets.
+- Polished the PIN entry indicators from bright square `*` fields into rounded dark slots with a small filled dot, matching both Settings PIN setup/change and the MainScene parental gate.
+- Tuned PIN overlay typography with explicit Roku font sizes so the title uses size `26`, while the subtitle and the text beneath the PIN slots use size `18` in both Settings and the MainScene parental gate.
+- Shortened PIN overlay subtitles so Roku renders complete text without trailing ellipses.
+- Updated the Change PIN current-PIN subtitle to `Enter your Current Pin`.
+- Switched the PIN dialog background to a rounded `panel`/green-focus asset so corners are rounded while preserving the previous dialog fill color.
+- Strengthened the rounded input field border in the app keyboard overlays for Add Playlist and search across Live TV, Movies, Series, Favorites, and My Playlists.
+- Rounded the main on-screen keyboard overlay panel corners across Add Playlist and all search keyboards while preserving the existing dark panel color.
+- Thinned the rounded keyboard overlay border for a sleeker TV look.
+- Validation: `npm.cmd run check` passes and creates `build\roku-iptv-app.zip`.
+- Roku tests needed: create a PIN from Settings, confirm mismatch handling, disable/enable with correct and incorrect PINs, change the PIN and verify the old PIN no longer works, verify non-Drama VOD and non-Sports Live TV open normally, verify Drama Movies/Series ask for PIN before detail, verify Sports Live TV asks for PIN before playback, verify Back cancels the prompt, verify playback from an unlocked restricted detail page does not ask a second time, then Back to Movies/Series and reopen the same Drama title to confirm it asks again.

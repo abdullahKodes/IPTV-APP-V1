@@ -15,6 +15,13 @@ sub init()
     m.dropdownIndex = 0
     m.dropdownX = 0
     m.dropdownY = 0
+    m.parentalPromptOpen = false
+    m.parentalPinMode = ""
+    m.parentalPinInput = ""
+    m.parentalPinFirst = ""
+    m.parentalPinError = ""
+    m.parentalPinKeyboardIndex = 0
+    m.parentalPinKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "DEL", "0", "DONE"]
     render()
 end sub
 
@@ -27,6 +34,7 @@ sub refreshClock()
 end sub
 
 function handleKey(key as String) as Boolean
+    if m.parentalPromptOpen then return handleParentalPinKey(key)
     if m.signOutDialog <> invalid then
         if key = "back" then closeSignOutDialog() : return true
         return false
@@ -80,9 +88,10 @@ sub activate()
     if action = "autoplay" then m.settings.autoplay = not m.settings.autoplay
     if action = "notifications" then m.settings.notifications = not m.settings.notifications
     if action = "language" then openDropdown("appLanguage", m.languageOptions, item.x, item.y + item.h + 4) : return
-    if action = "parental" then m.settings.parentalLock = not m.settings.parentalLock
+    if action = "parental" then openParentalPinFlow() : return
     if action = "sync" then syncAllPlaylists()
     if action = "clearcache" then m.settings.lastSync = "Cache cleared"
+    if action = "changepin" then openParentalChangePinFlow() : return
     if action = "signout" then openSignOutDialog()
 
     settingsStoreSave(m.settings)
@@ -127,6 +136,7 @@ sub render()
     drawAccountPanel()
     uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
     if m.dropdownOpen then drawDropdown()
+    if m.parentalPromptOpen then drawParentalPinOverlay()
 end sub
 
 function drawSettingsSideNav() as Integer
@@ -207,10 +217,11 @@ sub drawAccountPanel()
     x = 872
     y = 176
     w = 330
-    drawPanel(x, y, w, 206, "ACCOUNT", m.colors.amber)
+    drawPanel(x, y, w, 258, "ACCOUNT", m.colors.amber)
     drawAccountRow(x, y + 52, w, "sync_account", "Sync playlists", "sync", 1)
     drawAccountRow(x, y + 104, w, "cache_account", "Clear cache", "clearcache", 2)
-    drawAccountRow(x, y + 156, w, "logout_account", "Sign out", "signout", 3)
+    drawAccountRow(x, y + 156, w, "settings", "Change PIN", "changepin", 3)
+    drawAccountRow(x, y + 208, w, "logout_account", "Sign out", "signout", 4)
 end sub
 
 sub drawDropdown()
@@ -372,6 +383,236 @@ sub onSignOutDialogButton()
     closeSignOutDialog()
     render()
 end sub
+
+sub openParentalPinFlow()
+    m.parentalPromptOpen = true
+    m.parentalPinInput = ""
+    m.parentalPinFirst = ""
+    m.parentalPinError = ""
+    m.parentalPinKeyboardIndex = 0
+    if not parentalControlPinIsSet() then
+        m.parentalPinMode = "setup_new"
+    else if settingsStoreBool(m.settings, "parentalLock", false) then
+        m.parentalPinMode = "disable"
+    else
+        m.parentalPinMode = "enable"
+    end if
+    render()
+end sub
+
+sub openParentalChangePinFlow()
+    m.parentalPromptOpen = true
+    m.parentalPinInput = ""
+    m.parentalPinFirst = ""
+    m.parentalPinError = ""
+    m.parentalPinKeyboardIndex = 0
+    if parentalControlPinIsSet() then
+        m.parentalPinMode = "change_verify_old"
+    else
+        m.parentalPinMode = "setup_new"
+    end if
+    render()
+end sub
+
+sub closeParentalPinFlow()
+    m.parentalPromptOpen = false
+    m.parentalPinMode = ""
+    m.parentalPinInput = ""
+    m.parentalPinFirst = ""
+    m.parentalPinError = ""
+    render()
+end sub
+
+function handleParentalPinKey(key as String) as Boolean
+    keyCount = m.parentalPinKeys.count()
+    if key = "back" then closeParentalPinFlow() : return true
+    if key = "left" and m.parentalPinKeyboardIndex > 0 then m.parentalPinKeyboardIndex -= 1 : render() : return true
+    if key = "right" and m.parentalPinKeyboardIndex < keyCount - 1 then m.parentalPinKeyboardIndex += 1 : render() : return true
+    if key = "up" and m.parentalPinKeyboardIndex - 3 >= 0 then m.parentalPinKeyboardIndex -= 3 : render() : return true
+    if key = "down" and m.parentalPinKeyboardIndex + 3 < keyCount then m.parentalPinKeyboardIndex += 3 : render() : return true
+    if key = "OK" then pressParentalPinKey() : return true
+    return true
+end function
+
+sub pressParentalPinKey()
+    selected = m.parentalPinKeys[m.parentalPinKeyboardIndex]
+    m.parentalPinError = ""
+    if selected = "DEL" then
+        if m.parentalPinInput.len() > 0 then m.parentalPinInput = Left(m.parentalPinInput, m.parentalPinInput.len() - 1)
+        render()
+        return
+    end if
+    if selected = "DONE" then
+        submitParentalPin()
+        return
+    end if
+    if m.parentalPinInput.len() < 4 then m.parentalPinInput += selected
+    render()
+end sub
+
+sub submitParentalPin()
+    if not parentalControlPinValid(m.parentalPinInput) then
+        m.parentalPinError = "Enter a 4-digit PIN."
+        render()
+        return
+    end if
+
+    if m.parentalPinMode = "setup_new" then
+        m.parentalPinFirst = m.parentalPinInput
+        m.parentalPinInput = ""
+        m.parentalPinMode = "setup_confirm"
+        render()
+        return
+    end if
+
+    if m.parentalPinMode = "setup_confirm" then
+        if m.parentalPinInput <> m.parentalPinFirst then
+            m.parentalPinInput = ""
+            m.parentalPinFirst = ""
+            m.parentalPinMode = "setup_new"
+            m.parentalPinError = "PINs did not match. Try again."
+            render()
+            return
+        end if
+        if parentalControlSavePin(m.parentalPinInput) then
+            parentalControlSetLock(true)
+            m.settings.parentalLock = true
+            settingsStoreSave(m.settings)
+            closeParentalPinFlow()
+        end if
+        return
+    end if
+
+    if m.parentalPinMode = "change_verify_old" then
+        if not parentalControlVerifyPin(m.parentalPinInput) then
+            m.parentalPinInput = ""
+            m.parentalPinError = "Incorrect current PIN."
+            render()
+            return
+        end if
+        m.parentalPinInput = ""
+        m.parentalPinMode = "change_new"
+        render()
+        return
+    end if
+
+    if m.parentalPinMode = "change_new" then
+        m.parentalPinFirst = m.parentalPinInput
+        m.parentalPinInput = ""
+        m.parentalPinMode = "change_confirm"
+        render()
+        return
+    end if
+
+    if m.parentalPinMode = "change_confirm" then
+        if m.parentalPinInput <> m.parentalPinFirst then
+            m.parentalPinInput = ""
+            m.parentalPinFirst = ""
+            m.parentalPinMode = "change_new"
+            m.parentalPinError = "PINs did not match. Try again."
+            render()
+            return
+        end if
+        if parentalControlSavePin(m.parentalPinInput) then closeParentalPinFlow()
+        return
+    end if
+
+    if not parentalControlVerifyPin(m.parentalPinInput) then
+        m.parentalPinInput = ""
+        m.parentalPinError = "Incorrect PIN."
+        render()
+        return
+    end if
+
+    if m.parentalPinMode = "enable" then
+        parentalControlSetLock(true)
+        m.settings.parentalLock = true
+    else if m.parentalPinMode = "disable" then
+        parentalControlSetLock(false)
+        m.settings.parentalLock = false
+    end if
+    settingsStoreSave(m.settings)
+    closeParentalPinFlow()
+end sub
+
+sub drawParentalPinOverlay()
+    uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.58)
+    x = 390
+    y = 126
+    w = 500
+    h = 468
+    uiPoster(m.canvas, "pkg:/images/ui/rr_500x468_panel_greenFocus.png", x, y, w, h, 0.98)
+    titleLabel = uiLabel(m.canvas, parentalPinTitle(), x + 32, y + 20, w - 64, 42, 26, m.colors.textGreen, "center")
+    titleLabel.font.size = 26
+    subtitleLabel = uiLabel(m.canvas, parentalPinMessage(), x + 42, y + 72, w - 84, 34, 18, m.colors.textMuted, "center")
+    subtitleLabel.font.size = 18
+    drawParentalPinDots(x + 142, y + 124)
+    if m.parentalPinError <> "" then
+        errorLabel = uiLabel(m.canvas, m.parentalPinError, x + 36, y + 182, w - 72, 34, 18, m.colors.red, "center")
+        errorLabel.font.size = 18
+    else
+        demoLockLabel = uiLabel(m.canvas, "Demo locks: VOD " + parentalControlRestrictedCategory() + ", Live TV " + parentalControlRestrictedLiveCategory(), x + 36, y + 182, w - 72, 34, 18, m.colors.textDim, "center")
+        demoLockLabel.font.size = 18
+    end if
+    drawParentalPinKeyboard(x + 118, y + 222)
+    uiLabel(m.canvas, "Back cancels", x + 32, y + h - 42, w - 64, 22, 11, m.colors.textDim, "center")
+end sub
+
+sub drawParentalPinDots(x as Integer, y as Integer)
+    for i = 0 to 3
+        filled = i < m.parentalPinInput.len()
+        dotX = x + i * 56
+        drawParentalPinSlot(m.canvas, dotX, y, filled)
+    end for
+end sub
+
+sub drawParentalPinSlot(parent as Object, x as Integer, y as Integer, filled as Boolean)
+    slotUri = "pkg:/images/ui/rr_42x42_panel_purpleLine.png"
+    if filled then slotUri = "pkg:/images/ui/rr_42x42_greenSoft_green.png"
+    uiPoster(parent, slotUri, x, y, 42, 42, 0.94)
+    if filled then
+        uiPoster(parent, "pkg:/images/ui/rr_16x16_text_text.png", x + 13, y + 13, 16, 16, 0.94)
+    else
+        uiRect(parent, x + 12, y + 20, 18, 2, m.colors.textDim, 0.28)
+    end if
+end sub
+
+sub drawParentalPinKeyboard(startX as Integer, startY as Integer)
+    keyW = 70
+    keyH = 36
+    gap = 12
+    for i = 0 to m.parentalPinKeys.count() - 1
+        keyRect = parentalPinKeyRect(i, startX, startY, keyW, keyH, gap)
+        keyLabel = m.parentalPinKeys[i]
+        uiDrawKeyboardKey(m.canvas, keyLabel, uiKeyboardDisplayText(keyLabel, true), keyRect.x, keyRect.y, keyRect.w, keyRect.h, i = m.parentalPinKeyboardIndex, m.colors)
+    end for
+end sub
+
+function parentalPinKeyRect(index as Integer, startX as Integer, startY as Integer, keyW as Integer, keyH as Integer, gap as Integer) as Object
+    row = Int(index / 3)
+    col = index MOD 3
+    return { x: startX + col * (keyW + gap), y: startY + row * (keyH + gap), w: keyW, h: keyH }
+end function
+
+function parentalPinTitle() as String
+    if m.parentalPinMode = "setup_confirm" then return "Confirm PIN"
+    if m.parentalPinMode = "change_verify_old" then return "Current PIN"
+    if m.parentalPinMode = "change_new" then return "New PIN"
+    if m.parentalPinMode = "change_confirm" then return "Confirm New PIN"
+    if m.parentalPinMode = "disable" then return "Turn Off Parental Lock"
+    if m.parentalPinMode = "enable" then return "Turn On Parental Lock"
+    return "Create Parental PIN"
+end function
+
+function parentalPinMessage() as String
+    if m.parentalPinMode = "setup_confirm" then return "Enter the same 4 digits."
+    if m.parentalPinMode = "change_verify_old" then return "Enter your Current Pin"
+    if m.parentalPinMode = "change_new" then return "Choose a new PIN."
+    if m.parentalPinMode = "change_confirm" then return "Confirm your new PIN."
+    if m.parentalPinMode = "disable" then return "Enter PIN to turn off lock."
+    if m.parentalPinMode = "enable" then return "Enter PIN to turn on lock."
+    return "Create a 4-digit PIN."
+end function
 
 function settingsAppVersionText() as String
     appInfo = CreateObject("roAppInfo")
