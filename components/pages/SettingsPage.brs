@@ -6,7 +6,7 @@ sub init()
     m.settings = settingsStoreLoad()
     m.qualityOptions = ["Auto", "1080p", "720p", "480p"]
     m.captionOptions = ["System", "On", "Off", "Replay", "Mute"]
-    m.languageOptions = ["English", "Spanish", "French", "Arabic"]
+    m.clockFormatOptions = ["24-hour", "12-hour"]
     m.versionText = settingsAppVersionText()
     m.signOutDialog = invalid
     m.dropdownOpen = false
@@ -86,8 +86,8 @@ sub activate()
     if action = "quality" then openDropdown("defaultQuality", m.qualityOptions, item.x, item.y + item.h + 4) : return
     if action = "captions" then openDropdown("captionMode", m.captionOptions, item.x, item.y + item.h + 4) : return
     if action = "autoplay" then m.settings.autoplay = not m.settings.autoplay
-    if action = "notifications" then m.settings.notifications = not m.settings.notifications
-    if action = "language" then openDropdown("appLanguage", m.languageOptions, item.x, item.y + item.h + 4) : return
+    if action = "showclock" then m.settings.showClock = not m.settings.showClock
+    if action = "clockformat" then openDropdown("clockFormat", m.clockFormatOptions, item.x, item.y + item.h + 4) : return
     if action = "parental" then openParentalPinFlow() : return
     if action = "sync" then syncAllPlaylists()
     if action = "clearcache" then m.settings.lastSync = "Cache cleared"
@@ -197,20 +197,20 @@ sub drawPlaybackPanel()
     x = 258
     y = 176
     w = 590
-    drawPanel(x, y, w, 206, "PLAYBACK", m.colors.textGreen)
-    drawSettingRow(x, y + 52, w, "Default quality", "", settingsStoreText(m.settings, "defaultQuality", "Auto"), "quality", "select", true, 1, 1)
-    drawSettingRow(x, y + 104, w, "Autoplay next", "", "", "autoplay", "toggle", settingsStoreBool(m.settings, "autoplay", true), 2, 1)
-    drawSettingRow(x, y + 156, w, "Caption mode", "", captionDisplayText(settingsStoreText(m.settings, "captionMode", "System")), "captions", "select", true, 3, 1)
+    drawSettingsGroupTitle(x, y, "PLAYBACK", m.colors.textGreen)
+    drawSettingRow(x, y + 48, w, "Default quality", "", settingsStoreText(m.settings, "defaultQuality", "Auto"), "quality", "select", true, 1, 1)
+    drawSettingRow(x, y + 106, w, "Autoplay next", "", "", "autoplay", "toggle", settingsStoreBool(m.settings, "autoplay", true), 2, 1)
+    drawSettingRow(x, y + 164, w, "Caption mode", "", captionDisplayText(settingsStoreText(m.settings, "captionMode", "System")), "captions", "select", true, 3, 1)
 end sub
 
 sub drawAppPanel()
     x = 258
-    y = 404
+    y = 414
     w = 590
-    drawPanel(x, y, w, 206, "APP", m.colors.textGreen)
-    drawSettingRow(x, y + 52, w, "Notifications", "", "", "notifications", "toggle", settingsStoreBool(m.settings, "notifications", true), 4, 1)
-    drawSettingRow(x, y + 104, w, "App language", "", settingsStoreText(m.settings, "appLanguage", "English"), "language", "select", true, 5, 1)
-    drawSettingRow(x, y + 156, w, "Parental lock", "", "", "parental", "toggle", settingsStoreBool(m.settings, "parentalLock", false), 6, 1)
+    drawSettingsGroupTitle(x, y, "APP", m.colors.textGreen)
+    drawSettingRow(x, y + 48, w, "Show clock", "", "", "showclock", "toggle", settingsStoreBool(m.settings, "showClock", true), 4, 1)
+    drawSettingRow(x, y + 106, w, "Clock format", "", settingsStoreText(m.settings, "clockFormat", "24-hour"), "clockformat", "select", true, 5, 1)
+    drawSettingRow(x, y + 164, w, "Parental lock", "", "", "parental", "toggle", settingsStoreBool(m.settings, "parentalLock", false), 6, 1)
 end sub
 
 sub drawAccountPanel()
@@ -227,24 +227,31 @@ end sub
 sub drawDropdown()
     if m.dropdownOptions = invalid or m.dropdownOptions.count() = 0 then return
     rowH = 40
-    w = 126
+    optionH = 34
+    w = 104
     x = m.dropdownX
+    if x < 8 then x = 8
     y = m.dropdownY
-    totalH = rowH * m.dropdownOptions.count()
+    totalH = (rowH * m.dropdownOptions.count()) - (rowH - optionH)
     if y + totalH > 704 then y = 704 - totalH
-    uiRect(m.canvas, x - 4, y - 4, w + 8, totalH + 8, m.colors.bg, 0.84)
+    panelH = totalH + 12
+    panelUri = "pkg:/images/ui/settings_dropdown_panel_116x206_bg.png"
+    if panelH <= 86 then
+        panelUri = "pkg:/images/ui/settings_dropdown_panel_116x86_bg.png"
+    else if panelH <= 166 then
+        panelUri = "pkg:/images/ui/settings_dropdown_panel_116x166_bg.png"
+    end if
+    uiPoster(m.canvas, panelUri, x - 6, y - 6, 116, panelH, 1.0)
     for i = 0 to m.dropdownOptions.count() - 1
         optionY = y + i * rowH
-        bg = m.colors.bg2
-        border = m.colors.whiteLine
+        optionUri = "pkg:/images/ui/settings_select_104x34_bg2_whiteLine.png"
         textColor = m.colors.textPurple
         if i = m.dropdownIndex then
-            bg = m.colors.purpleSoft
-            border = m.colors.greenFocus
+            optionUri = "pkg:/images/ui/settings_select_104x34_purpleSoft_greenFocus.png"
             textColor = m.colors.text
         end if
-        uiRoundRect(m.canvas, x, optionY, w, 40, bg, border)
-        optionLabel = uiLabel(m.canvas, dropdownDisplayText(m.dropdownKey, m.dropdownOptions[i]), x + 4, optionY, w - 8, 40, 14, textColor, "center")
+        uiPoster(m.canvas, optionUri, x, optionY, w, optionH, 1.0)
+        optionLabel = uiLabel(m.canvas, dropdownDisplayText(m.dropdownKey, m.dropdownOptions[i]), x + 6, optionY + 1, w - 12, optionH, 14, textColor, "center")
         optionLabel.font.size = 14
     end for
 end sub
@@ -255,13 +262,32 @@ sub drawPanel(x as Integer, y as Integer, w as Integer, h as Integer, title as S
     panelTitle.font.size = 22
 end sub
 
+sub drawSettingsGroupTitle(x as Integer, y as Integer, title as String, titleColor as String)
+    titleLabel = uiLabel(m.canvas, title, x, y, 260, 42, 22, titleColor)
+    titleLabel.font.size = 22
+end sub
+
 sub drawSettingRow(x as Integer, y as Integer, w as Integer, title as String, subtitle as String, value as String, action as String, kind as String, enabled as Boolean, row as Integer, col as Integer)
-    if y > 0 then uiRect(m.canvas, x + 22, y - 8, w - 44, 1, "0xFFFFFF0C")
-    drawRowText(x + 24, y, 300, title, subtitle)
+    itemIndex = m.focusItems.count()
+    focused = itemIndex = m.focusIndex
+    surfaceUri = "pkg:/images/ui/settings_row_590x50_bg2_bg2.png"
+    rowOpacity = 0.72
+    textColor = m.colors.textPurple
+    iconColor = m.colors.textGreen
+    if focused then
+        surfaceUri = "pkg:/images/ui/settings_row_590x50_panelSoft_greenFocus.png"
+        rowOpacity = 0.90
+        textColor = m.colors.text
+        iconColor = m.colors.text
+    end if
+    uiPoster(m.canvas, surfaceUri, x, y, w, 50, rowOpacity)
+    uiDrawIcon(m.canvas, settingIconForAction(action), x + 22, y + 15, 20, 20, false, iconColor, 12)
+    rowLabel = uiLabel(m.canvas, title, x + 62, y, 300, 50, 17, textColor)
+    rowLabel.font.size = 17
     if kind = "toggle" then
-        drawCompactToggle(x + w - 104, y + 8, enabled, action, row, col)
+        drawCompactToggle(x + w - 86, y + 12, enabled, action, row, col)
     else
-        drawCompactSelect(x + w - 178, y + 1, 126, value, action, row, col)
+        drawCompactSelect(x + w - 124, y + 8, 104, value, action, row, col)
     end if
 end sub
 
@@ -269,6 +295,16 @@ sub drawRowText(x as Integer, y as Integer, w as Integer, title as String, subti
     rowLabel = uiLabel(m.canvas, title, x, y + 3, w, 30, 18, m.colors.text)
     rowLabel.font.size = 18
 end sub
+
+function settingIconForAction(action as String) as String
+    if action = "quality" then return "player_full"
+    if action = "autoplay" then return "player_play"
+    if action = "captions" then return "note"
+    if action = "showclock" then return "clock"
+    if action = "clockformat" then return "settings"
+    if action = "parental" then return "kids"
+    return "settings"
+end function
 
 sub drawCompactSelect(x as Integer, y as Integer, w as Integer, value as String, action as String, row as Integer, col as Integer)
     index = m.focusItems.count()
@@ -281,13 +317,16 @@ sub drawCompactSelect(x as Integer, y as Integer, w as Integer, value as String,
         border = m.colors.greenFocus
         textColor = m.colors.text
     end if
-    uiRoundRect(m.canvas, x, y, w, 40, bg, border, 1.0)
-    valueLabel = uiLabel(m.canvas, value, x + 4, y, w - 8, 40, 14, textColor, "center")
+    selectH = 34
+    selectUri = "pkg:/images/ui/settings_select_104x34_bg2_whiteLine.png"
+    if focused then selectUri = "pkg:/images/ui/settings_select_104x34_purpleSoft_greenFocus.png"
+    uiPoster(m.canvas, selectUri, x, y, w, selectH, 1.0)
+    valueLabel = uiLabel(m.canvas, value, x + 9, y + 1, w - 34, selectH, 13, textColor, "center")
     valueLabel.font.size = 14
     chevronUri = "pkg:/images/ui/select_chevron_down.png"
     if focused then chevronUri = "pkg:/images/ui/select_chevron_down_focus.png"
-    uiPoster(m.canvas, chevronUri, x + w - 29, y + 11, 18, 18)
-    m.focusItems.push({ x: x, y: y, w: w, h: 40, icon: "", label: value, subtitle: "", iconSize: 1, titleSize: 14, subSize: 10, bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim, focusBg: bg, focusBorder: border, focusTextColor: textColor, row: row, col: col, page: "", action: action, mode: "manual", noFocusShift: true })
+    uiPoster(m.canvas, chevronUri, x + w - 25, y + 10, 14, 14)
+    m.focusItems.push({ x: x, y: y, w: w, h: selectH, icon: "", label: value, subtitle: "", iconSize: 1, titleSize: 14, subSize: 10, bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim, focusBg: bg, focusBorder: border, focusTextColor: textColor, row: row, col: col, page: "", action: action, mode: "manual", noFocusShift: true })
 end sub
 
 sub drawCompactToggle(x as Integer, y as Integer, enabled as Boolean, action as String, row as Integer, col as Integer)
@@ -316,7 +355,7 @@ sub drawAccountRow(x as Integer, y as Integer, w as Integer, icon as String, lab
     end if
     uiRoundRect(m.canvas, x + 16, y - 2, w - 32, 46, bg, border, 1.0)
     uiDrawIcon(m.canvas, icon, x + 34, y + 12, 18, 18, focused, textColor, 11)
-    accountLabel = uiLabel(m.canvas, label, x + 66, y + 4, 205, 30, 18, textColor)
+    accountLabel = uiLabel(m.canvas, label, x + 66, y - 2, 205, 46, 18, textColor)
     accountLabel.font.size = 18
     m.focusItems.push({ x: x + 16, y: y - 2, w: w - 32, h: 46, icon: icon, label: label, subtitle: "", iconSize: 11, titleSize: 18, subSize: 8, bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: 4, page: "", action: action, mode: "manual", noFocusShift: true })
 end sub
@@ -333,8 +372,8 @@ sub drawHeaderAction(x as Integer, y as Integer, w as Integer, h as Integer, ico
         textColor = m.colors.text
     end if
     uiRoundRect(m.canvas, x, y, w, h, bg, border)
-    uiDrawIcon(m.canvas, icon, x + 18, y + 9, 18, 18, focused, textColor, 12)
-    uiLabel(m.canvas, label, x + 42, y + 2, w - 54, 30, 14, textColor)
+    uiDrawIcon(m.canvas, icon, x + 18, y + Int((h - 18) / 2), 18, 18, focused, textColor, 12)
+    uiLabel(m.canvas, label, x + 42, y, w - 54, h, 14, textColor)
     m.focusItems.push({ x: x, y: y, w: w, h: h, icon: icon, label: label, subtitle: "", iconSize: 12, titleSize: 15, subSize: 10, bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: col, page: page, action: action, mode: "manual", noFocusShift: true })
 end sub
 

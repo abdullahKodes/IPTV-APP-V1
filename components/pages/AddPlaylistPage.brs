@@ -293,7 +293,7 @@ sub addSmallButton(x as Integer, y as Integer, w as Integer, h as Integer, icon 
         focusSurface.id = "addPlaylistModeButtonFocus" + itemIndex.toStr()
         if m.previousFocusIndex <> itemIndex then animateAddPlaylistButtonFocus(m.canvas, buttonCanvas, focusSurface, x, y, 0.70)
     end if
-    uiLabel(buttonCanvas, label, 0, 11, w, 28, 15, textColor, "center")
+    uiLabel(buttonCanvas, label, 0, 1, w, h, 15, textColor, "center")
 
     item = { x: x, y: y, w: w, h: h, icon: icon, label: label, subtitle: "", iconSize: 14, titleSize: 15, subSize: 10, bg: m.colors.bg, border: m.colors.whiteLine, textColor: m.colors.text, subColor: m.colors.textDim, focusBg: m.colors.purpleSoft, focusBorder: m.colors.purpleLine, focusTextColor: m.colors.text, row: row, col: col, action: action, page: "", mode: "manual", noFocusShift: true }
     m.focusItems.push(item)
@@ -322,9 +322,9 @@ sub addWideAction(x as Integer, y as Integer, w as Integer, h as Integer, icon a
         iconX = Int((w - contentW) / 2)
         labelX = iconX + 34
         uiDrawIcon(buttonCanvas, icon, iconX, 17, 22, 22, focused, m.colors.text, 15)
-        uiLabel(buttonCanvas, label, labelX, 12, labelW, 32, 17, m.colors.text, "left")
+        uiLabel(buttonCanvas, label, labelX, 1, labelW, h, 17, m.colors.text, "left")
     else
-        uiLabel(buttonCanvas, label, 0, 12, w, 32, 17, m.colors.text, "center")
+        uiLabel(buttonCanvas, label, 0, 1, w, h, 17, m.colors.text, "center")
     end if
     item = { x: x, y: y, w: w, h: h, icon: icon, label: label, subtitle: "", iconSize: 15, iconW: 22, iconH: 22, iconX: 124, labelX: 0, labelW: w, labelAlign: "center", titleSize: 17, subSize: 10, bg: m.colors.purpleActive, border: m.colors.purpleActive, textColor: m.colors.text, subColor: m.colors.textDim, focusBg: m.colors.purpleSoft, focusBorder: m.colors.purpleLine, focusTextColor: m.colors.text, row: row, col: col, action: "submit", page: "", mode: "manual", noFocusShift: true }
     m.focusItems.push(item)

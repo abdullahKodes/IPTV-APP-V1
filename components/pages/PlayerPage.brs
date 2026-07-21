@@ -794,7 +794,7 @@ sub drawDialogAction(x as Integer, y as Integer, w as Integer, label as String, 
         opacity = 0.92
     end if
     uiPoster(m.canvas, uri, x, y, w, 48, opacity)
-    uiLabel(m.canvas, label, x, y + 8, w, 30, 13, m.colors.text, "center")
+    uiLabel(m.canvas, label, x, y, w, 48, 13, m.colors.text, "center")
 end sub
 
 sub drawControls()
@@ -908,9 +908,9 @@ sub drawTrackMenu()
                 uiPoster(m.canvas, "pkg:/images/ui/rr_500x44_purpleSoft_greenFocus.png", panelX + 28, y, panelW - 56, 44, 1.0)
                 uiPoster(m.canvas, "pkg:/images/ui/scroll_cap_6_greenFocus.png", panelX + panelW - 56, y + 17, 10, 10, 1.0)
             end if
-            uiLabel(m.canvas, item.label, panelX + 48, y + 7, panelW - 96, 30, 12, optionColor)
+            uiLabel(m.canvas, item.label, panelX + 48, y, panelW - 96, 44, 12, optionColor)
         else
-            uiLabel(m.canvas, item.label, panelX + 48, y + 7, 150, 30, 13, m.colors.text)
+            uiLabel(m.canvas, item.label, panelX + 48, y, 150, 44, 13, m.colors.text)
         end if
         if item.kind = "toggle" then
             controlX = panelX + panelW - 224
@@ -923,7 +923,7 @@ sub drawTrackMenu()
             captionState = "Off"
             if m.captionsEnabled then captionState = "On"
             uiPoster(m.canvas, captionUri, controlX, y + 2, 172, 40, 1.0)
-            uiLabel(m.canvas, captionState, controlX + 8, y + 8, 156, 28, 11, captionColor, "center")
+            uiLabel(m.canvas, captionState, controlX + 8, y + 2, 156, 40, 11, captionColor, "center")
         else if item.kind = "dropdown" then
             detailUri = "pkg:/images/ui/rr_190x44_bg_whiteLine.png"
             detailColor = m.colors.textMuted
@@ -932,7 +932,7 @@ sub drawTrackMenu()
                 detailColor = m.colors.text
             end if
             uiPoster(m.canvas, detailUri, panelX + panelW - 224, y + 2, 172, 40, 1.0)
-            uiLabel(m.canvas, item.detail, panelX + panelW - 216, y + 8, 126, 28, 11, detailColor, "center")
+            uiLabel(m.canvas, item.detail, panelX + panelW - 216, y + 2, 126, 40, 11, detailColor, "center")
             chevronUri = "pkg:/images/ui/select_chevron_down.png"
             if focused then chevronUri = "pkg:/images/ui/select_chevron_down_focus.png"
             uiPoster(m.canvas, chevronUri, panelX + panelW - 82, y + 18, 12, 7, 1.0)

@@ -120,7 +120,7 @@ sub drawSubscriptionAction(x as Integer, y as Integer, w as Integer, label as St
     end if
     h = 44
     uiPoster(m.canvas, surfaceUri, x, y, w, h, opacity)
-    uiScaledLabel(m.canvas, label, x + 8, y + 10, w - 16, 24, 15, textColor, "center", 0.76)
+    uiScaledLabel(m.canvas, label, x + 8, y, w - 16, h, 15, textColor, "center", 0.76)
     m.focusItems.push({ x: x, y: y, w: w, h: h, row: row, col: col, action: action, mode: "manual" })
 end sub
 

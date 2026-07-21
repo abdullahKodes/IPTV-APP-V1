@@ -197,7 +197,7 @@ sub drawManageAction(x as Integer, y as Integer, w as Integer, label as String, 
         opacity = 0.44
     end if
     uiPoster(m.canvas, uri, x, y, w, 40, opacity)
-    uiLabel(m.canvas, label, x, y + 7, w, 28, 11, textColor, "center")
+    uiLabel(m.canvas, label, x, y, w, 40, 11, textColor, "center")
     m.focusItems.push({
         x: x, y: y, w: w, h: 40,
         action: action,
@@ -319,13 +319,11 @@ sub onDeleteDialogButton()
     playlistTitle = m.pendingTitle
     closeDeleteDialog()
     if selected = 1 then
-        wasActive = playlistStoreActiveId() = playlistId
         deleted = playlistStoreDelete(playlistId)
         m.playlists = playlistStoreList()
         m.feedbackSuccess = deleted
         if deleted then
             m.feedbackMessage = playlistTitle + " was deleted."
-            if wasActive then m.feedbackMessage += " Empty M3U Playlist is now active."
         else
             m.feedbackMessage = "This protected playlist cannot be deleted."
         end if

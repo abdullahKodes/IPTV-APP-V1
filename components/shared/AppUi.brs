@@ -166,6 +166,12 @@ function uiThinRoundRect(parent as Object, x as Integer, y as Integer, w as Inte
     return uiPoster(parent, uiThinRoundUri(w, h, fill, border), x, y, w, h, opacity)
 end function
 
+function uiSearchPill(parent as Object, x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean, opacity = 0.52 as Float) as Object
+    uri = "pkg:/images/ui/search_pill_260x40_panel_whiteLine.png"
+    if focused then uri = "pkg:/images/ui/search_pill_260x40_purpleSoft_greenFocus.png"
+    return uiPoster(parent, uri, x, y, w, h, opacity)
+end function
+
 function uiLabel(parent as Object, text as String, x as Integer, y as Integer, w as Integer, h as Integer, size as Integer, color as String, align = "left" as String) as Object
     node = CreateObject("roSGNode", "Label")
     node.translation = [x, y]
@@ -204,7 +210,7 @@ function uiKnownIcon(icon as String) as Boolean
         add: true, play: true, search: true, back: true, sync: true, info: true, cache: true,
         sync_account: true, cache_account: true, logout_account: true,
         out: true, plus: true, link: true, m3u: true, x: true, profile: true,
-        world: true, note: true, kids: true, sport: true, news: true,
+        world: true, note: true, kids: true, clock: true, sport: true, news: true,
         heart: true, bell: true,
         player_volume: true, player_play: true, player_replay: true, player_full: true, player_heart: true,
         card_add: true, card_tv: true, card_series: true, card_movies: true,
@@ -506,6 +512,10 @@ function uiTopBar(parent as Object, colors as Object) as Object
     uiPoster(parent, "pkg:/images/logo_full_dark_modified.png", 26, 13, 206, 64)
     clock = uiLabel(parent, "--:--", 1115, 12, 130, 32, 25, colors.text, "right")
     date = uiLabel(parent, "---", 994, 48, 251, 24, 13, colors.textMuted, "right")
+    if not uiShowClockSetting() then
+        clock.opacity = 0
+        date.opacity = 0
+    end if
     return { clock: clock, date: date }
 end function
 
@@ -591,14 +601,45 @@ end function
 function uiNowStrings() as Object
     dt = CreateObject("roDateTime")
     dt.toLocalTime()
-    hours = dt.getHours().toStr()
+    rawHours = dt.getHours()
+    hours = rawHours.toStr()
     minutes = dt.getMinutes().toStr()
-    if hours.len() = 1 then hours = "0" + hours
+    suffix = ""
+    if uiClockFormatSetting() = "12-hour" then
+        if rawHours >= 12 then
+            suffix = " PM"
+        else
+            suffix = " AM"
+        end if
+        displayHours = rawHours MOD 12
+        if displayHours = 0 then displayHours = 12
+        hours = displayHours.toStr()
+    else if hours.len() = 1 then
+        hours = "0" + hours
+    end if
     if minutes.len() = 1 then minutes = "0" + minutes
     days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
     months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
     return {
-        time: hours + ":" + minutes,
+        time: hours + ":" + minutes + suffix,
         date: days[dt.getDayOfWeek()] + ", " + months[dt.getMonth() - 1] + " " + dt.getDayOfMonth().toStr()
     }
+end function
+
+function uiClockFormatSetting() as String
+    section = CreateObject("roRegistrySection", "iptvmax_settings")
+    if section <> invalid and section.Exists("clockFormat") then
+        value = section.Read("clockFormat")
+        if value <> invalid and value <> "" then return value
+    end if
+    return "24-hour"
+end function
+
+function uiShowClockSetting() as Boolean
+    section = CreateObject("roRegistrySection", "iptvmax_settings")
+    if section <> invalid and section.Exists("showClock") then
+        value = LCase(section.Read("showClock"))
+        if value = "0" or value = "false" or value = "no" then return false
+    end if
+    return true
 end function

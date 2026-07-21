@@ -145,7 +145,7 @@ sub drawActionButton(x as Integer, y as Integer, w as Integer, icon as String, l
     m.canvas.appendChild(buttonCanvas)
     drawActionButtonSurface(buttonCanvas, 0, 0, w, h, focused, opacity)
     drawActionIcon(buttonCanvas, icon, focused, 22, 10, 20, 20, textColor)
-    uiScaledLabel(buttonCanvas, label, 56, 6, w - 72, 24, 12, textColor, "left", 0.96)
+    uiScaledLabel(buttonCanvas, label, 56, 2, w - 72, h, 12, textColor, "left", 0.96)
     if focused then uiAnimateActionFocus(m.canvas, buttonCanvas)
 end sub
 

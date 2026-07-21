@@ -5,6 +5,9 @@ function settingsStoreDefaults() as Object
         autoplay: true,
         notifications: true,
         appLanguage: "English",
+        startupPage: "Home",
+        showClock: true,
+        clockFormat: "24-hour",
         parentalLock: false,
         lastSync: "Not synced yet",
         syncCount: 0,
@@ -24,6 +27,9 @@ function settingsStoreLoad() as Object
         autoplay: settingsStoreReadBool(section, "autoplay", defaults.autoplay),
         notifications: settingsStoreReadBool(section, "notifications", defaults.notifications),
         appLanguage: settingsStoreReadString(section, "appLanguage", defaults.appLanguage),
+        startupPage: settingsStoreReadString(section, "startupPage", defaults.startupPage),
+        showClock: settingsStoreReadBool(section, "showClock", defaults.showClock),
+        clockFormat: settingsStoreReadString(section, "clockFormat", defaults.clockFormat),
         parentalLock: settingsStoreReadBool(section, "parentalLock", defaults.parentalLock),
         lastSync: settingsStoreReadString(section, "lastSync", defaults.lastSync),
         syncCount: settingsStoreReadInt(section, "syncCount", defaults.syncCount),
@@ -42,6 +48,9 @@ sub settingsStoreSave(settings as Object)
     section.Write("autoplay", settingsStoreBoolValue(settings, "autoplay", true))
     section.Write("notifications", settingsStoreBoolValue(settings, "notifications", true))
     section.Write("appLanguage", settingsStoreText(settings, "appLanguage", "English"))
+    section.Write("startupPage", settingsStoreText(settings, "startupPage", "Home"))
+    section.Write("showClock", settingsStoreBoolValue(settings, "showClock", true))
+    section.Write("clockFormat", settingsStoreText(settings, "clockFormat", "24-hour"))
     section.Write("parentalLock", settingsStoreBoolValue(settings, "parentalLock", false))
     section.Write("lastSync", settingsStoreText(settings, "lastSync", "Not synced yet"))
     section.Write("syncCount", settingsStoreIntValue(settings, "syncCount", 0).toStr())

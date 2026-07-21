@@ -292,12 +292,12 @@ sub drawSearchBox()
 
     searchOpacity = 0.48
     if focused then searchOpacity = 0.56
-    uiRoundRect(m.canvas, 686, 22, 260, 40, bg, border, searchOpacity)
-    uiDrawIcon(m.canvas, "search", 704, 33, 18, 18, focused, textColor, 11)
-    uiLabel(m.canvas, label, 734, 28, 198, 28, 12, textColor)
+    uiSearchPill(m.canvas, 686, 22, 240, 40, focused, searchOpacity)
+    uiDrawIcon(m.canvas, "search", 706, 32, 20, 20, focused, textColor, 11)
+    uiLabel(m.canvas, label, 740, 23, 166, 40, 12, textColor)
 
     m.focusItems.push({
-        x: 686, y: 22, w: 260, h: 40,
+        x: 686, y: 22, w: 240, h: 40,
         icon: "search", label: label, subtitle: "",
         iconSize: 11, titleSize: 13, subSize: 10,
         bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim,
@@ -348,7 +348,7 @@ sub drawCategoryPills(row as Integer)
         uiPoster(m.canvas, pillUri, x, 104, pillW, 36, pillOpacity)
         labelScale = 0.80
         if label = "All" then labelScale = 0.74
-        uiScaledLabel(m.canvas, label, x, 112, pillW, 22, 11, textColor, "center", labelScale)
+        uiScaledLabel(m.canvas, label, x, 104, pillW, 36, 11, textColor, "center", labelScale)
 
         m.focusItems.push({
             x: x, y: 104, w: pillW, h: 36,
@@ -423,7 +423,7 @@ sub drawContinueCard(series as Object, sourceIndex as Integer, resumeIndex as In
     uiRect(cardCanvas, 116, 73, 246, 4, "0xFFFFFF18", 0.62)
     uiRect(cardCanvas, 116, 73, Int(246 * progressPercent / 100), 4, m.colors.greenFocus, 0.96)
     uiPoster(cardCanvas, buttonUri, 116, 91, 126, 34, 0.74)
-    uiScaledLabel(cardCanvas, "Resume", 123, 98, 112, 18, 8, "0xFFFFFFFF", "center", 0.78)
+    uiScaledLabel(cardCanvas, "Resume", 116, 91, 126, 34, 8, "0xFFFFFFFF", "center", 0.78)
     if focused then uiAnimateCardFocus(m.canvas, cardCanvas, x, y)
 
     m.focusItems.push({

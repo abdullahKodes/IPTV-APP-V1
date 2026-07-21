@@ -320,11 +320,11 @@ sub drawSearchBox()
     end if
     label = "Search favorites"
     if m.searchQuery <> "" then label = m.searchQuery
-    uiRoundRect(m.canvas, 686, 22, 260, 40, bg, border, 0.50)
-    uiDrawIcon(m.canvas, "search", 704, 33, 18, 18, focused, textColor, 11)
-    uiLabel(m.canvas, label, 734, 28, 198, 28, 12, textColor)
+    uiSearchPill(m.canvas, 686, 22, 240, 40, focused, 0.54)
+    uiDrawIcon(m.canvas, "search", 706, 32, 20, 20, focused, textColor, 11)
+    uiLabel(m.canvas, label, 740, 23, 166, 40, 12, textColor)
     m.focusItems.push({
-        x: 686, y: 22, w: 260, h: 40,
+        x: 686, y: 22, w: 240, h: 40,
         icon: "search", label: label, subtitle: "",
         iconSize: 11, titleSize: 13, subSize: 10,
         bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim,

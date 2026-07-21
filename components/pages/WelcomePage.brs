@@ -364,7 +364,7 @@ sub drawRestoreButton(x as Integer, y as Integer, focused as Boolean)
         opacity = 0.68
     end if
     uiPoster(g, uri, 0, 0, 230, 44, opacity)
-    uiScaledLabel(g, "Restore Subscription", 0, 10, 230, 22, 14, textColor, "center", 0.74)
+    uiScaledLabel(g, "Restore Subscription", 0, 0, 230, 44, 14, textColor, "center", 0.74)
 
     if focused and m.previousFocusIndex <> 3 then uiAnimateActionFocus(m.canvas, g)
 end sub
@@ -399,10 +399,10 @@ sub drawStatusState()
             buttonX = 548
         end if
         uiPoster(m.canvas, "pkg:/images/ui/movie_watch_176x40_greenSoft_greenFocus.png", buttonX, 410, buttonW, 44, 0.78)
-        uiScaledLabel(m.canvas, buttonText, buttonX, 420, buttonW, 24, 15, m.colors.text, "center", 0.76)
+        uiScaledLabel(m.canvas, buttonText, buttonX, 410, buttonW, 44, 15, m.colors.text, "center", 0.76)
     else
         uiPoster(m.canvas, "pkg:/images/ui/movie_watch_176x40_panel_greenFocus.png", 548, 410, 184, 44, 0.82)
-        uiScaledLabel(m.canvas, "Back to Plans", 548, 420, 184, 24, 15, m.colors.text, "center", 0.76)
+        uiScaledLabel(m.canvas, "Back to Plans", 548, 410, 184, 44, 15, m.colors.text, "center", 0.76)
     end if
 end sub
 

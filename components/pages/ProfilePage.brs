@@ -158,7 +158,7 @@ sub drawProfileAction(x as Integer, y as Integer, w as Integer, label as String,
         opacity = 0.78
     end if
     uiPoster(m.canvas, surfaceUri, x, y, w, 44, opacity)
-    uiLabel(m.canvas, label, x + 22, y + 6, w - 44, 30, 14, textColor)
+    uiLabel(m.canvas, label, x + 22, y, w - 44, 44, 14, textColor)
     m.focusItems.push({ x: x, y: y, w: w, h: 44, icon: "", label: label, subtitle: "", iconSize: 1, titleSize: 14, subSize: 10, bg: m.colors.bg2, border: m.colors.bg2, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: 0, page: page, action: action, mode: "manual", noFocusShift: true })
 end sub
 

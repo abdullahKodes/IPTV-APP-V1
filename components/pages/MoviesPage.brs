@@ -277,12 +277,12 @@ sub drawSearchBox()
 
     searchOpacity = 0.48
     if focused then searchOpacity = 0.56
-    uiRoundRect(m.canvas, 686, 22, 260, 40, bg, border, searchOpacity)
-    uiDrawIcon(m.canvas, "search", 704, 33, 18, 18, focused, textColor, 11)
-    uiLabel(m.canvas, label, 734, 28, 198, 28, 12, textColor)
+    uiSearchPill(m.canvas, 686, 22, 240, 40, focused, searchOpacity)
+    uiDrawIcon(m.canvas, "search", 706, 32, 20, 20, focused, textColor, 11)
+    uiLabel(m.canvas, label, 740, 23, 166, 40, 12, textColor)
 
     m.focusItems.push({
-        x: 686, y: 22, w: 260, h: 40,
+        x: 686, y: 22, w: 240, h: 40,
         icon: "search", label: label, subtitle: "",
         iconSize: 11, titleSize: 13, subSize: 10,
         bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim,
@@ -332,7 +332,7 @@ sub drawMoviePills(row as Integer)
         uiPoster(m.canvas, pillUri, x, 104, pillW, 36, pillOpacity)
         labelScale = 0.80
         if label = "All" then labelScale = 0.74
-        uiScaledLabel(m.canvas, label, x, 112, pillW, 22, 11, textColor, "center", labelScale)
+        uiScaledLabel(m.canvas, label, x, 104, pillW, 36, 11, textColor, "center", labelScale)
         m.focusItems.push({
             x: x, y: 104, w: pillW, h: 36,
             icon: "", label: label, subtitle: "",
@@ -382,7 +382,7 @@ sub drawFeatured(movie as Object, row as Integer)
     uiLabel(featuredCanvas, title, 160, 54, 320, 28, 17, titleColor)
     uiScaledLabel(featuredCanvas, meta, 160, 87, 360, 18, 8, subColor, "left", 0.68)
     uiPoster(featuredCanvas, buttonUri, 160, 121, 126, 34, 0.74)
-    uiScaledLabel(featuredCanvas, "View Details", 167, 128, 112, 18, 8, buttonText, "center", 0.78)
+    uiScaledLabel(featuredCanvas, "View Details", 160, 121, 126, 34, 8, buttonText, "center", 0.78)
     if focused then uiAnimatePanelFocus(m.canvas, featuredCanvas)
 
     m.focusItems.push({

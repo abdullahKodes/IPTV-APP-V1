@@ -106,7 +106,6 @@ sub render()
     row = drawPlaylistSideNav()
 
     drawPageHeader(row)
-    drawLifecycleFeedback()
 
     if visible.count() = 0 then
         drawEmptyState()
@@ -410,7 +409,7 @@ sub drawPageHeader(row as Integer)
     uiLabel(m.canvas, "MY PLAYLISTS", 258, 106, 300, 34, 18, m.colors.text)
     uiLabel(m.canvas, summary.countText, 258, 140, 300, 26, 13, m.colors.greenFocus)
 
-    addSearchAction(686, 24, 260, 40, 0, 3)
+    addSearchAction(686, 24, 240, 40, 0, 3)
     addHeaderAction(664, 108, 230, 48, "plus", "Add Playlist", row, 2, "AddPlaylistPage", "")
     addHeaderAction(920, 108, 230, 48, "", "Manage Playlists", row, 3, "ManagePlaylistsPage", "")
 end sub
@@ -432,10 +431,10 @@ sub addHeaderAction(x as Integer, y as Integer, w as Integer, h as Integer, icon
     m.canvas.appendChild(buttonCanvas)
     uiPoster(buttonCanvas, surfaceUri, 0, 0, w, h, buttonOpacity)
     if icon = "" then
-        uiLabel(buttonCanvas, label, 0, 8, w, 30, 15, textColor, "center")
+        uiLabel(buttonCanvas, label, 0, 0, w, h, 15, textColor, "center")
     else
-        uiDrawIcon(buttonCanvas, icon, 34, 13, 20, 20, focused, textColor, 12)
-        uiLabel(buttonCanvas, label, 64, 8, w - 80, 30, 15, textColor)
+        uiDrawIcon(buttonCanvas, icon, 34, 14, 20, 20, focused, textColor, 12)
+        uiLabel(buttonCanvas, label, 64, 0, w - 80, h, 15, textColor)
     end if
     if focused then uiAnimateActionFocus(m.canvas, buttonCanvas)
     m.focusItems.push({ x: x, y: y, w: w, h: h, icon: icon, label: label, subtitle: "", iconSize: 12, titleSize: 15, subSize: 10, bg: m.colors.panel, border: m.colors.greenFocus, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: col, page: page, action: action, mode: "manual" })
@@ -455,9 +454,9 @@ sub addSearchAction(x as Integer, y as Integer, w as Integer, h as Integer, row 
         border = m.colors.greenFocus
         textColor = m.colors.text
     end if
-    uiRoundRect(m.canvas, x, y, w, h, bg, border)
-    uiDrawIcon(m.canvas, "search", x + 22, y + 13, 18, 18, focused, textColor, 11)
-    uiLabel(m.canvas, label, x + 52, y + 7, w - 66, 30, 14, textColor)
+    uiSearchPill(m.canvas, x, y, w, h, focused, 0.54)
+    uiDrawIcon(m.canvas, "search", x + 20, y + 10, 20, 20, focused, textColor, 11)
+    uiLabel(m.canvas, label, x + 54, y + 1, w - 72, h, 14, textColor)
     m.focusItems.push({ x: x, y: y, w: w, h: h, icon: "search", label: label, subtitle: "", iconSize: 11, titleSize: 14, subSize: 10, bg: bg, border: border, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: col, page: "", action: "search", mode: "manual" })
 end sub
 
@@ -586,15 +585,8 @@ sub drawCardAction(label as String, action as String, playlistId as String, play
         buttonUri = "pkg:/images/ui/movie_watch_140x40_greenSoft_greenFocus.png"
     end if
     uiPoster(m.canvas, buttonUri, x, y, 90, 28)
-    uiLabel(m.canvas, label, x + 4, y - 1, 82, 28, 7, textColor, "center")
+    uiLabel(m.canvas, label, x + 4, y, 82, 28, 7, textColor, "center")
     m.focusItems.push({ x: x, y: y, w: 90, h: 28, icon: "", label: label, subtitle: "", iconSize: 1, titleSize: 7, subSize: 7, bg: m.colors.panel, border: m.colors.greenFocus, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: textColor, row: row, col: col, page: "", action: action, playlistId: playlistId, playlistTitle: playlistTitle, playlistProtected: playlistProtected, visibleIndex: visibleIndex, mode: "manual", noFocusShift: true })
-end sub
-
-sub drawLifecycleFeedback()
-    if m.feedbackMessage = "" then return
-    color = m.colors.textGreen
-    if not m.feedbackSuccess then color = "0xFFB2A8FF"
-    uiScaledLabel(m.canvas, m.feedbackMessage, 258, 158, 900, 24, 10, color, "left", 0.72)
 end sub
 
 sub drawFooterSummary()
@@ -724,13 +716,11 @@ sub onDeleteDialogButton()
     selected = m.deleteDialog.buttonSelected
     if selected = 1 then
         deletedTitle = m.pendingDeleteTitle
-        wasActive = playlistStoreActiveId() = m.pendingDeleteId
         deleted = playlistStoreDelete(m.pendingDeleteId)
         m.playlists = playlistStoreList()
         m.feedbackSuccess = deleted
         if deleted then
             m.feedbackMessage = deletedTitle + " was deleted."
-            if wasActive then m.feedbackMessage += " Empty M3U Playlist is now active."
         else
             m.feedbackMessage = "This protected playlist cannot be deleted."
         end if
