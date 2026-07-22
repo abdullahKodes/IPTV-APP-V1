@@ -9,6 +9,7 @@ sub init()
     m.errorMessage = ""
     m.errorField = ""
     m.submitState = ""
+    m.backendTask = invalid
     m.editPlaylistId = ""
     m.keyboardIndex = 0
     m.keyboardUpper = true
@@ -118,8 +119,11 @@ sub finishPlaylistSubmit()
     savedPlaylist = invalid
     if m.editPlaylistId <> "" then
         savedPlaylist = playlistStoreUpdate(m.editPlaylistId, m.inputs, m.mode)
-    else
+    else if m.mode = "xtreme" then
         savedPlaylist = playlistStoreAdd(m.inputs, m.mode)
+    else
+        startBackendPlaylistCreate()
+        return
     end if
 
     m.submitState = ""
@@ -142,6 +146,53 @@ sub finishPlaylistSubmit()
     else
         m.top.navigateTo = "MyPlaylistsPage"
     end if
+end sub
+
+sub startBackendPlaylistCreate()
+    task = CreateObject("roSGNode", "BackendApiTask")
+    if task = invalid then
+        m.submitState = ""
+        setFieldError("m3uUrl", "Backend connection is unavailable.")
+        render()
+        return
+    end if
+
+    task.observeField("response", "onBackendPlaylistCreated")
+    task.request = backendApiCreatePlaylistRequest(m.inputs.playlistTitle, m.inputs.m3uUrl)
+    m.backendTask = task
+    task.control = "RUN"
+end sub
+
+sub onBackendPlaylistCreated()
+    if m.backendTask = invalid then return
+    response = m.backendTask.response
+    m.backendTask = invalid
+    m.submitState = ""
+
+    if not backendApiResponseOk(response) then
+        setFieldError("m3uUrl", "Backend could not add this playlist.")
+        render()
+        return
+    end if
+
+    body = response.body
+    data = invalid
+    if body <> invalid and body.doesExist("data") then data = body.data
+    apiPlaylist = invalid
+    if data <> invalid and data.doesExist("playlist") then apiPlaylist = data.playlist
+    savedPlaylist = playlistStoreUpsertBackendPlaylist(apiPlaylist)
+    if savedPlaylist = invalid then
+        setFieldError("m3uUrl", "Playlist was added, but could not be saved.")
+        render()
+        return
+    end if
+
+    playlistStoreSetActive(playlistStoreText(savedPlaylist, "id"))
+    m.added = true
+    m.errorMessage = ""
+    m.errorField = ""
+    onboardingCompleteWithPlaylist()
+    m.top.navigateTo = "MyPlaylistsPage"
 end sub
 
 sub render()
@@ -196,8 +247,11 @@ sub drawValidationOverlay()
     uiPoster(m.canvas, "pkg:/images/ui/rr_500x158_panel_purpleLine.png", 400, 282, 560, 132, 0.98)
     heading = "Validating playlist"
     if m.mode = "xtreme" then heading = "Validating account"
+    if m.mode = "m3u" and m.editPlaylistId = "" then heading = "Adding playlist"
     uiLabel(m.canvas, heading, 440, 306, 480, 32, 20, m.colors.text, "center")
-    uiLabel(m.canvas, "Checking required details and preparing local storage...", 440, 350, 480, 28, 12, m.colors.textMuted, "center")
+    detail = "Checking required details and preparing local storage..."
+    if m.mode = "m3u" and m.editPlaylistId = "" then detail = "Sending playlist URL to the backend..."
+    uiLabel(m.canvas, detail, 440, 350, 480, 28, 12, m.colors.textMuted, "center")
 end sub
 
 function drawAddPlaylistSideNav() as Integer

@@ -1,8 +1,6 @@
 function playlistStoreDefaultItems() as Object
     return [
-        { id: playlistStoreEmptyM3uId(), title: "Empty M3U Playlist", meta: "No content yet - M3U", itemCount: 0, type: "M3U", status: "Active", time: "Startup playlist", icon: "m3u", accent: "purple", sourceUrl: "", serverUrl: "", username: "", password: "", lastSync: "empty", isDemo: true, isProtected: true, contentProfile: "empty_m3u" },
-        { id: playlistStoreDemoId(), title: "Demo Playlist", meta: "8 live - 10 movies - 8 series", itemCount: 26, type: "Demo", status: "Trial", time: "7-day trial content", icon: "tv", accent: "purple", sourceUrl: "", serverUrl: "", username: "", password: "", lastSync: "built in", isDemo: true, isProtected: true },
-        { id: playlistStoreDemoMoviesId(), title: "Demo Movies", meta: "10 movies only", itemCount: 10, type: "Demo", status: "Trial", time: "Movies-only trial content", icon: "movies", accent: "purple", sourceUrl: "", serverUrl: "", username: "", password: "", lastSync: "built in", isDemo: true, isProtected: true }
+        { id: playlistStoreDemoId(), title: "Demo Playlist", meta: "8 live - 10 movies - 8 series", itemCount: 26, type: "Demo", status: "Trial", time: "7-day trial content", icon: "tv", accent: "purple", sourceUrl: "", serverUrl: "", username: "", password: "", lastSync: "built in", isDemo: true, isProtected: true }
     ]
 end function
 
@@ -129,14 +127,44 @@ end function
 
 function playlistStoreDelete(id as String) as Boolean
     if playlistStoreIsDemoId(id) then return false
+    item = playlistStoreGet(id)
+    if playlistStoreBool(item, "backendManaged", false) then return false
     items = playlistStoreList()
     remaining = []
     for each item in items
         if playlistStoreText(item, "id") <> id then remaining.push(item)
     end for
     saved = playlistStoreSave(remaining)
-    if saved and playlistStoreActiveId() = id then playlistStoreSetActive(playlistStoreEmptyM3uId())
+    if saved and playlistStoreActiveId() = id then playlistStoreSetActive(playlistStoreDemoId())
     return saved
+end function
+
+function playlistStoreDeleteBackendLocalOnly(id as String) as Boolean
+    item = playlistStoreGet(id)
+    if not playlistStoreBool(item, "backendManaged", false) then return false
+    items = playlistStoreList()
+    remaining = []
+    for each row in items
+        if playlistStoreText(row, "id") <> id then remaining.push(row)
+    end for
+    saved = playlistStoreSave(remaining)
+    if saved and playlistStoreActiveId() = id then playlistStoreSetActive(playlistStoreDemoId())
+    return saved
+end function
+
+function playlistStoreMarkBackendImporting(id as String) as Boolean
+    items = playlistStoreList()
+    for i = 0 to items.count() - 1
+        item = items[i]
+        if playlistStoreText(item, "id") = id and playlistStoreBool(item, "backendManaged", false) then
+            item.status = "Syncing"
+            item.time = "Import queued on backend"
+            item.lastSync = "syncing"
+            items[i] = item
+            return playlistStoreSave(items)
+        end if
+    end for
+    return false
 end function
 
 function playlistStoreRefresh(id as String) as Boolean
@@ -204,6 +232,18 @@ function playlistStoreUpdate(id as String, input as Object, mode as String) as O
     for i = 0 to items.count() - 1
         item = items[i]
         if playlistStoreText(item, "id") = id then
+            if playlistStoreBool(item, "backendManaged", false) then
+                title = playlistStoreNormalizeInputText(playlistStoreText(input, "playlistTitle"))
+                if title = "" then title = playlistStoreNormalizeInputText(playlistStoreText(input, "accountName"))
+                if title = "" then return invalid
+                item.title = title
+                item.localTitle = title
+                item.time = "Renamed on this Roku"
+                items[i] = item
+                if playlistStoreSave(items) then return item
+                return invalid
+            end if
+
             if mode = "xtreme" then
                 item.title = playlistStoreNormalizeInputText(playlistStoreText(input, "accountName"))
                 item.type = "Xtreme"
@@ -249,6 +289,142 @@ function playlistStoreUpdate(id as String, input as Object, mode as String) as O
         end if
     end for
     return invalid
+end function
+
+function playlistStoreMergeBackendPlaylists(apiItems as Object) as Object
+    if apiItems = invalid or Type(apiItems) <> "roArray" then return playlistStoreList()
+
+    existing = playlistStoreList()
+    merged = []
+    existingBackend = {}
+    for each item in existing
+        if playlistStoreBool(item, "backendManaged", false) then
+            backendId = playlistStoreText(item, "backendPlaylistId")
+            if backendId <> "" then existingBackend[backendId] = item
+        else
+            merged.push(item)
+        end if
+    end for
+
+    for each apiItem in apiItems
+        previous = invalid
+        backendId = playlistStoreText(apiItem, "id")
+        if backendId <> "" and existingBackend.doesExist(backendId) then previous = existingBackend[backendId]
+        mapped = playlistStoreMapBackendPlaylist(apiItem, previous)
+        if mapped <> invalid then merged.push(mapped)
+    end for
+
+    playlistStoreSave(merged)
+    return playlistStoreList()
+end function
+
+function playlistStoreUpsertBackendPlaylist(apiItem as Object) as Dynamic
+    if apiItem = invalid then return invalid
+    backendId = playlistStoreText(apiItem, "id")
+    if backendId = "" then return invalid
+
+    existing = playlistStoreList()
+    previous = invalid
+    merged = []
+    replaced = false
+
+    for each item in existing
+        if playlistStoreBool(item, "backendManaged", false) and playlistStoreText(item, "backendPlaylistId") = backendId then
+            previous = item
+        else
+            merged.push(item)
+        end if
+    end for
+
+    mapped = playlistStoreMapBackendPlaylist(apiItem, previous)
+    if mapped = invalid then return invalid
+    merged.push(mapped)
+    if playlistStoreSave(merged) then return mapped
+    return invalid
+end function
+
+function playlistStoreMapBackendPlaylist(apiItem as Object, previous = invalid as Dynamic) as Dynamic
+    if apiItem = invalid then return invalid
+    backendId = playlistStoreText(apiItem, "id")
+    if backendId = "" then return invalid
+
+    backendName = playlistStoreText(apiItem, "name", "Backend Playlist")
+    title = backendName
+    localTitle = ""
+    if previous <> invalid then
+        localTitle = playlistStoreText(previous, "localTitle")
+        if localTitle = "" and playlistStoreText(previous, "backendName") <> "" and playlistStoreText(previous, "title") <> playlistStoreText(previous, "backendName") then
+            localTitle = playlistStoreText(previous, "title")
+        end if
+    end if
+    if localTitle <> "" then title = localTitle
+
+    sourceUrl = playlistStoreText(apiItem, "source_url")
+    contentProfile = playlistStoreBackendContentProfile(backendName, sourceUrl)
+    icon = "tv"
+    typeLabel = "M3U"
+    if contentProfile = "backend_movies" then icon = "movies"
+    if contentProfile = "backend_series" then icon = "series"
+
+    itemCount = playlistStoreNumber(apiItem, "active_channel_count")
+    if itemCount = 0 then itemCount = playlistStoreNumber(apiItem, "channel_count")
+
+    status = playlistStoreBackendStatusLabel(playlistStoreText(apiItem, "status"))
+    meta = playlistStoreBackendMeta(itemCount, contentProfile)
+    lastSync = "not synced yet"
+    if playlistStoreText(apiItem, "last_import_status") = "completed" then lastSync = "just now"
+
+    return {
+        id: "backend_" + backendId,
+        backendPlaylistId: backendId,
+        backendName: backendName,
+        backendManaged: true,
+        localTitle: localTitle,
+        title: title,
+        meta: meta,
+        itemCount: itemCount,
+        type: typeLabel,
+        status: status,
+        time: "Synced from backend",
+        icon: icon,
+        accent: "green",
+        sourceUrl: sourceUrl,
+        serverUrl: "",
+        username: "",
+        password: "",
+        lastSync: lastSync,
+        isDemo: false,
+        isProtected: false,
+        contentProfile: contentProfile,
+        playlistVersion: playlistStoreNumber(apiItem, "playlist_version")
+    }
+end function
+
+function playlistStoreBackendContentProfile(title as String, sourceUrl as String) as String
+    text = playlistStoreNormalizeMatchText(title + " " + sourceUrl)
+    if Instr(1, text, "series") > 0 then return "backend_series"
+    if Instr(1, text, "movies") > 0 or Instr(1, text, "movie") > 0 then return "backend_movies"
+    return "backend_live"
+end function
+
+function playlistStoreBackendStatusLabel(status as String) as String
+    statusText = playlistStoreNormalizeMatchText(status)
+    if statusText = "ready" then return "Ready"
+    if statusText = "failed" or statusText = "disabled" then return "Offline"
+    if statusText = "importing" or statusText = "created" then return "Syncing"
+    return "Ready"
+end function
+
+function playlistStoreBackendMeta(itemCount as Integer, contentProfile as String) as String
+    label = "live channels"
+    if contentProfile = "backend_movies" then label = "movie streams"
+    if contentProfile = "backend_series" then label = "series streams"
+    if itemCount = 1 then
+        if contentProfile = "backend_movies" then label = "movie stream"
+        if contentProfile = "backend_series" then label = "series stream"
+        if contentProfile = "backend_live" then label = "live channel"
+    end if
+    return itemCount.toStr() + " " + label + " - Backend"
 end function
 
 function playlistStoreInferInputProfile(title as String, sourceUrl as String) as String
@@ -520,12 +696,12 @@ end function
 function playlistStoreActiveId() as String
     section = CreateObject("roRegistrySection", "iptv_max_playlists")
     activeId = section.Read("activePlaylistId")
-    if activeId = invalid or activeId = "" then return playlistStoreEmptyM3uId()
+    if activeId = invalid or activeId = "" then return playlistStoreDemoId()
     items = playlistStoreList()
     for each item in items
         if playlistStoreText(item, "id") = activeId then return activeId
     end for
-    return playlistStoreEmptyM3uId()
+    return playlistStoreDemoId()
 end function
 
 function playlistStoreActive() as Object
@@ -538,7 +714,7 @@ function playlistStoreActive() as Object
 end function
 
 sub playlistStoreSetActive(id as String)
-    if id = invalid or id = "" then id = playlistStoreEmptyM3uId()
+    if id = invalid or id = "" then id = playlistStoreDemoId()
     section = CreateObject("roRegistrySection", "iptv_max_playlists")
     section.Write("activePlaylistId", id)
     section.Flush()
@@ -622,6 +798,8 @@ function playlistStorePreferredPageForId(id as String) as String
             if id = playlistStoreDemoMoviesId() then return "MoviesPage"
             if playlistStoreText(item, "contentProfile") = "demo_movies_m3u" then return "MoviesPage"
             if playlistStoreText(item, "contentProfile") = "demo_series" then return "SeriesPage"
+            if playlistStoreText(item, "contentProfile") = "backend_movies" then return "MoviesPage"
+            if playlistStoreText(item, "contentProfile") = "backend_series" then return "SeriesPage"
             return "LiveTvPage"
         end if
     end for

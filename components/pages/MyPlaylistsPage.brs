@@ -16,7 +16,14 @@ sub init()
     m.manageProtected = false
     m.feedbackMessage = ""
     m.feedbackSuccess = true
+    m.backendLoading = false
+    m.backendLoaded = false
+    m.backendTask = invalid
+    m.backendActionTask = invalid
+    m.backendAction = ""
+    m.backendActionPlaylistId = ""
     m.refreshingId = ""
+    m.pendingActivationNavigateTo = ""
     m.playlistWindowStart = 0
     m.playlistWindowSize = 6
     m.initialFocusPlaylistId = playlistStoreActiveId()
@@ -24,11 +31,65 @@ sub init()
     m.searchKeyboardUpper = true
     m.searchKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "CASE", "SPACE", "DEL", "CLEAR", "DONE"]
     m.playlists = playlistStoreList()
+    startBackendPlaylistLoad()
 
     m.refreshTimer = CreateObject("roSGNode", "Timer")
     m.refreshTimer.repeat = false
     m.refreshTimer.duration = 0.7
     m.refreshTimer.observeField("fire", "finishPlaylistRefresh")
+
+    m.activationTimer = CreateObject("roSGNode", "Timer")
+    m.activationTimer.repeat = false
+    m.activationTimer.duration = 0.45
+    m.activationTimer.observeField("fire", "finishPlaylistActivation")
+    render()
+end sub
+
+sub startBackendPlaylistLoad()
+    if m.backendLoading then return
+    task = CreateObject("roSGNode", "BackendApiTask")
+    if task = invalid then
+        m.feedbackSuccess = false
+        m.feedbackMessage = "Backend connection is unavailable."
+        return
+    end if
+
+    m.backendLoading = true
+    m.feedbackSuccess = true
+    m.feedbackMessage = "Loading backend playlists..."
+    task.observeField("response", "onBackendPlaylistsLoaded")
+    task.request = backendApiListPlaylistsRequest()
+    m.backendTask = task
+    task.control = "RUN"
+end sub
+
+sub onBackendPlaylistsLoaded()
+    if m.backendTask = invalid then return
+    response = m.backendTask.response
+    m.backendLoading = false
+    m.backendLoaded = true
+
+    if backendApiResponseOk(response) then
+        body = response.body
+        data = invalid
+        if body <> invalid and body.doesExist("data") then data = body.data
+        items = invalid
+        if data <> invalid and data.doesExist("items") then items = data.items
+        if items <> invalid and Type(items) = "roArray" then
+            m.playlists = playlistStoreMergeBackendPlaylists(items)
+            m.feedbackSuccess = true
+            m.feedbackMessage = items.count().toStr() + " backend playlists synced."
+        else
+            m.feedbackSuccess = false
+            m.feedbackMessage = "Backend playlists response was empty."
+        end if
+    else
+        m.feedbackSuccess = false
+        m.feedbackMessage = "Backend playlists could not be loaded."
+    end if
+
+    m.backendTask = invalid
+    normalizePlaylistFocus(filteredPlaylists().count())
     render()
 end sub
 
@@ -41,6 +102,8 @@ sub refreshClock()
 end sub
 
 function handleKey(key as String) as Boolean
+    if m.pendingActivationNavigateTo <> "" then return true
+    if m.backendActionTask <> invalid then return true
     if m.refreshingId <> "" then return true
     if m.manageDialog <> invalid then
         if key = "back" then closeManageDialog() : return true
@@ -77,9 +140,15 @@ sub activate()
     if item.action = "search" then openSearchKeyboard() : return
     if item.action = "playlist" then
         playlistStoreSetActive(item.playlistId)
+        m.playlists = playlistStoreList()
+        m.initialFocusPlaylistId = item.playlistId
+        m.initialFocusApplied = false
         m.feedbackMessage = item.playlistTitle + " is now active."
         m.feedbackSuccess = true
-        m.top.navigateTo = playlistStorePreferredPageForId(item.playlistId)
+        m.pendingActivationNavigateTo = playlistStorePreferredPageForId(item.playlistId)
+        render()
+        m.activationTimer.control = "stop"
+        m.activationTimer.control = "start"
         return
     end if
     if item.action = "manage" then
@@ -358,6 +427,13 @@ sub drawPageBackdrop()
     uiRect(m.canvas, 226, 86, 1054, 634, m.colors.bg, 0.66)
 end sub
 
+sub finishPlaylistActivation()
+    if m.pendingActivationNavigateTo = "" then return
+    target = m.pendingActivationNavigateTo
+    m.pendingActivationNavigateTo = ""
+    m.top.navigateTo = target
+end sub
+
 function drawPlaylistSideNav() as Integer
     uiRect(m.canvas, 0, 86, 226, 634, m.colors.panel, 0.66)
     uiRect(m.canvas, 225, 86, 1, 634, "0xFFFFFF14")
@@ -408,6 +484,9 @@ sub drawPageHeader(row as Integer)
     summary = playlistSummary(m.playlists)
     uiLabel(m.canvas, "MY PLAYLISTS", 258, 106, 300, 34, 18, m.colors.text)
     uiLabel(m.canvas, summary.countText, 258, 140, 300, 26, 13, m.colors.greenFocus)
+    if m.feedbackMessage <> "" then
+        uiScaledLabel(m.canvas, m.feedbackMessage, 664, 176, 486, 24, 10, m.colors.textDim, "right", 0.72)
+    end if
 
     addSearchAction(686, 24, 240, 40, 0, 3)
     addHeaderAction(664, 108, 230, 48, "plus", "Add Playlist", row, 2, "AddPlaylistPage", "")
@@ -673,6 +752,10 @@ sub onRefreshDialogButton()
     playlistId = m.pendingManageId
     closeRefreshDialog()
     if selected = 1 then
+        if playlistStoreBool(playlistStoreGet(playlistId), "backendManaged", false) then
+            startBackendPlaylistRefresh(playlistId)
+            return
+        end if
         m.refreshingId = playlistId
         m.feedbackSuccess = true
         m.feedbackMessage = "Validating playlist details..."
@@ -680,6 +763,36 @@ sub onRefreshDialogButton()
         m.refreshTimer.control = "stop"
         m.refreshTimer.control = "start"
     end if
+end sub
+
+sub startBackendPlaylistRefresh(playlistId as String)
+    p = playlistStoreGet(playlistId)
+    backendId = playlistStoreText(p, "backendPlaylistId")
+    if backendId = "" then
+        m.feedbackSuccess = false
+        m.feedbackMessage = "Backend playlist ID is missing."
+        render()
+        return
+    end if
+
+    task = CreateObject("roSGNode", "BackendApiTask")
+    if task = invalid then
+        m.feedbackSuccess = false
+        m.feedbackMessage = "Backend connection is unavailable."
+        render()
+        return
+    end if
+
+    m.refreshingId = playlistId
+    m.backendAction = "refresh"
+    m.backendActionPlaylistId = playlistId
+    m.feedbackSuccess = true
+    m.feedbackMessage = "Starting backend refresh..."
+    task.observeField("response", "onBackendPlaylistAction")
+    task.request = backendApiRefreshPlaylistRequest(backendId)
+    m.backendActionTask = task
+    render()
+    task.control = "RUN"
 end sub
 
 sub finishPlaylistRefresh()
@@ -715,6 +828,13 @@ sub onDeleteDialogButton()
     if m.deleteDialog = invalid then return
     selected = m.deleteDialog.buttonSelected
     if selected = 1 then
+        if playlistStoreBool(playlistStoreGet(m.pendingDeleteId), "backendManaged", false) then
+            playlistId = m.pendingDeleteId
+            playlistTitle = m.pendingDeleteTitle
+            closeDeleteDialog()
+            startBackendPlaylistDelete(playlistId, playlistTitle)
+            return
+        end if
         deletedTitle = m.pendingDeleteTitle
         deleted = playlistStoreDelete(m.pendingDeleteId)
         m.playlists = playlistStoreList()
@@ -726,6 +846,79 @@ sub onDeleteDialogButton()
         end if
     end if
     closeDeleteDialog()
+    normalizePlaylistFocus(filteredPlaylists().count())
+    render()
+end sub
+
+sub startBackendPlaylistDelete(playlistId as String, playlistTitle as String)
+    p = playlistStoreGet(playlistId)
+    backendId = playlistStoreText(p, "backendPlaylistId")
+    if backendId = "" then
+        m.feedbackSuccess = false
+        m.feedbackMessage = "Backend playlist ID is missing."
+        render()
+        return
+    end if
+
+    task = CreateObject("roSGNode", "BackendApiTask")
+    if task = invalid then
+        m.feedbackSuccess = false
+        m.feedbackMessage = "Backend connection is unavailable."
+        render()
+        return
+    end if
+
+    m.backendAction = "delete"
+    m.backendActionPlaylistId = playlistId
+    m.pendingDeleteTitle = playlistTitle
+    m.feedbackSuccess = true
+    m.feedbackMessage = "Deleting playlist from backend..."
+    task.observeField("response", "onBackendPlaylistAction")
+    task.request = backendApiDeletePlaylistRequest(backendId)
+    m.backendActionTask = task
+    render()
+    task.control = "RUN"
+end sub
+
+sub onBackendPlaylistAction()
+    if m.backendActionTask = invalid then return
+    response = m.backendActionTask.response
+    action = m.backendAction
+    playlistId = m.backendActionPlaylistId
+    playlistTitle = m.pendingDeleteTitle
+
+    m.backendActionTask = invalid
+    m.backendAction = ""
+    m.backendActionPlaylistId = ""
+    m.refreshingId = ""
+
+    if not backendApiResponseOk(response) then
+        m.feedbackSuccess = false
+        if action = "delete" then
+            m.feedbackMessage = "Backend could not delete " + playlistTitle + "."
+        else
+            m.feedbackMessage = "Backend refresh could not be started."
+        end if
+        render()
+        return
+    end if
+
+    if action = "delete" then
+        deleted = playlistStoreDeleteBackendLocalOnly(playlistId)
+        m.playlists = playlistStoreList()
+        m.feedbackSuccess = deleted
+        if deleted then
+            m.feedbackMessage = playlistTitle + " was deleted."
+        else
+            m.feedbackMessage = "Playlist was deleted on backend, but local cleanup failed."
+        end if
+    else
+        playlistStoreMarkBackendImporting(playlistId)
+        m.playlists = playlistStoreList()
+        m.feedbackSuccess = true
+        m.feedbackMessage = "Backend refresh started."
+    end if
+
     normalizePlaylistFocus(filteredPlaylists().count())
     render()
 end sub

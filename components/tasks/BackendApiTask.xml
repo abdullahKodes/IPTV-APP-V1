@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component name="BackendApiTask" extends="Task">
+  <interface>
+    <field id="request" type="assocarray" />
+    <field id="response" type="assocarray" alwaysNotify="true" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/shared/BackendApi.brs" />
+  <script type="text/brightscript" uri="pkg:/components/tasks/BackendApiTask.brs" />
+</component>
