@@ -35,6 +35,7 @@
     <function name="refreshProgress" />
   </interface>
   <script type="text/brightscript" uri="pkg:/components/shared/AppUi.brs" />
+  <script type="text/brightscript" uri="pkg:/components/shared/BackendApi.brs" />
   <script type="text/brightscript" uri="pkg:/components/shared/PlaylistStore.brs" />
   <script type="text/brightscript" uri="pkg:/components/shared/MediaData.brs" />
   <script type="text/brightscript" uri="pkg:/components/shared/FavoriteStore.brs" />

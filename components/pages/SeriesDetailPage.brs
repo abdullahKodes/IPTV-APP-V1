@@ -6,6 +6,8 @@ sub init()
     m.seasonIndex = 0
     m.episodeIndex = 0
     m.episodeWindowStart = 0
+    m.detailLoading = false
+    m.detailTask = invalid
     render()
 end sub
 
@@ -181,7 +183,10 @@ end sub
 
 sub playDetail()
     url = m.top.detailPlaybackUrl
-    if url = invalid or url = "" then return
+    if url = invalid or url = "" then
+        startBackendSeriesPlaybackLoad()
+        return
+    end if
     m.top.playbackTitle = detailTitle()
     m.top.playbackSubtitle = "S" + (m.seasonIndex + 1).toStr() + "-E" + selectedSeasonEpisodeNumber(m.episodeIndex).toStr()
     m.top.playbackUrl = url
@@ -196,6 +201,34 @@ sub playDetail()
     m.top.playbackResumePosition = progressStorePosition(detailPlaylistId(), "series", detailProgressMediaId(), selectedEpisodeProgressId())
     m.top.returnPage = "SeriesDetailPage"
     m.top.navigateTo = "PlayerPage"
+end sub
+
+sub startBackendSeriesPlaybackLoad()
+    if m.detailLoading then return
+    backendChannelId = m.top.detailId
+    if backendChannelId = invalid or backendChannelId = "" then return
+    task = CreateObject("roSGNode", "BackendApiTask")
+    if task = invalid then return
+    m.detailLoading = true
+    m.detailTask = task
+    task.observeField("response", "onBackendSeriesPlaybackLoaded")
+    task.request = backendApiGetChannelRequest(backendChannelId)
+    task.control = "RUN"
+    render()
+end sub
+
+sub onBackendSeriesPlaybackLoaded()
+    if m.detailTask = invalid then return
+    response = m.detailTask.response
+    m.detailTask = invalid
+    m.detailLoading = false
+    playbackUrl = backendApiChannelStreamUrl(response)
+    if backendApiResponseOk(response) and playbackUrl <> "" then
+        m.top.detailPlaybackUrl = playbackUrl
+        playDetail()
+    else
+        render()
+    end if
 end sub
 
 sub render()
@@ -599,6 +632,7 @@ function seriesDetailBackdropIsComposed(url as String) as Boolean
 end function
 
 function seriesPrimaryActionLabel() as String
+    if m.detailLoading then return "Preparing"
     if progressStorePosition(detailPlaylistId(), "series", detailProgressMediaId(), selectedEpisodeProgressId()) >= 10 then return "Resume"
     return "Watch"
 end function

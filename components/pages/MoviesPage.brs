@@ -15,17 +15,119 @@ sub init()
     m.selectedMovieIndex = 0
     m.featuredMovieIndex = -1
     m.focusArea = "normal"
+    m.backendLoading = false
+    m.backendMessage = ""
+    m.backendTask = invalid
+    m.backendRepairAttempted = false
     m.searchKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "CASE", "SPACE", "DEL", "CLEAR", "DONE"]
     m.activePlaylist = playlistStoreActive()
     m.activePlaylistId = playlistStoreText(m.activePlaylist, "id", playlistStoreDemoId())
     m.activePlaylistTitle = playlistStoreText(m.activePlaylist, "title", "Demo Playlist")
-    m.movies = mediaMovieCatalogForPlaylist(m.activePlaylistId)
+    contentProfile = playlistStoreEffectiveContentProfile(m.activePlaylist)
+    if playlistStoreBool(m.activePlaylist, "backendManaged", false) and contentProfile <> "backend_movies" then
+        m.movies = []
+        if contentProfile = "backend_series" then
+            m.backendMessage = "This is a series playlist. Open Series."
+        else
+            m.backendMessage = "This is a live TV playlist. Open Live TV."
+        end if
+    else if playlistStoreBool(m.activePlaylist, "backendManaged", false) then
+        m.movies = []
+        startBackendMoviesLoad()
+    else
+        m.movies = mediaMovieCatalogForPlaylist(m.activePlaylistId)
+        if m.movies.count() = 0 and playlistStoreText(m.activePlaylist, "sourceUrl") <> "" then
+            m.backendMessage = "This playlist is local-only. Add it again to import through backend."
+        end if
+    end if
     m.featuredMovieIndex = selectFeaturedMovieIndex(m.movies)
     m.categories = movieCategoriesFromCatalog(m.movies)
     m.categoryIndex = 0
     m.focusedCategoryIndex = 0
     m.categoryWindowStart = 0
     m.categoryWindowSize = 8
+    render()
+end sub
+
+sub startBackendMoviesLoad()
+    backendId = playlistStoreText(m.activePlaylist, "backendPlaylistId")
+    if backendId = "" then
+        m.backendMessage = "Backend playlist ID is missing."
+        return
+    end if
+    task = CreateObject("roSGNode", "BackendApiTask")
+    if task = invalid then
+        m.backendMessage = "Backend connection is unavailable."
+        return
+    end if
+    m.backendLoading = true
+    m.backendMessage = "Loading movies..."
+    task.observeField("response", "onBackendMoviesLoaded")
+    task.request = backendApiSyncChannelsRequest(backendId, 1000)
+    m.backendTask = task
+    task.control = "RUN"
+end sub
+
+sub startBackendMoviesRepair()
+    if m.backendRepairAttempted then return
+    sourceUrl = playlistStoreText(m.activePlaylist, "sourceUrl")
+    if sourceUrl = "" then return
+    task = CreateObject("roSGNode", "BackendApiTask")
+    if task = invalid then return
+    m.backendRepairAttempted = true
+    m.backendLoading = true
+    m.backendMessage = "Reconnecting playlist..."
+    task.observeField("response", "onBackendMoviesRepairCreated")
+    task.request = backendApiCreatePlaylistRequest(m.activePlaylistTitle, sourceUrl)
+    m.backendTask = task
+    task.control = "RUN"
+    render()
+end sub
+
+sub onBackendMoviesRepairCreated()
+    if m.backendTask = invalid then return
+    response = m.backendTask.response
+    m.backendTask = invalid
+    if backendApiResponseOk(response) then
+        savedPlaylist = playlistStoreRepairBackendPlaylist(m.activePlaylistId, backendApiResponsePlaylist(response))
+        if savedPlaylist <> invalid then
+            playlistStoreSetActive(playlistStoreText(savedPlaylist, "id"))
+            m.activePlaylist = savedPlaylist
+            m.activePlaylistId = playlistStoreText(savedPlaylist, "id")
+            m.activePlaylistTitle = playlistStoreText(savedPlaylist, "title", m.activePlaylistTitle)
+            m.backendMessage = "Playlist reconnected. Loading movies..."
+            startBackendMoviesLoad()
+            return
+        end if
+    end if
+    m.backendLoading = false
+    m.backendMessage = backendApiResponseProblem(response, "Backend playlist could not be reconnected.")
+    render()
+end sub
+
+sub onBackendMoviesLoaded()
+    if m.backendTask = invalid then return
+    response = m.backendTask.response
+    m.backendTask = invalid
+    m.backendLoading = false
+    if backendApiResponseOk(response) then
+        items = backendApiResponseItems(response)
+        m.movies = backendApiMapSyncItems(items, m.activePlaylistId, "movies")
+        m.featuredMovieIndex = selectFeaturedMovieIndex(m.movies)
+        m.categories = movieCategoriesFromCatalog(m.movies)
+        if m.movies.count() > 0 then
+            m.backendMessage = ""
+        else
+            m.backendMessage = "Backend returned 0 movies."
+        end if
+        resetMovieWindow()
+    else
+        if backendApiResponseStatusCode(response) = 404 and not m.backendRepairAttempted then
+            startBackendMoviesRepair()
+            return
+        end if
+        m.backendMessage = backendApiResponseProblem(response, "Backend movies could not be loaded.")
+    end if
     render()
 end sub
 
@@ -113,8 +215,15 @@ sub render()
         return
     end if
     if visible.count() = 0 then
-        uiLabel(m.canvas, "No movies in " + m.activePlaylistTitle, 244, 332, 860, 28, 15, m.colors.textDim, "center")
-        uiLabel(m.canvas, "Switch playlist or add one with movie content.", 244, 366, 860, 24, 11, m.colors.textMuted, "center")
+        emptyTitle = "No movies in " + m.activePlaylistTitle
+        emptySubtitle = "Switch playlist or add one with movie content."
+        if m.backendLoading or m.backendMessage <> "" then
+            emptyTitle = m.backendMessage
+            emptySubtitle = "Switch playlist or add this playlist again."
+            if m.backendLoading then emptySubtitle = "This playlist is loading from the backend."
+        end if
+        uiLabel(m.canvas, emptyTitle, 244, 332, 860, 28, 15, m.colors.textDim, "center")
+        uiLabel(m.canvas, emptySubtitle, 244, 366, 860, 24, 11, m.colors.textMuted, "center")
         ensureMovieFocus()
         uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
         if m.searchEditing then drawSearchKeyboardOverlay()

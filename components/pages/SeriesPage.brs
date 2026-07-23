@@ -17,17 +17,119 @@ sub init()
     m.resumeWindowSize = 2
     m.selectedResumeIndex = 0
     m.focusArea = "normal"
+    m.backendLoading = false
+    m.backendMessage = ""
+    m.backendTask = invalid
+    m.backendRepairAttempted = false
     m.searchKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "CASE", "SPACE", "DEL", "CLEAR", "DONE"]
     m.activePlaylist = playlistStoreActive()
     m.activePlaylistId = playlistStoreText(m.activePlaylist, "id", playlistStoreDemoId())
     m.activePlaylistTitle = playlistStoreText(m.activePlaylist, "title", "Demo Playlist")
-    m.series = mediaSeriesCatalogForPlaylist(m.activePlaylistId)
+    contentProfile = playlistStoreEffectiveContentProfile(m.activePlaylist)
+    if playlistStoreBool(m.activePlaylist, "backendManaged", false) and contentProfile <> "backend_series" then
+        m.series = []
+        if contentProfile = "backend_movies" then
+            m.backendMessage = "This is a movies playlist. Open Movies."
+        else
+            m.backendMessage = "This is a live TV playlist. Open Live TV."
+        end if
+    else if playlistStoreBool(m.activePlaylist, "backendManaged", false) then
+        m.series = []
+        startBackendSeriesLoad()
+    else
+        m.series = mediaSeriesCatalogForPlaylist(m.activePlaylistId)
+        if m.series.count() = 0 and playlistStoreText(m.activePlaylist, "sourceUrl") <> "" then
+            m.backendMessage = "This playlist is local-only. Add it again to import through backend."
+        end if
+    end if
     applySeriesProgress()
     m.categories = seriesCategoriesFromCatalog(m.series)
     m.categoryIndex = 0
     m.focusedCategoryIndex = 0
     m.categoryWindowStart = 0
     m.categoryWindowSize = 8
+    render()
+end sub
+
+sub startBackendSeriesLoad()
+    backendId = playlistStoreText(m.activePlaylist, "backendPlaylistId")
+    if backendId = "" then
+        m.backendMessage = "Backend playlist ID is missing."
+        return
+    end if
+    task = CreateObject("roSGNode", "BackendApiTask")
+    if task = invalid then
+        m.backendMessage = "Backend connection is unavailable."
+        return
+    end if
+    m.backendLoading = true
+    m.backendMessage = "Loading series..."
+    task.observeField("response", "onBackendSeriesLoaded")
+    task.request = backendApiSyncChannelsRequest(backendId, 1000)
+    m.backendTask = task
+    task.control = "RUN"
+end sub
+
+sub startBackendSeriesRepair()
+    if m.backendRepairAttempted then return
+    sourceUrl = playlistStoreText(m.activePlaylist, "sourceUrl")
+    if sourceUrl = "" then return
+    task = CreateObject("roSGNode", "BackendApiTask")
+    if task = invalid then return
+    m.backendRepairAttempted = true
+    m.backendLoading = true
+    m.backendMessage = "Reconnecting playlist..."
+    task.observeField("response", "onBackendSeriesRepairCreated")
+    task.request = backendApiCreatePlaylistRequest(m.activePlaylistTitle, sourceUrl)
+    m.backendTask = task
+    task.control = "RUN"
+    render()
+end sub
+
+sub onBackendSeriesRepairCreated()
+    if m.backendTask = invalid then return
+    response = m.backendTask.response
+    m.backendTask = invalid
+    if backendApiResponseOk(response) then
+        savedPlaylist = playlistStoreRepairBackendPlaylist(m.activePlaylistId, backendApiResponsePlaylist(response))
+        if savedPlaylist <> invalid then
+            playlistStoreSetActive(playlistStoreText(savedPlaylist, "id"))
+            m.activePlaylist = savedPlaylist
+            m.activePlaylistId = playlistStoreText(savedPlaylist, "id")
+            m.activePlaylistTitle = playlistStoreText(savedPlaylist, "title", m.activePlaylistTitle)
+            m.backendMessage = "Playlist reconnected. Loading series..."
+            startBackendSeriesLoad()
+            return
+        end if
+    end if
+    m.backendLoading = false
+    m.backendMessage = backendApiResponseProblem(response, "Backend playlist could not be reconnected.")
+    render()
+end sub
+
+sub onBackendSeriesLoaded()
+    if m.backendTask = invalid then return
+    response = m.backendTask.response
+    m.backendTask = invalid
+    m.backendLoading = false
+    if backendApiResponseOk(response) then
+        items = backendApiResponseItems(response)
+        m.series = backendApiMapSyncItems(items, m.activePlaylistId, "series")
+        applySeriesProgress()
+        m.categories = seriesCategoriesFromCatalog(m.series)
+        if m.series.count() > 0 then
+            m.backendMessage = ""
+        else
+            m.backendMessage = "Backend returned 0 series."
+        end if
+        resetSeriesWindow()
+    else
+        if backendApiResponseStatusCode(response) = 404 and not m.backendRepairAttempted then
+            startBackendSeriesRepair()
+            return
+        end if
+        m.backendMessage = backendApiResponseProblem(response, "Backend series could not be loaded.")
+    end if
     render()
 end sub
 
@@ -126,8 +228,15 @@ sub render()
         return
     end if
     if visible.count() = 0 then
-        uiLabel(m.canvas, "No series in " + m.activePlaylistTitle, 244, 332, 860, 28, 15, m.colors.textDim, "center")
-        uiLabel(m.canvas, "Switch playlist or add one with series content.", 244, 366, 860, 24, 11, m.colors.textMuted, "center")
+        emptyTitle = "No series in " + m.activePlaylistTitle
+        emptySubtitle = "Switch playlist or add one with series content."
+        if m.backendLoading or m.backendMessage <> "" then
+            emptyTitle = m.backendMessage
+            emptySubtitle = "Switch playlist or add this playlist again."
+            if m.backendLoading then emptySubtitle = "This playlist is loading from the backend."
+        end if
+        uiLabel(m.canvas, emptyTitle, 244, 332, 860, 28, 15, m.colors.textDim, "center")
+        uiLabel(m.canvas, emptySubtitle, 244, 366, 860, 24, 11, m.colors.textMuted, "center")
         uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
         if m.searchEditing then drawSearchKeyboardOverlay()
         return

@@ -3,6 +3,8 @@ sub init()
     m.canvas = m.top.findNode("movieDetailCanvas")
     m.focusItems = []
     m.focusIndex = 0
+    m.detailLoading = false
+    m.detailTask = invalid
     render()
 end sub
 
@@ -46,7 +48,10 @@ end sub
 
 sub playDetail()
     url = m.top.detailPlaybackUrl
-    if url = invalid or url = "" then return
+    if url = invalid or url = "" then
+        startBackendMoviePlaybackLoad()
+        return
+    end if
     m.top.playbackTitle = detailTitle()
     m.top.playbackSubtitle = detailSubtitle()
     m.top.playbackUrl = url
@@ -61,6 +66,34 @@ sub playDetail()
     m.top.playbackResumePosition = progressStorePosition(detailPlaylistId(), "movie", detailProgressMediaId())
     m.top.returnPage = "MovieDetailPage"
     m.top.navigateTo = "PlayerPage"
+end sub
+
+sub startBackendMoviePlaybackLoad()
+    if m.detailLoading then return
+    backendChannelId = m.top.detailId
+    if backendChannelId = invalid or backendChannelId = "" then return
+    task = CreateObject("roSGNode", "BackendApiTask")
+    if task = invalid then return
+    m.detailLoading = true
+    m.detailTask = task
+    task.observeField("response", "onBackendMoviePlaybackLoaded")
+    task.request = backendApiGetChannelRequest(backendChannelId)
+    task.control = "RUN"
+    render()
+end sub
+
+sub onBackendMoviePlaybackLoaded()
+    if m.detailTask = invalid then return
+    response = m.detailTask.response
+    m.detailTask = invalid
+    m.detailLoading = false
+    playbackUrl = backendApiChannelStreamUrl(response)
+    if backendApiResponseOk(response) and playbackUrl <> "" then
+        m.top.detailPlaybackUrl = playbackUrl
+        playDetail()
+    else
+        render()
+    end if
 end sub
 
 sub render()
@@ -190,6 +223,7 @@ function detailProgressMediaId() as String
 end function
 
 function moviePrimaryActionLabel() as String
+    if m.detailLoading then return "Preparing"
     if progressStorePosition(detailPlaylistId(), "movie", detailProgressMediaId()) >= 10 then return "Resume"
     return "Play Now"
 end function

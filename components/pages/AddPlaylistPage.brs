@@ -175,11 +175,7 @@ sub onBackendPlaylistCreated()
         return
     end if
 
-    body = response.body
-    data = invalid
-    if body <> invalid and body.doesExist("data") then data = body.data
-    apiPlaylist = invalid
-    if data <> invalid and data.doesExist("playlist") then apiPlaylist = data.playlist
+    apiPlaylist = backendApiResponsePlaylist(response)
     savedPlaylist = playlistStoreUpsertBackendPlaylist(apiPlaylist)
     if savedPlaylist = invalid then
         setFieldError("m3uUrl", "Playlist was added, but could not be saved.")

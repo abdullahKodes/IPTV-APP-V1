@@ -31,7 +31,6 @@ sub init()
     m.searchKeyboardUpper = true
     m.searchKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "CASE", "SPACE", "DEL", "CLEAR", "DONE"]
     m.playlists = playlistStoreList()
-    startBackendPlaylistLoad()
 
     m.refreshTimer = CreateObject("roSGNode", "Timer")
     m.refreshTimer.repeat = false
@@ -70,18 +69,15 @@ sub onBackendPlaylistsLoaded()
     m.backendLoaded = true
 
     if backendApiResponseOk(response) then
-        body = response.body
-        data = invalid
-        if body <> invalid and body.doesExist("data") then data = body.data
-        items = invalid
-        if data <> invalid and data.doesExist("items") then items = data.items
-        if items <> invalid and Type(items) = "roArray" then
+        items = backendApiResponseItems(response)
+        if items.count() > 0 then
             m.playlists = playlistStoreMergeBackendPlaylists(items)
             m.feedbackSuccess = true
             m.feedbackMessage = items.count().toStr() + " backend playlists synced."
         else
-            m.feedbackSuccess = false
-            m.feedbackMessage = "Backend playlists response was empty."
+            m.playlists = playlistStoreMergeBackendPlaylists([])
+            m.feedbackSuccess = true
+            m.feedbackMessage = "No backend playlists yet."
         end if
     else
         m.feedbackSuccess = false

@@ -343,6 +343,40 @@ function playlistStoreUpsertBackendPlaylist(apiItem as Object) as Dynamic
     return invalid
 end function
 
+function playlistStoreRepairBackendPlaylist(staleLocalId as String, apiItem as Object) as Dynamic
+    if apiItem = invalid then return invalid
+    backendId = playlistStoreText(apiItem, "id")
+    if backendId = "" then return invalid
+
+    existing = playlistStoreList()
+    previous = playlistStoreGet(staleLocalId)
+    mapped = playlistStoreMapBackendPlaylist(apiItem, previous)
+    if mapped = invalid then return invalid
+
+    mappedSource = playlistStoreNormalizeMatchText(playlistStoreText(mapped, "sourceUrl"))
+    mappedTitle = playlistStoreNormalizeMatchText(playlistStoreText(mapped, "title"))
+    mappedProfile = playlistStoreText(mapped, "contentProfile")
+    merged = []
+
+    for each item in existing
+        itemId = playlistStoreText(item, "id")
+        itemBackendId = playlistStoreText(item, "backendPlaylistId")
+        itemSource = playlistStoreNormalizeMatchText(playlistStoreText(item, "sourceUrl"))
+        itemTitle = playlistStoreNormalizeMatchText(playlistStoreText(item, "title"))
+        itemProfile = playlistStoreText(item, "contentProfile")
+        duplicateSource = mappedSource <> "" and itemSource = mappedSource
+        duplicateTitle = mappedTitle <> "" and itemTitle = mappedTitle and itemProfile = mappedProfile
+
+        if itemId <> staleLocalId and itemBackendId <> backendId and not duplicateSource and not duplicateTitle then
+            merged.push(item)
+        end if
+    end for
+
+    merged.push(mapped)
+    if playlistStoreSave(merged) then return mapped
+    return invalid
+end function
+
 function playlistStoreMapBackendPlaylist(apiItem as Object, previous = invalid as Dynamic) as Dynamic
     if apiItem = invalid then return invalid
     backendId = playlistStoreText(apiItem, "id")
@@ -405,6 +439,20 @@ function playlistStoreBackendContentProfile(title as String, sourceUrl as String
     if Instr(1, text, "series") > 0 then return "backend_series"
     if Instr(1, text, "movies") > 0 or Instr(1, text, "movie") > 0 then return "backend_movies"
     return "backend_live"
+end function
+
+function playlistStoreEffectiveContentProfile(item as Object) as String
+    stored = playlistStoreText(item, "contentProfile")
+    if playlistStoreBool(item, "backendManaged", false) then
+        inferred = playlistStoreBackendContentProfile(playlistStoreText(item, "title") + " " + playlistStoreText(item, "backendName"), playlistStoreText(item, "sourceUrl"))
+        if inferred <> "backend_live" then return inferred
+        if stored = "backend_movies" or stored = "backend_series" then return stored
+        return inferred
+    end if
+
+    inferred = playlistStoreInferContentProfile(item)
+    if inferred <> "" then return inferred
+    return stored
 end function
 
 function playlistStoreBackendStatusLabel(status as String) as String
@@ -475,7 +523,7 @@ function playlistStoreNormalize(items as Object) as Object
             if not item.doesExist("isProtected") then item.isProtected = item.isDemo
             if not item.doesExist("contentProfile") then item.contentProfile = ""
             playlistStoreRepairMissingM3uSource(item)
-            if item.contentProfile = "" then item.contentProfile = playlistStoreInferContentProfile(item)
+            item.contentProfile = playlistStoreEffectiveContentProfile(item)
             if item.contentProfile = "demo_live_m3u" then
                 item.liveItems = playlistStoreDemoLiveItems(itemId)
                 item.meta = "4 live channels - Demo M3U"
@@ -493,7 +541,39 @@ function playlistStoreNormalize(items as Object) as Object
             normalized.push(item)
         end if
     end for
-    return normalized
+    return playlistStoreDedupeBackendPlaylists(normalized)
+end function
+
+function playlistStoreDedupeBackendPlaylists(items as Object) as Object
+    out = []
+    backendIndexes = {}
+    for each item in items
+        if playlistStoreBool(item, "backendManaged", false) then
+            source = playlistStoreNormalizeMatchText(playlistStoreText(item, "sourceUrl"))
+            title = playlistStoreNormalizeMatchText(playlistStoreText(item, "title"))
+            profile = playlistStoreText(item, "contentProfile")
+            key = source
+            if key = "" then key = title + "|" + profile
+            if key <> "" and backendIndexes.doesExist(key) then
+                existingIndex = backendIndexes[key]
+                if playlistStoreShouldReplaceBackendDuplicate(out[existingIndex], item) then out[existingIndex] = item
+            else
+                if key <> "" then backendIndexes[key] = out.count()
+                out.push(item)
+            end if
+        else
+            out.push(item)
+        end if
+    end for
+    return out
+end function
+
+function playlistStoreShouldReplaceBackendDuplicate(current as Object, candidate as Object) as Boolean
+    currentReady = playlistStoreText(current, "status") = "Ready"
+    candidateReady = playlistStoreText(candidate, "status") = "Ready"
+    if candidateReady and not currentReady then return true
+    if currentReady and not candidateReady then return false
+    return playlistStoreNumber(candidate, "itemCount") >= playlistStoreNumber(current, "itemCount")
 end function
 
 sub playlistStoreRepairMissingM3uSource(item as Object)
@@ -794,12 +874,13 @@ function playlistStorePreferredPageForId(id as String) as String
     for each item in items
         if playlistStoreText(item, "id") = id then
             if id = playlistStoreDemoLiveM3uId() then return "LiveTvPage"
-            if playlistStoreText(item, "contentProfile") = "demo_live_m3u" then return "LiveTvPage"
+            contentProfile = playlistStoreEffectiveContentProfile(item)
+            if contentProfile = "demo_live_m3u" then return "LiveTvPage"
             if id = playlistStoreDemoMoviesId() then return "MoviesPage"
-            if playlistStoreText(item, "contentProfile") = "demo_movies_m3u" then return "MoviesPage"
-            if playlistStoreText(item, "contentProfile") = "demo_series" then return "SeriesPage"
-            if playlistStoreText(item, "contentProfile") = "backend_movies" then return "MoviesPage"
-            if playlistStoreText(item, "contentProfile") = "backend_series" then return "SeriesPage"
+            if contentProfile = "demo_movies_m3u" then return "MoviesPage"
+            if contentProfile = "demo_series" then return "SeriesPage"
+            if contentProfile = "backend_movies" then return "MoviesPage"
+            if contentProfile = "backend_series" then return "SeriesPage"
             return "LiveTvPage"
         end if
     end for
