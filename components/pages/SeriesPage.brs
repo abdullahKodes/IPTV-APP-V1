@@ -7,6 +7,7 @@ sub init()
     m.searchQuery = ""
     m.searchEditing = false
     m.searchReturnPending = false
+    m.categoryResultsActive = false
     m.searchPreviousCategoryIndex = 0
     m.searchKeyboardIndex = 0
     m.searchKeyboardUpper = true
@@ -65,7 +66,7 @@ sub startBackendSeriesLoad()
     m.backendLoading = true
     m.backendMessage = "Loading series..."
     task.observeField("response", "onBackendSeriesLoaded")
-    task.request = backendApiSyncChannelsRequest(backendId, 1000)
+    task.request = backendApiSyncChannelsRequest(backendId, 1000, "series")
     m.backendTask = task
     task.control = "RUN"
 end sub
@@ -144,7 +145,7 @@ end sub
 
 function handleKey(key as String) as Boolean
     if m.searchEditing then return handleSearchKeyboardKey(key)
-    if key = "back" and (m.searchQuery <> "" or m.searchReturnPending) then clearSeriesSearchAndStay() : return true
+    if key = "back" and (m.searchQuery <> "" or m.searchReturnPending or m.categoryResultsActive) then clearSeriesSearchAndStay() : return true
     if key = "left" then move(-1, 0) : return true
     if key = "right" then move(1, 0) : return true
     if key = "up" then move(0, -1) : return true
@@ -271,9 +272,9 @@ end sub
 
 sub drawSeriesSearchResults(visible as Object)
     heading = "SEARCHED SERIES"
-    if m.searchReturnPending then heading = UCase(m.selectedGenre) + " SEARCHED"
+    if m.categoryResultsActive then heading = m.selectedGenre
     uiLabel(m.canvas, heading, 244, 108, 520, 30, 15, m.colors.text)
-    if m.searchReturnPending then uiLabel(m.canvas, visible.count().toStr() + " titles", 824, 108, 190, 28, 12, m.colors.textDim, "right")
+    if m.categoryResultsActive then uiLabel(m.canvas, visible.count().toStr() + " titles", 824, 108, 190, 28, 12, m.colors.textDim, "right")
     if visible.count() = 0 then
         uiLabel(m.canvas, "No matching series found", 244, 270, 770, 30, 16, m.colors.textDim, "center")
         return
@@ -290,7 +291,7 @@ sub drawSeriesSearchResults(visible as Object)
 end sub
 
 function seriesSearchResultsActive() as Boolean
-    return m.searchQuery <> "" or m.searchReturnPending
+    return m.searchQuery <> "" or m.searchReturnPending or m.categoryResultsActive
 end function
 
 function drawSeriesSideNav() as Integer
@@ -574,8 +575,9 @@ sub drawMediaCard(series as Object, mediaIndex as Integer, sourceIndex as Intege
     m.canvas.appendChild(cardCanvas)
     uiRect(cardCanvas, 0, 0, w, h, m.colors.panel, 0.32)
     drawSeriesPoster(series, cardCanvas, 0, 0, w, h, focused)
-    uiCardFocusTint(cardCanvas, 0, 0, w, h, focused)
     title = seriesText(series, "title", "Untitled")
+    drawSeriesCardTitleOverlay(cardCanvas, title, w, h, focused)
+    uiCardFocusTint(cardCanvas, 0, 0, w, h, focused)
     meta = seriesText(series, "seasons")
     if meta = "" then meta = seriesText(series, "episodeCount")
     drawSeriesCardBorder(cardCanvas, 0, 0, w, h, focused)
@@ -590,6 +592,19 @@ sub drawMediaCard(series as Object, mediaIndex as Integer, sourceIndex as Intege
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         row: row, col: col, page: "", action: "series", mediaIndex: mediaIndex, sourceIndex: sourceIndex, mode: "manual"
     })
+end sub
+
+sub drawSeriesCardTitleOverlay(parent as Object, title as String, w as Integer, h as Integer, focused as Boolean)
+    if title = invalid or title = "" then return
+    overlayH = 48
+    overlayY = h - overlayH
+    opacity = 0.50
+    if focused then opacity = 0.58
+    uiRect(parent, 0, overlayY, w, overlayH, "0x050812FF", opacity)
+    uiRect(parent, 0, overlayY, w, 1, "0xFFFFFF24", 0.34)
+    textColor = m.colors.text
+    if focused then textColor = m.colors.greenFocus
+    uiScaledLabel(parent, title, 10, h - 35, w - 20, 22, 9, textColor, "center", 0.76)
 end sub
 
 sub drawSeriesCardBorder(parent as Object, x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean)
@@ -762,7 +777,7 @@ function filteredSeries() as Object
         s = m.series[i]
         searchable = LCase(seriesText(s, "title") + " " + seriesText(s, "genre") + " " + seriesText(s, "year") + " " + seriesText(s, "rating") + " " + seriesText(s, "seasons"))
         matchSearch = (query = "") or (Instr(1, searchable, query) > 0)
-        matchGenre = (m.selectedGenre = "All") or (Instr(1, LCase(seriesText(s, "genre")), LCase(m.selectedGenre)) > 0)
+        matchGenre = query <> "" or (m.selectedGenre = "All") or (Instr(1, LCase(seriesText(s, "genre")), LCase(m.selectedGenre)) > 0)
         if matchSearch and matchGenre then
             res.push({ series: s, index: i })
         end if
@@ -924,18 +939,21 @@ sub normalizeSeriesWindow(total as Integer)
     end if
 end sub
 
-sub selectSeriesCategory(categoryIndex as Integer)
+sub selectSeriesCategory(categoryIndex as Integer, fromSearch = false as Boolean)
     if categoryIndex < 0 or categoryIndex >= m.categories.count() then return
-    query = LCase(m.searchQuery)
-    fromSearch = query <> "" and Instr(1, LCase(m.categories[categoryIndex]), query) > 0
-    if not fromSearch then m.searchPreviousCategoryIndex = m.categoryIndex
-    m.searchReturnPending = categoryIndex > 0
-    if fromSearch then m.searchQuery = ""
+    m.searchPreviousCategoryIndex = m.categoryIndex
+    m.searchReturnPending = false
+    m.categoryResultsActive = categoryIndex > 0
+    m.searchQuery = ""
     m.categoryIndex = categoryIndex
     m.focusedCategoryIndex = categoryIndex
     m.selectedGenre = m.categories[categoryIndex]
     resetSeriesWindow()
-    m.focusArea = "categories"
+    if m.categoryResultsActive then
+        m.focusArea = "series"
+    else
+        m.focusArea = "categories"
+    end if
     normalizeSeriesCategoryWindow()
     render()
 end sub
@@ -1157,6 +1175,7 @@ end sub
 sub openSearchKeyboard()
     m.searchPreviousCategoryIndex = m.categoryIndex
     m.searchReturnPending = false
+    m.categoryResultsActive = false
     m.searchEditing = true
     m.searchKeyboardIndex = 0
     render()
@@ -1181,7 +1200,7 @@ sub pressSearchKey()
         categoryMatch = seriesCategorySearchMatch()
         if categoryMatch >= 0 then
             m.searchEditing = false
-            selectSeriesCategory(categoryMatch)
+            selectSeriesCategory(categoryMatch, true)
             return
         end if
         closeSearchKeyboard()
@@ -1203,6 +1222,7 @@ sub pressSearchKey()
         current += uiKeyboardInputText(selected, m.searchKeyboardUpper)
     end if
     m.searchQuery = current
+    m.categoryResultsActive = false
     m.seriesWindowStart = 0
     m.selectedSeriesIndex = 0
     m.focusArea = "normal"
@@ -1227,6 +1247,7 @@ sub closeSearchKeyboard()
 end sub
 
 sub clearSeriesSearchAndStay()
+    returnToCategory = m.categoryResultsActive and m.searchQuery = ""
     m.searchQuery = ""
     if m.searchReturnPending then
         m.categoryIndex = m.searchPreviousCategoryIndex
@@ -1234,12 +1255,18 @@ sub clearSeriesSearchAndStay()
         m.selectedGenre = m.categories[m.categoryIndex]
     end if
     m.searchReturnPending = false
+    m.categoryResultsActive = false
     m.focusedCategoryIndex = m.categoryIndex
-    m.categoryWindowStart = 0
+    normalizeSeriesCategoryWindow()
     m.seriesWindowStart = 0
     m.selectedSeriesIndex = 0
     m.resumeWindowStart = 0
     m.selectedResumeIndex = 0
+    if returnToCategory then
+        m.focusArea = "categories"
+        render()
+        return
+    end if
     m.focusArea = "normal"
     searchIndex = findFocusAction("search")
     if searchIndex >= 0 then m.focusIndex = searchIndex

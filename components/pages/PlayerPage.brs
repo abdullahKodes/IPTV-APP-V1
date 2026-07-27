@@ -21,7 +21,7 @@ sub init()
     m.audioTracks = []
     m.subtitleTracks = []
     m.playing = false
-    m.captionsEnabled = settingsStoreText(m.settings, "captionMode", "System") = "On"
+    m.captionsEnabled = playerCaptionModeEnabled(settingsStoreText(m.settings, "captionMode", "System"))
     m.loadedUrl = ""
     m.errorText = ""
     m.errorCode = 0
@@ -40,6 +40,10 @@ sub init()
     if m.video.hasField("seamlessAudioTrackSelection") then m.video.seamlessAudioTrackSelection = true
     m.video.observeField("state", "onVideoStateChange")
     m.video.observeField("errorMsg", "onVideoError")
+    if m.video.hasField("availableSubtitleTracks") then m.video.observeField("availableSubtitleTracks", "onVideoTracksChanged")
+    if m.video.hasField("subtitleTrack") then m.video.observeField("subtitleTrack", "onVideoTracksChanged")
+    if m.video.hasField("globalCaptionMode") then m.video.observeField("globalCaptionMode", "onVideoTracksChanged")
+    if m.video.hasField("closedCaptionMode") then m.video.observeField("closedCaptionMode", "onVideoTracksChanged")
     m.top.observeField("playbackUrl", "onPlaybackChanged")
 
     m.progressTimer = CreateObject("roSGNode", "Timer")
@@ -424,6 +428,7 @@ sub applyCaptionMode()
     if m.video = invalid then return
     mode = settingsStoreText(m.settings, "captionMode", "System")
     if mode = "System" then return
+    m.captionsEnabled = playerCaptionModeEnabled(mode)
 
     globalMode = "Off"
     if mode = "On" then globalMode = "On"
@@ -437,6 +442,10 @@ sub applyCaptionMode()
     end if
 end sub
 
+function playerCaptionModeEnabled(mode as String) as Boolean
+    return mode = "On" or mode = "Replay" or mode = "Mute"
+end function
+
 sub toggleCaptions()
     m.captionsEnabled = not m.captionsEnabled
     if m.captionsEnabled then
@@ -446,17 +455,18 @@ sub toggleCaptions()
     end if
     settingsStoreSave(m.settings)
     applyCaptionMode()
+    syncSelectedSubtitleLabel()
 end sub
 
 sub applyQualityPreference(content as Object)
     if content = invalid then return
     quality = settingsStoreText(m.settings, "defaultQuality", "Auto")
-    if quality = "Auto" or not content.hasField("maxBandwidth") then return
+    if quality = "Auto" then return
     maxBandwidth = 0
-    if quality = "1080p" then maxBandwidth = 8000
-    if quality = "720p" then maxBandwidth = 4500
-    if quality = "480p" then maxBandwidth = 2000
-    if maxBandwidth > 0 then content.maxBandwidth = maxBandwidth
+    if quality = "1080p" then maxBandwidth = 9000
+    if quality = "720p" then maxBandwidth = 3800
+    if quality = "480p" then maxBandwidth = 1900
+    if maxBandwidth > 0 then content.MaxBandwidth = maxBandwidth
 end sub
 
 sub refreshAvailableTracks()
@@ -476,7 +486,61 @@ sub refreshAvailableTracks()
         tracks = m.video.availableSubtitleTracks
         if tracks <> invalid and type(tracks) = "roArray" then m.subtitleTracks = tracks
     end if
+    syncSelectedSubtitleLabel()
 end sub
+
+sub onVideoTracksChanged()
+    refreshAvailableTracks()
+    if m.trackMenuOpen then
+        if m.trackMenuSection = "main" then buildTrackMainMenu()
+        if m.trackMenuSection = "subtitles" then buildSubtitleTrackMenu()
+        render()
+    end if
+end sub
+
+sub syncSelectedSubtitleLabel()
+    if not m.captionsEnabled then
+        m.selectedSubtitleLabel = "Off"
+        return
+    end if
+
+    activeTrack = currentSubtitleTrackValue()
+    if activeTrack <> "" then
+        activeLabel = subtitleLabelForTrackValue(activeTrack)
+        if activeLabel = "" and m.selectedSubtitleLabel <> "" and m.selectedSubtitleLabel <> "Off" and not isRawTrackIdentifier(m.selectedSubtitleLabel) then return
+        if activeLabel = "" then activeLabel = subtitleFallbackLabel(activeTrack, 1)
+        m.selectedSubtitleLabel = activeLabel
+        return
+    end if
+
+    if m.selectedSubtitleLabel <> "" and m.selectedSubtitleLabel <> "Off" and Instr(1, m.selectedSubtitleLabel, "(Demo)") = 0 then return
+    if m.subtitleTracks.count() > 0 then
+        m.selectedSubtitleLabel = subtitleTrackDisplayName(m.subtitleTracks[0], 1)
+    else
+        m.selectedSubtitleLabel = "On"
+    end if
+end sub
+
+function currentSubtitleTrackValue() as String
+    if m.video = invalid or not m.video.hasField("subtitleTrack") then return ""
+    value = m.video.subtitleTrack
+    if value = invalid then return ""
+    return value.toStr()
+end function
+
+function subtitleLabelForTrackValue(trackValueText as String) as String
+    if trackValueText = "" then return ""
+    needle = LCase(trackValueText)
+    for i = 0 to m.subtitleTracks.count() - 1
+        track = m.subtitleTracks[i]
+        if LCase(trackIdentifier(track)) = needle then return subtitleTrackDisplayName(track, i + 1)
+        for each key in ["TrackName", "Track", "id", "name", "language", "description"]
+            value = trackValue(track, key)
+            if value <> "" and LCase(value) = needle then return subtitleTrackDisplayName(track, i + 1)
+        end for
+    end for
+    return ""
+end function
 
 sub openTrackMenu()
     refreshAvailableTracks()
@@ -521,7 +585,7 @@ sub buildSubtitleTrackMenu()
     else
         for i = 0 to m.subtitleTracks.count() - 1
             track = m.subtitleTracks[i]
-            m.trackMenuItems.push({ label: trackDisplayName(track, i + 1), detail: "", action: "subtitle", value: trackIdentifier(track), selectable: true, kind: "option" })
+            m.trackMenuItems.push({ label: subtitleTrackDisplayName(track, i + 1), detail: "", action: "subtitle", value: trackIdentifier(track), selectable: true, kind: "option" })
         end for
     end if
     m.trackMenuIndex = 0
@@ -626,6 +690,7 @@ sub applyTrackMenuSelection()
         return
     end if
     if item.action = "subtitle_off" then
+        if m.video.hasField("subtitleTrack") then m.video.subtitleTrack = ""
         if m.captionsEnabled then toggleCaptions()
         m.selectedSubtitleLabel = "Off"
         m.trackMenuSection = "main"
@@ -682,6 +747,59 @@ function trackIdentifier(track as Dynamic) as String
         if value <> "" then return value
     end for
     return ""
+end function
+
+function subtitleTrackDisplayName(track as Dynamic, index as Integer) as String
+    if track = invalid then return "Subtitle " + index.toStr()
+    description = trackValue(track, "description")
+    if description <> "" and not isRawTrackIdentifier(description) then return shortTrackLabel(description)
+    language = trackValue(track, "language")
+    if language <> "" then return shortTrackLabel(subtitleLanguageLabel(language))
+    name = trackValue(track, "name")
+    if name <> "" and not isRawTrackIdentifier(name) then return shortTrackLabel(name)
+    id = trackValue(track, "id")
+    if id <> "" and not isRawTrackIdentifier(id) then return shortTrackLabel(id)
+    return subtitleFallbackLabel(trackIdentifier(track), index)
+end function
+
+function subtitleLanguageLabel(language as String) as String
+    normalized = LCase(language)
+    if normalized = "en" or normalized = "eng" or normalized = "en-us" or normalized = "en-gb" then return "English"
+    if normalized = "es" or normalized = "spa" or normalized = "es-es" or normalized = "es-mx" then return "Spanish"
+    if normalized = "fr" or normalized = "fre" or normalized = "fra" then return "French"
+    if normalized = "de" or normalized = "ger" or normalized = "deu" then return "German"
+    if normalized = "it" or normalized = "ita" then return "Italian"
+    if normalized = "pt" or normalized = "por" then return "Portuguese"
+    if normalized = "ar" or normalized = "ara" then return "Arabic"
+    if normalized = "hi" or normalized = "hin" then return "Hindi"
+    return language
+end function
+
+function subtitleFallbackLabel(trackValueText as String, index as Integer) as String
+    if trackValueText <> "" then
+        slashIndex = Instr(1, trackValueText, "/")
+        if slashIndex > 0 then
+            trackId = Mid(trackValueText, slashIndex + 1)
+            languageLabel = subtitleLanguageLabel(trackId)
+            if languageLabel <> trackId then return languageLabel
+            if Val(trackId) > 0 then return "Subtitle " + trackId
+        else if not isRawTrackIdentifier(trackValueText) then
+            return shortTrackLabel(trackValueText)
+        end if
+    end if
+    return "Subtitle " + index.toStr()
+end function
+
+function isRawTrackIdentifier(value as String) as Boolean
+    if value = invalid or value = "" then return false
+    text = LCase(value)
+    if Instr(1, text, "/") > 0 then return true
+    if Left(text, 6) = "webvtt" then return true
+    if Left(text, 6) = "eia608" then return true
+    if Left(text, 3) = "dvb" then return true
+    if Left(text, 3) = "mkv" then return true
+    if Left(text, 3) = "ism" then return true
+    return false
 end function
 
 function shortTrackLabel(value as String) as String

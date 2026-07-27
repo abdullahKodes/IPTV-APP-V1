@@ -11,6 +11,8 @@ sub init()
     m.submitState = ""
     m.backendTask = invalid
     m.editPlaylistId = ""
+    m.showPlaylistTypeButtons = false
+    m.showXtremeControls = false
     m.keyboardIndex = 0
     m.keyboardUpper = true
     m.previousFocusIndex = -1
@@ -41,7 +43,7 @@ sub loadPendingPlaylistEdit()
     if item = invalid or playlistStoreBool(item, "isProtected", false) then return
 
     m.editPlaylistId = editId
-    if playlistStoreText(item, "type") = "Xtreme" then
+    if playlistStoreText(item, "type") = "Xtreme" and m.showXtremeControls then
         m.mode = "xtreme"
         m.inputs.accountName = playlistStoreText(item, "title")
         m.inputs.serverUrl = playlistStoreText(item, "serverUrl")
@@ -95,6 +97,7 @@ sub activate()
     item = m.focusItems[m.focusIndex]
     if item.page <> invalid and item.page <> "" then m.top.navigateTo = item.page : return
     if item.action = "m3u" or item.action = "xtreme" then
+        if item.action = "xtreme" and not m.showXtremeControls then return
         if m.editPlaylistId = "" then m.mode = item.action
         render()
         return
@@ -202,18 +205,27 @@ sub render()
     refreshClock()
     row = drawAddPlaylistSideNav()
 
-    pageTitle = "Add New Playlist"
-    if m.editPlaylistId <> "" then pageTitle = "Edit Playlist"
-    uiScaledLabel(m.canvas, pageTitle, 380, 92, 760, 58, 32, m.colors.text, "center", 1.22)
-    addSmallButton(505, 186, 230, 48, "", "M3U Playlist", row, 1, "m3u")
-    addSmallButton(765, 186, 230, 48, "", "Xtreme Account", row, 2, "xtreme")
+    pageTitle = "ADD M3U PLAYLIST"
+    if m.editPlaylistId <> "" then pageTitle = "EDIT M3U PLAYLIST"
+    uiScaledLabel(m.canvas, pageTitle, 380, 124, 760, 58, 32, m.colors.text, "center", 1.22)
+
+    if m.showPlaylistTypeButtons then
+        addSmallButton(505, 186, 230, 48, "", "M3U Playlist", row, 1, "m3u")
+        if m.showXtremeControls then addSmallButton(765, 186, 230, 48, "", "Xtreme Account", row, 2, "xtreme")
+    end if
 
     if m.mode = "m3u" then
-        addInputField(380, 292, 760, "Playlist Title", "playlistTitle", row + 1, 1, false)
-        addInputField(380, 398, 760, "M3U URL", "m3uUrl", row + 2, 1, false)
+        formTop = 276
+        submitTop = 504
+        if m.showPlaylistTypeButtons then
+            formTop = 292
+            submitTop = 510
+        end if
+        addInputField(380, formTop, 760, "Playlist Title", "playlistTitle", row + 1, 1, false)
+        addInputField(380, formTop + 106, 760, "M3U URL", "m3uUrl", row + 2, 1, false)
         submitLabel = "Add Playlist"
         if m.editPlaylistId <> "" then submitLabel = "Save Changes"
-        addWideAction(530, 510, 460, 56, "plus", submitLabel, row + 3, 1)
+        addWideAction(530, submitTop, 460, 56, "plus", submitLabel, row + 3, 1)
     else
         addInputField(380, 250, 760, "Account Name", "accountName", row + 1, 1, false)
         addInputField(380, 334, 760, "Server URL", "serverUrl", row + 2, 1, false)

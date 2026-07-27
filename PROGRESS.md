@@ -1,6 +1,6 @@
 # IPTV App Progress
 
-Last updated: 2026-07-16
+Last updated: 2026-07-27
 
 Read this file before starting a new session. Update it only after a meaningful milestone is completed, such as finishing a screen, fixing a major workflow, committing/pushing, or changing project structure. Do not update it for every tiny visual tweak.
 
@@ -27,6 +27,12 @@ Read this file before starting a new session. Update it only after a meaningful 
 - Restored the Movies Featured card's internal `watch` focus action so category pills, Featured, and movie cards keep their original remote-control focus routing while the visible CTA still opens details.
 - Live TV now uses a purpose-made teal/emerald broadcast-studio background with separately colored screens, reflections, and studio accents instead of a flat recolor.
 - Add Playlist Back behavior is source-aware: opening it from Home now returns to Home, while playlist edit/manage flows keep their existing playlist return targets.
+- Backend Swagger playlists can now be linked into the Roku app from Settings via the backend recovery code; My Playlists auto-loads backend playlists on open, then merges them into the local card list. The Swagger account tested on 2026-07-27 contains Series Test, Weather Test, and Science; all imports completed with zero failed records. The app now preserves backend `content_type` on channel rows, and Movies/Series request typed sync rows while Live TV still accepts unknown rows for category-style live playlists.
+- Live TV now splits backend semicolon group titles such as `Documentary;Education;Science` into separate category memberships, so a channel appears under each relevant pill instead of creating one oversized combined pill. The category row also stops drawing before the right edge to prevent overflow on TV.
+- Backend Series and Movies poster cards now keep the full remote logo/poster artwork underneath while drawing a compact taller bottom title strip. Title placement stays low on the card, and focused card titles switch to the same green accent as the focus border.
+- Player playback settings now sync the Subtitles row with the active Roku subtitle track name instead of leaving it on `Off` while captions are visibly applied.
+- Player subtitle labels now avoid raw Roku track ids such as `webvtt/1`, keeping a friendly selected subtitle name or falling back to stable labels such as `Subtitle 1`; quality selection now assigns ContentNode `MaxBandwidth` directly with lower 720p/480p caps so adaptive streams can be capped more reliably.
+- Series detail now only lowers the fallback card-poster anchor when no provider hero/backdrop is available; the visible episode-area veil was removed and Movie detail is unchanged.
 
 ### Player Controls
 
@@ -52,7 +58,8 @@ Completed:
 - Standardized Back behavior across every searchable page: Back clears active results and restores the full page before normal page navigation is allowed.
 - Category searches on Movies, Series, and Live TV remember and restore the category that was active before searching; My Playlists now follows the same clear-search-first behavior, while Favorites retains its existing matching behavior.
 - Movies and Series now switch to a dedicated results layout while searching: Featured Movie, Continue Watching, and category pills are hidden so only the results heading, count, and matching cards remain.
-- Title searches show `SEARCHED MOVIES` or `SEARCHED SERIES`; category searches automatically select the match and show headings such as `ANIMATION SEARCHED`.
+- Title searches show `SEARCHED MOVIES` or `SEARCHED SERIES`; category searches automatically select the match and show the category name without adding `SEARCHED`.
+- Typed title/channel search now ignores the currently selected category on Movies, Series, and Live TV, so searches such as `Cops` or `Nosey` can match anywhere in the active playlist.
 - Removed redundant result counts from direct movie/series title searches while retaining counts for category searches, and moved results content closer to the top bar.
 - Live TV now keeps focus on the selected category pill after OK instead of jumping into channels or toward the sidebar; Down remains the explicit route into channel cards.
 - Locked the quieter dynamic backdrop opacity across content-card focus, preventing brightness jumps between Featured Movie and movie cards or Continue Watching and series cards.
@@ -64,7 +71,8 @@ Completed:
 - Added navigation-state restoration for Movie/Series detail and playback drill-downs: Back now restores the exact prior page instance, preserving focused card, category, scrolling, and search state instead of recreating the page at its sidebar default.
 - The same history behavior covers Live TV and Favorites playback/detail returns.
 - Restored varied placeholder episode durations when real metadata is absent; provider-supplied `episodeDurations` still takes priority and replaces placeholders automatically.
-- Manual Movies/Series category selection now enters the same focused results layout as category search, hiding Featured/Continue sections and making Back restore the previous main page/category state.
+- Manual Movies/Series category selection now enters the same focused results layout as category search, hiding Featured/Continue sections, showing only the category name, and making Back return focus to the selected category pill instead of the search bar.
+- Movies, Series, and Live TV now keep Back focus mode-specific: category selection/category search returns focus to the selected category pill, while title/channel search returns focus to the search bar.
 - Live TV manual category selection now follows the same return behavior: it remembers the previous category, retains focus on the selected pill, and Back restores the prior/main Live TV view before Home navigation.
 - Added a purpose-made Live TV broadcast-studio background with no channel branding or text, composed with dark sidebar/header space and subdued detail behind channel cards.
 - Wired the optimized `1280x720` project asset under translucent app-color overlays so channel logos, labels, and focus states remain dominant.

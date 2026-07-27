@@ -7,6 +7,7 @@ sub init()
     m.searchQuery = ""
     m.searchEditing = false
     m.searchReturnPending = false
+    m.categoryResultsActive = false
     m.searchPreviousCategoryIndex = 0
     m.searchKeyboardIndex = 0
     m.searchKeyboardUpper = true
@@ -63,7 +64,7 @@ sub startBackendMoviesLoad()
     m.backendLoading = true
     m.backendMessage = "Loading movies..."
     task.observeField("response", "onBackendMoviesLoaded")
-    task.request = backendApiSyncChannelsRequest(backendId, 1000)
+    task.request = backendApiSyncChannelsRequest(backendId, 1000, "movie")
     m.backendTask = task
     task.control = "RUN"
 end sub
@@ -137,7 +138,7 @@ end sub
 
 function handleKey(key as String) as Boolean
     if m.searchEditing then return handleSearchKeyboardKey(key)
-    if key = "back" and (m.searchQuery <> "" or m.searchReturnPending) then clearMovieSearchAndStay() : return true
+    if key = "back" and (m.searchQuery <> "" or m.searchReturnPending or m.categoryResultsActive) then clearMovieSearchAndStay() : return true
     if key = "left" then move(-1, 0) : return true
     if key = "right" then move(1, 0) : return true
     if key = "up" then move(0, -1) : return true
@@ -256,9 +257,9 @@ end sub
 
 sub drawMovieSearchResults(visible as Object)
     heading = "SEARCHED MOVIES"
-    if m.searchReturnPending then heading = UCase(m.selectedGenre) + " SEARCHED"
+    if m.categoryResultsActive then heading = m.selectedGenre
     uiLabel(m.canvas, heading, 244, 108, 520, 30, 15, m.colors.text)
-    if m.searchReturnPending then uiLabel(m.canvas, visible.count().toStr() + " titles", 824, 108, 190, 28, 12, m.colors.textDim, "right")
+    if m.categoryResultsActive then uiLabel(m.canvas, visible.count().toStr() + " titles", 824, 108, 190, 28, 12, m.colors.textDim, "right")
     if visible.count() = 0 then
         uiLabel(m.canvas, "No matching movies found", 244, 270, 770, 30, 16, m.colors.textDim, "center")
         return
@@ -275,7 +276,7 @@ sub drawMovieSearchResults(visible as Object)
 end sub
 
 function movieSearchResultsActive() as Boolean
-    return m.searchQuery <> "" or m.searchReturnPending
+    return m.searchQuery <> "" or m.searchReturnPending or m.categoryResultsActive
 end function
 
 function drawMoviesSideNav() as Integer
@@ -519,6 +520,7 @@ sub drawMovieCard(movie as Object, mediaIndex as Integer, sourceIndex as Integer
     m.canvas.appendChild(cardCanvas)
     uiRect(cardCanvas, 0, 0, w, h, m.colors.panel, 0.32)
     drawMoviePoster(movie, cardCanvas, 0, 0, w, h)
+    drawMovieCardTitleOverlay(cardCanvas, title, w, h, focused)
     uiCardFocusTint(cardCanvas, 0, 0, w, h, focused)
     drawMovieCardBorder(cardCanvas, 0, 0, w, h, focused)
     if focused then uiAnimateCardFocus(m.canvas, cardCanvas, x, y)
@@ -531,6 +533,19 @@ sub drawMovieCard(movie as Object, mediaIndex as Integer, sourceIndex as Integer
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         row: row, col: col, page: "", action: "movie", mediaIndex: mediaIndex, sourceIndex: sourceIndex, mode: "manual"
     })
+end sub
+
+sub drawMovieCardTitleOverlay(parent as Object, title as String, w as Integer, h as Integer, focused as Boolean)
+    if title = invalid or title = "" then return
+    overlayH = 48
+    overlayY = h - overlayH
+    opacity = 0.50
+    if focused then opacity = 0.58
+    uiRect(parent, 0, overlayY, w, overlayH, "0x050812FF", opacity)
+    uiRect(parent, 0, overlayY, w, 1, "0xFFFFFF24", 0.34)
+    textColor = m.colors.text
+    if focused then textColor = m.colors.greenFocus
+    uiScaledLabel(parent, title, 10, h - 35, w - 20, 22, 9, textColor, "center", 0.76)
 end sub
 
 sub drawMoviePoster(movie as Object, parent as Object, x as Integer, y as Integer, w as Integer, h as Integer)
@@ -835,7 +850,7 @@ function filteredMovies() as Object
         movie = m.movies[i]
         searchable = LCase(movieText(movie, "title") + " " + movieText(movie, "genre") + " " + movieText(movie, "year") + " " + movieText(movie, "rating"))
         matchSearch = (query = "") or (Instr(1, searchable, query) > 0)
-        matchGenre = (m.selectedGenre = "All") or (Instr(1, LCase(movieText(movie, "genre")), LCase(m.selectedGenre)) > 0)
+        matchGenre = query <> "" or (m.selectedGenre = "All") or (Instr(1, LCase(movieText(movie, "genre")), LCase(m.selectedGenre)) > 0)
         if matchSearch and matchGenre then
             res.push({ movie: movie, index: i })
         end if
@@ -905,18 +920,21 @@ sub normalizeMovieWindow(total as Integer)
     end if
 end sub
 
-sub selectMovieCategory(categoryIndex as Integer)
+sub selectMovieCategory(categoryIndex as Integer, fromSearch = false as Boolean)
     if categoryIndex < 0 or categoryIndex >= m.categories.count() then return
-    query = LCase(m.searchQuery)
-    fromSearch = query <> "" and Instr(1, LCase(m.categories[categoryIndex]), query) > 0
-    if not fromSearch then m.searchPreviousCategoryIndex = m.categoryIndex
-    m.searchReturnPending = categoryIndex > 0
-    if fromSearch then m.searchQuery = ""
+    m.searchPreviousCategoryIndex = m.categoryIndex
+    m.searchReturnPending = false
+    m.categoryResultsActive = categoryIndex > 0
+    m.searchQuery = ""
     m.categoryIndex = categoryIndex
     m.focusedCategoryIndex = categoryIndex
     m.selectedGenre = m.categories[categoryIndex]
     resetMovieWindow()
-    m.focusArea = "categories"
+    if m.categoryResultsActive then
+        m.focusArea = "movies"
+    else
+        m.focusArea = "categories"
+    end if
     normalizeMovieCategoryWindow()
     render()
 end sub
@@ -1140,6 +1158,7 @@ end sub
 sub openSearchKeyboard()
     m.searchPreviousCategoryIndex = m.categoryIndex
     m.searchReturnPending = false
+    m.categoryResultsActive = false
     m.searchEditing = true
     m.searchKeyboardIndex = 0
     render()
@@ -1164,7 +1183,7 @@ sub pressSearchKey()
         categoryMatch = movieCategorySearchMatch()
         if categoryMatch >= 0 then
             m.searchEditing = false
-            selectMovieCategory(categoryMatch)
+            selectMovieCategory(categoryMatch, true)
             return
         end if
         closeSearchKeyboard()
@@ -1186,6 +1205,7 @@ sub pressSearchKey()
         current += uiKeyboardInputText(selected, m.searchKeyboardUpper)
     end if
     m.searchQuery = current
+    m.categoryResultsActive = false
     m.movieWindowStart = 0
     m.selectedMovieIndex = 0
     m.focusArea = "normal"
@@ -1210,6 +1230,7 @@ sub closeSearchKeyboard()
 end sub
 
 sub clearMovieSearchAndStay()
+    returnToCategory = m.categoryResultsActive and m.searchQuery = ""
     m.searchQuery = ""
     if m.searchReturnPending then
         m.categoryIndex = m.searchPreviousCategoryIndex
@@ -1217,10 +1238,16 @@ sub clearMovieSearchAndStay()
         m.selectedGenre = m.categories[m.categoryIndex]
     end if
     m.searchReturnPending = false
+    m.categoryResultsActive = false
     m.focusedCategoryIndex = m.categoryIndex
-    m.categoryWindowStart = 0
+    normalizeMovieCategoryWindow()
     m.movieWindowStart = 0
     m.selectedMovieIndex = 0
+    if returnToCategory then
+        m.focusArea = "categories"
+        render()
+        return
+    end if
     m.focusArea = "normal"
     searchIndex = findMovieFocusAction("search")
     if searchIndex >= 0 then m.focusIndex = searchIndex

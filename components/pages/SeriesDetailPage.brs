@@ -270,10 +270,10 @@ sub drawSeriesPosterAnchor(posterUrl as String)
     y = 76
     w = 368
     h = 552
-    uiRect(m.canvas, x + 22, y + 26, w, h, "0x000000FF", 0.24)
-    poster = uiPoster(m.canvas, posterUrl, x, y, w, h, 0.88)
+    uiRect(m.canvas, x + 22, y + 26, w, h, "0x000000FF", 0.14)
+    poster = uiPoster(m.canvas, posterUrl, x, y, w, h, 0.38)
     poster.loadDisplayMode = "scaleToFit"
-    uiRectBorder(m.canvas, x, y, w, h, "0xFFFFFF30", 1, 0.88)
+    uiRectBorder(m.canvas, x, y, w, h, "0xFFFFFF30", 1, 0.42)
 end sub
 
 sub drawSeriesDetailHeroPoster(posterUrl as String)

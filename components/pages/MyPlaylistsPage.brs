@@ -42,6 +42,7 @@ sub init()
     m.activationTimer.duration = 0.45
     m.activationTimer.observeField("fire", "finishPlaylistActivation")
     render()
+    startBackendPlaylistLoad()
 end sub
 
 sub startBackendPlaylistLoad()
@@ -56,6 +57,7 @@ sub startBackendPlaylistLoad()
     m.backendLoading = true
     m.feedbackSuccess = true
     m.feedbackMessage = "Loading backend playlists..."
+    render()
     task.observeField("response", "onBackendPlaylistsLoaded")
     task.request = backendApiListPlaylistsRequest()
     m.backendTask = task
@@ -926,7 +928,7 @@ sub drawEmptyState()
     uiRectBorder(m.canvas, 418, 274, 520, 152, m.colors.purpleLine, 2)
     uiDrawIcon(m.canvas, "list", 638, 306, 44, 44, true, m.colors.text, 18)
     uiLabel(m.canvas, message, 468, 360, 420, 30, 18, m.colors.text, "center")
-    uiLabel(m.canvas, "Use Add Playlist to connect M3U or Xtreme accounts.", 478, 392, 400, 24, 12, m.colors.textDim, "center")
+    uiLabel(m.canvas, "Use Add Playlist to connect an M3U playlist.", 478, 392, 400, 24, 12, m.colors.textDim, "center")
 end sub
 
 function filteredPlaylists() as Object

@@ -16,6 +16,7 @@ sub init()
     m.searchQuery = ""
     m.searchEditing = false
     m.searchReturnPending = false
+    m.categoryResultsActive = false
     m.searchPreviousCategoryIndex = 0
     m.favoriteMessage = ""
     m.searchKeyboardIndex = 0
@@ -143,7 +144,7 @@ end sub
 
 function handleKey(key as String) as Boolean
     if m.searchEditing then return handleSearchKeyboardKey(key)
-    if key = "back" and (m.searchQuery <> "" or m.searchReturnPending) then clearLiveSearchAndStay() : return true
+    if key = "back" and (m.searchQuery <> "" or m.searchReturnPending or m.categoryResultsActive) then clearLiveSearchAndStay() : return true
     if key = "left" then move(-1, 0) : return true
     if key = "right" then move(1, 0) : return true
     if key = "up" then move(0, -1) : return true
@@ -233,13 +234,12 @@ sub playLiveChannel(channel as Object, playbackUrl as String)
     m.top.navigateTo = "PlayerPage"
 end sub
 
-sub selectLiveCategory(categoryIndex as Integer)
+sub selectLiveCategory(categoryIndex as Integer, fromSearch = false as Boolean)
     if categoryIndex < 0 or categoryIndex >= m.categories.count() then return
-    query = LCase(m.searchQuery)
-    fromSearch = query <> "" and Instr(1, LCase(m.categories[categoryIndex]), query) > 0
-    if not fromSearch then m.searchPreviousCategoryIndex = m.categoryIndex
-    m.searchReturnPending = categoryIndex > 0
-    if fromSearch then m.searchQuery = ""
+    m.searchPreviousCategoryIndex = m.categoryIndex
+    m.searchReturnPending = false
+    m.categoryResultsActive = categoryIndex > 0
+    m.searchQuery = ""
     m.categoryIndex = categoryIndex
     m.focusedCategoryIndex = categoryIndex
     m.selectedChannelIndex = 0
@@ -399,13 +399,14 @@ end sub
 
 sub drawCategoryPills()
     normalizeCategoryWindow()
-    endIndex = m.categoryWindowStart + m.categoryWindowSize - 1
-    if endIndex > m.categories.count() - 1 then endIndex = m.categories.count() - 1
+    maxX = 1142
+    endIndex = m.categoryWindowStart - 1
     slot = 0
     x = 244
-    for i = m.categoryWindowStart to endIndex
+    for i = m.categoryWindowStart to m.categories.count() - 1
         categoryLabel = liveCategoryDisplayLabel(m.categories[i])
         pillW = liveCategoryPillWidth(categoryLabel)
+        if slot > 0 and x + pillW > maxX then exit for
         assetW = 100
         if pillW > 100 then assetW = 140
         if pillW > 140 then assetW = 150
@@ -448,6 +449,7 @@ sub drawCategoryPills()
             row: 1, col: slot + 1, page: "", action: "category", categoryIndex: i, mode: "manual"
         })
         slot += 1
+        endIndex = i
         x += pillW + 12
     end for
     if endIndex < m.categories.count() - 1 then
@@ -534,7 +536,7 @@ sub drawChannelCard(channel as Object, channelIndex as Integer, visibleIndex as 
     channelName = liveText(channel, "name", liveText(channel, "title", "Untitled channel"))
     uiRect(cardCanvas, 0, artH, cardW, textH, "0x000000FF", 0.34)
     uiScaledLabel(cardCanvas, channelName, 10, artH + 6, cardW - 20, 24, 11, m.colors.text, "center", 0.78)
-    meta = liveChannelCategory(channel)
+    meta = liveChannelCategoryLabel(channel)
     channelNumber = liveText(channel, "channelNumber")
     if channelNumber <> "" then meta = "CH " + channelNumber + "  /  " + meta
     uiScaledLabel(cardCanvas, meta, 10, artH + 33, cardW - 20, 18, 8, m.colors.textDim, "center", 0.66)
@@ -793,7 +795,25 @@ sub normalizeCategoryWindow()
     if m.categoryWindowStart > maxStart then m.categoryWindowStart = maxStart
     if m.focusedCategoryIndex < m.categoryWindowStart then m.categoryWindowStart = m.focusedCategoryIndex
     if m.focusedCategoryIndex >= m.categoryWindowStart + m.categoryWindowSize then m.categoryWindowStart = m.focusedCategoryIndex - m.categoryWindowSize + 1
+    while m.categoryWindowStart < m.focusedCategoryIndex and not liveCategoryWindowShows(m.categoryWindowStart, m.focusedCategoryIndex)
+        m.categoryWindowStart += 1
+    end while
 end sub
+
+function liveCategoryWindowShows(startIndex as Integer, targetIndex as Integer) as Boolean
+    x = 244
+    maxX = 1142
+    slot = 0
+    for i = startIndex to m.categories.count() - 1
+        label = liveCategoryDisplayLabel(m.categories[i])
+        pillW = liveCategoryPillWidth(label)
+        if slot > 0 and x + pillW > maxX then return false
+        if i = targetIndex then return true
+        slot += 1
+        x += pillW + 12
+    end for
+    return false
+end function
 
 sub normalizeChannelWindow(total as Integer)
     if total <= 0 then
@@ -815,9 +835,9 @@ function filteredChannels() as Object
     query = LCase(m.searchQuery)
     for i = 0 to m.channels.count() - 1
         channel = m.channels[i]
-        category = liveChannelCategory(channel)
-        searchable = LCase(liveText(channel, "name") + " " + liveText(channel, "title") + " " + category + " " + liveText(channel, "channelNumber"))
-        categoryMatches = selectedCategory = "All" or LCase(category) = LCase(selectedCategory)
+        categories = liveChannelCategories(channel)
+        searchable = LCase(liveText(channel, "name") + " " + liveText(channel, "title") + " " + liveChannelCategorySearchText(categories) + " " + liveText(channel, "channelNumber"))
+        categoryMatches = query <> "" or selectedCategory = "All" or liveChannelHasCategory(categories, selectedCategory)
         searchMatches = query = "" or Instr(1, searchable, query) > 0
         if categoryMatches and searchMatches then result.push({ channel: channel, index: i })
     end for
@@ -855,11 +875,61 @@ function liveFlag(item as Dynamic, key as String) as Boolean
 end function
 
 function liveChannelCategory(channel as Dynamic) as String
-    category = liveText(channel, "category")
-    if category <> "" then return category
-    category = liveText(channel, "groupTitle")
-    if category <> "" then return category
+    categories = liveChannelCategories(channel)
+    if categories.count() > 0 then return categories[0]
     return "Uncategorized"
+end function
+
+function liveChannelCategoryLabel(channel as Dynamic) as String
+    categories = liveChannelCategories(channel)
+    if categories.count() = 0 then return "Uncategorized"
+    label = categories[0]
+    if categories.count() > 1 then label += " +" + (categories.count() - 1).toStr()
+    return label
+end function
+
+function liveChannelCategories(channel as Dynamic) as Object
+    raw = liveText(channel, "category")
+    if raw = "" then raw = liveText(channel, "groupTitle")
+    categories = []
+    if raw = "" then return categories
+    parts = raw.Tokenize(";")
+    for each part in parts
+        category = liveCleanCategory(part)
+        if category <> "" and not liveCategoryExists(categories, category) then categories.push(category)
+    end for
+    return categories
+end function
+
+function liveCleanCategory(value as Dynamic) as String
+    if value = invalid then return ""
+    if Type(value) <> "String" and Type(value) <> "roString" then return ""
+    text = value
+    while text.len() > 0 and Left(text, 1) = " "
+        text = Right(text, text.len() - 1)
+    end while
+    while text.len() > 0 and Right(text, 1) = " "
+        text = Left(text, text.len() - 1)
+    end while
+    return text
+end function
+
+function liveChannelHasCategory(categories as Object, selectedCategory as String) as Boolean
+    if selectedCategory = "All" then return true
+    needle = LCase(selectedCategory)
+    for each category in categories
+        if LCase(category) = needle then return true
+    end for
+    return false
+end function
+
+function liveChannelCategorySearchText(categories as Object) as String
+    text = ""
+    for each category in categories
+        if text <> "" then text += " "
+        text += category
+    end for
+    return text
 end function
 
 function liveCategoryDisplayLabel(category as String) as String
@@ -915,8 +985,10 @@ end function
 function liveCategoriesFromChannels(channels as Object) as Object
     categories = ["All"]
     for i = 0 to channels.count() - 1
-        category = liveChannelCategory(channels[i])
-        if category <> "" and not liveCategoryExists(categories, category) then categories.push(category)
+        channelCategories = liveChannelCategories(channels[i])
+        for each category in channelCategories
+            if category <> "" and not liveCategoryExists(categories, category) then categories.push(category)
+        end for
     end for
     return categories
 end function
@@ -932,6 +1004,7 @@ end function
 sub openSearchKeyboard()
     m.searchPreviousCategoryIndex = m.categoryIndex
     m.searchReturnPending = false
+    m.categoryResultsActive = false
     m.searchEditing = true
     m.searchKeyboardIndex = 0
     render()
@@ -956,10 +1029,7 @@ sub pressSearchKey()
         categoryMatch = liveCategorySearchMatch()
         if categoryMatch >= 0 then
             m.searchEditing = false
-            m.focusedCategoryIndex = categoryMatch
-            m.focusArea = "categories"
-            normalizeCategoryWindow()
-            render()
+            selectLiveCategory(categoryMatch, true)
             return
         end if
         closeSearchKeyboard()
@@ -979,6 +1049,7 @@ sub pressSearchKey()
         if current.len() < 64 then current += uiKeyboardInputText(selected, m.searchKeyboardUpper)
     end if
     m.searchQuery = current
+    m.categoryResultsActive = false
     m.selectedChannelIndex = 0
     m.channelWindowStart = 0
     render()
@@ -1002,16 +1073,23 @@ sub closeSearchKeyboard()
 end sub
 
 sub clearLiveSearchAndStay()
+    returnToCategory = m.categoryResultsActive and m.searchQuery = ""
     m.searchQuery = ""
     if m.searchReturnPending then
         m.categoryIndex = m.searchPreviousCategoryIndex
         if m.categoryIndex < 0 or m.categoryIndex >= m.categories.count() then m.categoryIndex = 0
     end if
     m.searchReturnPending = false
+    m.categoryResultsActive = false
     m.focusedCategoryIndex = m.categoryIndex
-    m.categoryWindowStart = 0
+    normalizeCategoryWindow()
     m.channelWindowStart = 0
     m.selectedChannelIndex = 0
+    if returnToCategory then
+        m.focusArea = "categories"
+        render()
+        return
+    end if
     m.focusArea = "normal"
     searchIndex = findFocusAction("search")
     if searchIndex >= 0 then m.focusIndex = searchIndex

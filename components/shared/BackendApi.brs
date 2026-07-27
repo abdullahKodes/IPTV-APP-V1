@@ -21,6 +21,22 @@ function backendApiAnonymousAuthRequest() as Object
     }
 end function
 
+function backendApiRecoverAuthRequest(recoveryCode as String) as Object
+    return {
+        method: "POST",
+        path: "/api/v1/auth/recover",
+        authRequired: false,
+        body: {
+            recovery_code: recoveryCode,
+            device: {
+                platform: "roku",
+                device_name: "IPTV Max Roku",
+                app_version: "0.1.0"
+            }
+        }
+    }
+end function
+
 function backendApiListPlaylistsRequest() as Object
     return {
         method: "GET",
@@ -54,10 +70,12 @@ function backendApiDeletePlaylistRequest(backendPlaylistId as String) as Object
     }
 end function
 
-function backendApiSyncChannelsRequest(backendPlaylistId as String, limit = 1000 as Integer) as Object
+function backendApiSyncChannelsRequest(backendPlaylistId as String, limit = 1000 as Integer, contentType = "" as String) as Object
+    path = "/api/v1/playlists/" + backendPlaylistId + "/channels/sync?cursor=0&limit=" + limit.toStr()
+    if contentType <> "" then path += "&content_type=" + contentType
     return {
         method: "GET",
-        path: "/api/v1/playlists/" + backendPlaylistId + "/channels/sync?cursor=0&limit=" + limit.toStr()
+        path: path
     }
 end function
 
@@ -73,6 +91,29 @@ function backendApiBuildUrl(path as String) as String
     if Left(path, 4) = "http" then return path
     return backendApiBaseUrl() + path
 end function
+
+sub backendApiStoreAuthData(data as Dynamic)
+    if data = invalid then return
+    section = CreateObject("roRegistrySection", backendApiAuthRegistrySection())
+    token = backendApiText(data, "access_token")
+    if token <> "" then section.Write("accessToken", token)
+    recoveryCode = backendApiText(data, "recovery_code")
+    if recoveryCode <> "" then section.Write("recoveryCode", recoveryCode)
+    user = invalid
+    if data.doesExist("user") then user = data.user
+    userId = backendApiText(user, "id")
+    if userId <> "" then section.Write("userId", userId)
+    section.Flush()
+end sub
+
+sub backendApiClearAuthSession()
+    section = CreateObject("roRegistrySection", backendApiAuthRegistrySection())
+    if section = invalid then return
+    if section.Exists("accessToken") then section.Delete("accessToken")
+    if section.Exists("recoveryCode") then section.Delete("recoveryCode")
+    if section.Exists("userId") then section.Delete("userId")
+    section.Flush()
+end sub
 
 function backendApiResponseOk(response as Dynamic) as Boolean
     if response = invalid then return false
@@ -186,6 +227,7 @@ function backendApiMapLiveItem(item as Object, playlistId as String, index as In
         id: backendApiText(item, "id", "backend_live_" + index.toStr()),
         backendChannelId: backendApiText(item, "id"),
         playlistId: playlistId,
+        contentType: backendApiText(item, "content_type"),
         name: name,
         title: name,
         now: "Live stream",
@@ -212,6 +254,7 @@ function backendApiMapMovieItem(item as Object, playlistId as String, index as I
         id: backendApiText(item, "id", "backend_movie_" + index.toStr()),
         backendChannelId: backendApiText(item, "id"),
         playlistId: playlistId,
+        contentType: backendApiText(item, "content_type"),
         title: name,
         year: "",
         duration: "Live stream",
@@ -237,6 +280,7 @@ function backendApiMapSeriesItem(item as Object, playlistId as String, index as 
         id: backendApiText(item, "id", "backend_series_" + index.toStr()),
         backendChannelId: backendApiText(item, "id"),
         playlistId: playlistId,
+        contentType: backendApiText(item, "content_type"),
         title: name,
         year: "",
         seasons: "Streaming channel",
