@@ -198,6 +198,8 @@ sub playDetail()
     m.top.playbackEpisodeId = selectedEpisodeProgressId()
     m.top.playbackSeasonIndex = m.seasonIndex
     m.top.playbackEpisodeIndex = m.episodeIndex
+    m.top.playbackSeasonCount = detailSeasonCount()
+    m.top.playbackSeasonEpisodeCount = selectedSeasonEpisodeCount()
     m.top.playbackResumePosition = progressStorePosition(detailPlaylistId(), "series", detailProgressMediaId(), selectedEpisodeProgressId())
     m.top.returnPage = "SeriesDetailPage"
     m.top.navigateTo = "PlayerPage"

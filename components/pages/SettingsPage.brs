@@ -9,12 +9,6 @@ sub init()
     m.clockFormatOptions = ["24-hour", "12-hour"]
     m.versionText = settingsAppVersionText()
     m.signOutDialog = invalid
-    m.recoveryOpen = false
-    m.recoveryInput = ""
-    m.recoveryMessage = ""
-    m.recoveryKeyboardIndex = 0
-    m.recoveryTask = invalid
-    m.recoveryKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "-", "DEL", "CLEAR", "DONE"]
     m.dropdownOpen = false
     m.dropdownKey = ""
     m.dropdownOptions = []
@@ -40,7 +34,6 @@ sub refreshClock()
 end sub
 
 function handleKey(key as String) as Boolean
-    if m.recoveryOpen then return handleRecoveryCodeKey(key)
     if m.parentalPromptOpen then return handleParentalPinKey(key)
     if m.signOutDialog <> invalid then
         if key = "back" then closeSignOutDialog() : return true
@@ -96,9 +89,7 @@ sub activate()
     if action = "showclock" then m.settings.showClock = not m.settings.showClock
     if action = "clockformat" then openDropdown("clockFormat", m.clockFormatOptions, item.x, item.y + item.h + 4) : return
     if action = "parental" then openParentalPinFlow() : return
-    if action = "linkswagger" then openRecoveryCodeFlow() : return
-    if action = "sync" then syncAllPlaylists()
-    if action = "clearcache" then m.settings.lastSync = "Cache cleared"
+    if action = "feedback" then m.top.navigateTo = "FeedbackPage" : return
     if action = "changepin" then openParentalChangePinFlow() : return
     if action = "signout" then openSignOutDialog()
 
@@ -145,7 +136,6 @@ sub render()
     uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
     if m.dropdownOpen then drawDropdown()
     if m.parentalPromptOpen then drawParentalPinOverlay()
-    if m.recoveryOpen then drawRecoveryCodeOverlay()
 end sub
 
 function drawSettingsSideNav() as Integer
@@ -226,12 +216,11 @@ sub drawAccountPanel()
     x = 872
     y = 176
     w = 330
-    drawPanel(x, y, w, 310, "ACCOUNT", m.colors.amber)
-    drawAccountRow(x, y + 52, w, "link", "Link Swagger", "linkswagger", 1)
-    drawAccountRow(x, y + 104, w, "sync_account", "Sync playlists", "sync", 2)
-    drawAccountRow(x, y + 156, w, "cache_account", "Clear cache", "clearcache", 3)
-    drawAccountRow(x, y + 208, w, "settings", "Change PIN", "changepin", 4)
-    drawAccountRow(x, y + 260, w, "logout_account", "Sign out", "signout", 5)
+    panelTitle = uiLabel(m.canvas, "ACCOUNT", x + 22, y + 3, w - 44, 38, 22, m.colors.amber)
+    panelTitle.font.size = 22
+    drawAccountRow(x, y + 52, w, "bell", "Feedback", "feedback", 1)
+    drawAccountRow(x, y + 104, w, "settings", "Change PIN", "changepin", 2)
+    drawAccountRow(x, y + 156, w, "logout_account", "Sign out", "signout", 3)
 end sub
 
 sub drawDropdown()
@@ -264,12 +253,6 @@ sub drawDropdown()
         optionLabel = uiLabel(m.canvas, dropdownDisplayText(m.dropdownKey, m.dropdownOptions[i]), x + 6, optionY + 1, w - 12, optionH, 14, textColor, "center")
         optionLabel.font.size = 14
     end for
-end sub
-
-sub drawPanel(x as Integer, y as Integer, w as Integer, h as Integer, title as String, titleColor as String)
-    uiRoundRect(m.canvas, x, y, w, h, m.colors.panel, m.colors.whiteLine, 0.96)
-    panelTitle = uiLabel(m.canvas, title, x + 22, y + 3, w - 44, 38, 22, titleColor)
-    panelTitle.font.size = 22
 end sub
 
 sub drawSettingsGroupTitle(x as Integer, y as Integer, title as String, titleColor as String)
@@ -309,7 +292,7 @@ end sub
 function settingIconForAction(action as String) as String
     if action = "quality" then return "player_full"
     if action = "autoplay" then return "player_play"
-    if action = "captions" then return "note"
+    if action = "captions" then return "captions"
     if action = "showclock" then return "clock"
     if action = "clockformat" then return "settings"
     if action = "parental" then return "kids"
@@ -399,18 +382,10 @@ sub cycleSetting(key as String, options as Object, delta as Integer)
     m.settings[key] = options[index]
 end sub
 
-sub syncAllPlaylists()
-    count = 0
-    items = playlistStoreList()
-    if items <> invalid then count = items.count()
-    m.settings.syncCount = settingsStoreNumber(m.settings, "syncCount", 0) + 1
-    m.settings.lastSync = "Synced now - " + count.toStr() + " playlists"
-end sub
-
 sub openSignOutDialog()
     dialog = CreateObject("roSGNode", "Dialog")
     dialog.title = "Sign out?"
-    dialog.message = "This clears the local account session. Playlists and app settings stay on this Roku."
+    dialog.message = "This resets the local plan on this Roku. Playlists and app settings stay saved."
     dialog.buttons = ["Cancel", "Sign out"]
     dialog.observeField("buttonSelected", "onSignOutDialogButton")
     m.signOutDialog = dialog
@@ -425,130 +400,15 @@ end sub
 sub onSignOutDialogButton()
     if m.signOutDialog = invalid then return
     if m.signOutDialog.buttonSelected = 1 then
-        m.settings.signedIn = false
-        m.settings.lastSync = "Signed out locally"
-        settingsStoreSave(m.settings)
+        entitlementClearLocalAccess()
         backendApiClearAuthSession()
+        closeSignOutDialog()
+        m.top.navigateTo = "WelcomePage"
+        return
     end if
     closeSignOutDialog()
     render()
 end sub
-
-sub openRecoveryCodeFlow()
-    m.recoveryOpen = true
-    m.recoveryInput = ""
-    m.recoveryMessage = "Enter the recovery code from Swagger."
-    m.recoveryKeyboardIndex = 0
-    render()
-end sub
-
-sub closeRecoveryCodeFlow()
-    if m.recoveryTask <> invalid then return
-    m.recoveryOpen = false
-    m.recoveryInput = ""
-    m.recoveryMessage = ""
-    render()
-end sub
-
-function handleRecoveryCodeKey(key as String) as Boolean
-    if m.recoveryTask <> invalid then return true
-    keyCount = m.recoveryKeys.count()
-    cols = 10
-    if key = "back" then closeRecoveryCodeFlow() : return true
-    if key = "left" and m.recoveryKeyboardIndex > 0 then m.recoveryKeyboardIndex -= 1 : render() : return true
-    if key = "right" and m.recoveryKeyboardIndex < keyCount - 1 then m.recoveryKeyboardIndex += 1 : render() : return true
-    if key = "up" and m.recoveryKeyboardIndex - cols >= 0 then m.recoveryKeyboardIndex -= cols : render() : return true
-    if key = "down" and m.recoveryKeyboardIndex + cols < keyCount then m.recoveryKeyboardIndex += cols : render() : return true
-    if key = "OK" then pressRecoveryCodeKey() : return true
-    return true
-end function
-
-sub pressRecoveryCodeKey()
-    selected = m.recoveryKeys[m.recoveryKeyboardIndex]
-    m.recoveryMessage = ""
-    if selected = "DEL" then
-        if m.recoveryInput.len() > 0 then m.recoveryInput = Left(m.recoveryInput, m.recoveryInput.len() - 1)
-        render()
-        return
-    end if
-    if selected = "CLEAR" then
-        m.recoveryInput = ""
-        render()
-        return
-    end if
-    if selected = "DONE" then
-        submitRecoveryCode()
-        return
-    end if
-    if m.recoveryInput.len() < 64 then m.recoveryInput += selected
-    render()
-end sub
-
-sub submitRecoveryCode()
-    code = cleanRecoveryCode(m.recoveryInput)
-    if code = "" then
-        m.recoveryMessage = "Recovery code is required."
-        render()
-        return
-    end if
-
-    task = CreateObject("roSGNode", "BackendApiTask")
-    if task = invalid then
-        m.recoveryMessage = "Backend connection is unavailable."
-        render()
-        return
-    end if
-
-    m.recoveryInput = code
-    m.recoveryMessage = "Linking backend account..."
-    task.observeField("response", "onRecoveryAuthLinked")
-    task.request = backendApiRecoverAuthRequest(code)
-    m.recoveryTask = task
-    render()
-    task.control = "RUN"
-end sub
-
-sub onRecoveryAuthLinked()
-    if m.recoveryTask = invalid then return
-    response = m.recoveryTask.response
-    m.recoveryTask = invalid
-
-    if backendApiResponseOk(response) then
-        backendApiStoreAuthData(backendApiResponseData(response))
-        m.settings.signedIn = true
-        m.settings.lastSync = "Backend account linked"
-        settingsStoreSave(m.settings)
-        m.recoveryOpen = false
-        m.top.navigateTo = "MyPlaylistsPage"
-        return
-    end if
-
-    m.recoveryMessage = backendApiResponseProblem(response, "Recovery code could not be linked.")
-    render()
-end sub
-
-function cleanRecoveryCode(value as Dynamic) as String
-    text = UCase(settingsCleanInput(value))
-    out = ""
-    for i = 1 to text.len()
-        ch = Mid(text, i, 1)
-        if Instr(1, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-", ch) > 0 then out += ch
-    end for
-    return out
-end function
-
-function settingsCleanInput(value as Dynamic) as String
-    if value = invalid then return ""
-    if Type(value) <> "String" and Type(value) <> "roString" then return ""
-    text = value
-    while text.len() > 0 and Left(text, 1) = " "
-        text = Right(text, text.len() - 1)
-    end while
-    while text.len() > 0 and Right(text, 1) = " "
-        text = Left(text, text.len() - 1)
-    end while
-    return text
-end function
 
 sub openParentalPinFlow()
     m.parentalPromptOpen = true
@@ -590,12 +450,9 @@ sub closeParentalPinFlow()
 end sub
 
 function handleParentalPinKey(key as String) as Boolean
-    keyCount = m.parentalPinKeys.count()
     if key = "back" then closeParentalPinFlow() : return true
-    if key = "left" and m.parentalPinKeyboardIndex > 0 then m.parentalPinKeyboardIndex -= 1 : render() : return true
-    if key = "right" and m.parentalPinKeyboardIndex < keyCount - 1 then m.parentalPinKeyboardIndex += 1 : render() : return true
-    if key = "up" and m.parentalPinKeyboardIndex - 3 >= 0 then m.parentalPinKeyboardIndex -= 3 : render() : return true
-    if key = "down" and m.parentalPinKeyboardIndex + 3 < keyCount then m.parentalPinKeyboardIndex += 3 : render() : return true
+    nextIndex = uiKeyboardMoveIndex(m.parentalPinKeys, m.parentalPinKeyboardIndex, key, 3)
+    if nextIndex <> m.parentalPinKeyboardIndex then m.parentalPinKeyboardIndex = nextIndex : render() : return true
     if key = "OK" then pressParentalPinKey() : return true
     return true
 end function
@@ -701,44 +558,6 @@ sub submitParentalPin()
     closeParentalPinFlow()
 end sub
 
-sub drawRecoveryCodeOverlay()
-    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.88)
-    x = 220
-    y = 104
-    w = 840
-    h = 524
-    uiPoster(m.canvas, "pkg:/images/ui/rr_840x524_panel_purpleLine.png", x, y, w, h, 0.98)
-    titleLabel = uiLabel(m.canvas, "Link Swagger Account", x + 40, y + 30, w - 80, 38, 24, m.colors.textGreen, "center")
-    titleLabel.font.size = 24
-    uiLabel(m.canvas, "Use the recovery code from the same Swagger account that owns your playlists.", x + 70, y + 78, w - 140, 28, 14, m.colors.textMuted, "center")
-    uiPoster(m.canvas, "pkg:/images/ui/rr_680x168_panel_whiteLine.png", x + 80, y + 122, 680, 48, 0.90)
-    displayCode = m.recoveryInput
-    if displayCode = "" then displayCode = "ABCD-EFGH-JKLM-NPQR"
-    codeColor = m.colors.text
-    if m.recoveryInput = "" then codeColor = m.colors.textDim
-    uiLabel(m.canvas, displayCode, x + 104, y + 130, 632, 32, 17, codeColor, "left")
-
-    if m.recoveryMessage <> "" then
-        msgColor = m.colors.textMuted
-        if Instr(1, LCase(m.recoveryMessage), "could not") > 0 or Instr(1, LCase(m.recoveryMessage), "required") > 0 then msgColor = m.colors.red
-        uiLabel(m.canvas, m.recoveryMessage, x + 70, y + 184, w - 140, 28, 13, msgColor, "center")
-    end if
-
-    drawRecoveryCodeKeyboard(x + 58, y + 236)
-    uiLabel(m.canvas, "Back cancels", x + 40, y + h - 42, w - 80, 22, 11, m.colors.textDim, "center")
-end sub
-
-sub drawRecoveryCodeKeyboard(startX as Integer, startY as Integer)
-    keyW = 70
-    keyH = 36
-    gap = 7
-    for i = 0 to m.recoveryKeys.count() - 1
-        keyLabel = m.recoveryKeys[i]
-        keyRect = uiKeyboardKeyRect(m.recoveryKeys, i, startX, startY, keyW, keyH, gap)
-        uiDrawKeyboardKey(m.canvas, keyLabel, uiKeyboardDisplayText(keyLabel, true), keyRect.x, keyRect.y, keyRect.w, keyRect.h, i = m.recoveryKeyboardIndex, m.colors)
-    end for
-end sub
-
 sub drawParentalPinOverlay()
     uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.58)
     x = 390
@@ -758,8 +577,7 @@ sub drawParentalPinOverlay()
         demoLockLabel = uiLabel(m.canvas, "Demo locks: VOD " + parentalControlRestrictedCategory() + ", Live TV " + parentalControlRestrictedLiveCategory(), x + 36, y + 182, w - 72, 34, 18, m.colors.textDim, "center")
         demoLockLabel.font.size = 18
     end if
-    drawParentalPinKeyboard(x + 118, y + 222)
-    uiLabel(m.canvas, "Back cancels", x + 32, y + h - 42, w - 64, 22, 11, m.colors.textDim, "center")
+    drawParentalPinKeyboard(x + 133, y + 222)
 end sub
 
 sub drawParentalPinDots(x as Integer, y as Integer)
@@ -788,7 +606,7 @@ sub drawParentalPinKeyboard(startX as Integer, startY as Integer)
     for i = 0 to m.parentalPinKeys.count() - 1
         keyRect = parentalPinKeyRect(i, startX, startY, keyW, keyH, gap)
         keyLabel = m.parentalPinKeys[i]
-        uiDrawKeyboardKey(m.canvas, keyLabel, uiKeyboardDisplayText(keyLabel, true), keyRect.x, keyRect.y, keyRect.w, keyRect.h, i = m.parentalPinKeyboardIndex, m.colors)
+        uiDrawPinKeyboardKey(m.canvas, keyLabel, uiKeyboardDisplayText(keyLabel, true), keyRect.x, keyRect.y, keyRect.w, keyRect.h, i = m.parentalPinKeyboardIndex, m.colors)
     end for
 end sub
 
@@ -836,13 +654,6 @@ end function
 
 function dropdownDisplayText(key as String, value as String) as String
     if key = "captionMode" then return captionDisplayText(value)
-    return value
-end function
-
-function compactSyncText(value as String) as String
-    if value = invalid or value = "" then return "Not synced"
-    if Instr(1, value, "Synced now") > 0 then return "Synced now"
-    if Instr(1, value, "Signed out") > 0 then return "Signed out"
     return value
 end function
 

@@ -210,7 +210,7 @@ function uiKnownIcon(icon as String) as Boolean
         add: true, play: true, search: true, back: true, sync: true, info: true, cache: true,
         sync_account: true, cache_account: true, logout_account: true,
         out: true, plus: true, link: true, m3u: true, x: true, profile: true,
-        world: true, note: true, kids: true, clock: true, sport: true, news: true,
+        world: true, note: true, captions: true, kids: true, clock: true, sport: true, news: true,
         heart: true, bell: true,
         player_volume: true, player_play: true, player_replay: true, player_full: true, player_heart: true,
         card_add: true, card_tv: true, card_series: true, card_movies: true,
@@ -310,6 +310,91 @@ function uiKeyboardKeyRect(keys as Object, index as Integer, startX as Integer, 
     return { x: x, y: y, w: uiKeyboardKeyWidth(keys[index]), h: keyH }
 end function
 
+function uiKeyboardMoveIndex(keys as Object, currentIndex as Integer, key as String, cols as Integer) as Integer
+    if keys = invalid or keys.count() = 0 then return 0
+    keyCount = keys.count()
+    if currentIndex < 0 then currentIndex = 0
+    if currentIndex >= keyCount then currentIndex = keyCount - 1
+
+    if key = "left" and currentIndex > 0 then return currentIndex - 1
+    if key = "right" and currentIndex < keyCount - 1 then return currentIndex + 1
+    if key = "up" then
+        returnIndex = uiKeyboardStoredReturnIndex(currentIndex)
+        if returnIndex >= 0 and returnIndex < keyCount then return returnIndex
+        return uiKeyboardVerticalMoveIndex(keys, keyCount, currentIndex, cols, -1)
+    end if
+    if key = "down" then
+        nextIndex = uiKeyboardVerticalMoveIndex(keys, keyCount, currentIndex, cols, 1)
+        if nextIndex <> currentIndex and uiKeyboardIsShortBottomRowIndex(keyCount, nextIndex, cols) then uiKeyboardStoreReturnIndex(nextIndex, currentIndex)
+        return nextIndex
+    end if
+    return currentIndex
+end function
+
+function uiKeyboardVerticalMoveIndex(keys as Object, keyCount as Integer, currentIndex as Integer, cols as Integer, rowDelta as Integer) as Integer
+    if cols <= 0 then return currentIndex
+    currentRow = Int(currentIndex / cols)
+    currentCol = currentIndex MOD cols
+    targetRow = currentRow + rowDelta
+    if targetRow < 0 then return currentIndex
+
+    first = targetRow * cols
+    if first >= keyCount then return currentIndex
+
+    last = first + cols - 1
+    if last >= keyCount then last = keyCount - 1
+
+    if rowDelta > 0 and last = keyCount - 1 and last - first + 1 < cols then
+        actionTarget = uiKeyboardBottomActionTargetIndex(keys, currentIndex, first, last)
+        if actionTarget >= 0 then return actionTarget
+    end if
+
+    target = first + currentCol
+    if target > last then target = last
+    return target
+end function
+
+function uiKeyboardBottomActionTargetIndex(keys as Object, currentIndex as Integer, first as Integer, last as Integer) as Integer
+    if keys = invalid then return -1
+    if currentIndex < 0 or currentIndex >= keys.count() then return -1
+
+    label = UCase(keys[currentIndex])
+    if label = "V" or label = "B" then return uiKeyboardFindKeyInRange(keys, "SPACE", first, last)
+    if label = "N" or label = "M" then return uiKeyboardFindKeyInRange(keys, "DEL", first, last)
+    if label = "/" or label = "," then return uiKeyboardFindKeyInRange(keys, "CLEAR", first, last)
+    if label = ":" or label = "-" or label = "?" or label = "!" then return uiKeyboardFindKeyInRange(keys, "DONE", first, last)
+    return -1
+end function
+
+function uiKeyboardFindKeyInRange(keys as Object, targetLabel as String, first as Integer, last as Integer) as Integer
+    if keys = invalid then return -1
+    for i = first to last
+        if UCase(keys[i]) = targetLabel then return i
+    end for
+    return -1
+end function
+
+function uiKeyboardIsShortBottomRowIndex(keyCount as Integer, index as Integer, cols as Integer) as Boolean
+    if cols <= 0 or keyCount <= 0 then return false
+    bottomFirst = Int((keyCount - 1) / cols) * cols
+    if keyCount - bottomFirst >= cols then return false
+    return index >= bottomFirst and index < keyCount
+end function
+
+sub uiKeyboardStoreReturnIndex(targetIndex as Integer, sourceIndex as Integer)
+    if m = invalid then return
+    m.uiKeyboardReturnTargetIndex = targetIndex
+    m.uiKeyboardReturnSourceIndex = sourceIndex
+end sub
+
+function uiKeyboardStoredReturnIndex(currentIndex as Integer) as Integer
+    if m = invalid then return -1
+    if not m.doesExist("uiKeyboardReturnTargetIndex") then return -1
+    if not m.doesExist("uiKeyboardReturnSourceIndex") then return -1
+    if m.uiKeyboardReturnTargetIndex <> currentIndex then return -1
+    return m.uiKeyboardReturnSourceIndex
+end function
+
 sub uiDrawKeyboardKey(parent as Object, keyId as String, displayText as String, x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean, colors as Object)
     bgUri = "pkg:/images/ui/rr_70x36_panel_whiteLine.png"
     if focused then bgUri = "pkg:/images/ui/rr_70x36_purpleSoft_greenFocus.png"
@@ -342,6 +427,22 @@ sub uiDrawKeyboardKey(parent as Object, keyId as String, displayText as String, 
     textSize = 12
     if keyId = "CLEAR" or keyId = "DONE" or keyId = "DEL" or keyId = "CASE" then textSize = 11
     uiLabel(parent, label, x, y + 5, w, h - 8, textSize, colors.text, "center")
+end sub
+
+sub uiDrawPinKeyboardKey(parent as Object, keyId as String, displayText as String, x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean, colors as Object)
+    if keyId <> "DEL" and keyId <> "DONE" then
+        uiDrawKeyboardKey(parent, keyId, displayText, x, y, w, h, focused, colors)
+        return
+    end if
+
+    bgUri = "pkg:/images/ui/rr_70x36_panel_whiteLine.png"
+    if focused then bgUri = "pkg:/images/ui/rr_70x36_purpleSoft_greenFocus.png"
+
+    textColor = colors.amber
+    if keyId = "DONE" then textColor = colors.textGreen
+
+    uiPoster(parent, bgUri, x, y, w, h, 0.92)
+    uiLabel(parent, displayText, x, y + 5, w, h - 8, 11, textColor, "center")
 end sub
 
 sub uiCardFocusTint(parent as Object, x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean)

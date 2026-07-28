@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<component name="SubscriptionPage" extends="Group">
+<component name="FeedbackPage" extends="Group">
   <children>
-    <Group id="subscriptionCanvas" />
+    <Group id="feedbackCanvas" />
   </children>
   <interface>
     <field id="navigateTo" type="string" alwaysNotify="true" />
@@ -12,6 +12,5 @@
   <script type="text/brightscript" uri="pkg:/components/shared/BackendApi.brs" />
   <script type="text/brightscript" uri="pkg:/components/shared/PlaylistStore.brs" />
   <script type="text/brightscript" uri="pkg:/components/shared/SettingsStore.brs" />
-  <script type="text/brightscript" uri="pkg:/components/shared/EntitlementStore.brs" />
-  <script type="text/brightscript" uri="pkg:/components/pages/SubscriptionPage.brs" />
+  <script type="text/brightscript" uri="pkg:/components/pages/FeedbackPage.brs" />
 </component>

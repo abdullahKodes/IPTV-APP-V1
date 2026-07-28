@@ -13,6 +13,7 @@
   <script type="text/brightscript" uri="pkg:/components/shared/BackendApi.brs" />
   <script type="text/brightscript" uri="pkg:/components/shared/PlaylistStore.brs" />
   <script type="text/brightscript" uri="pkg:/components/shared/SettingsStore.brs" />
+  <script type="text/brightscript" uri="pkg:/components/shared/EntitlementStore.brs" />
   <script type="text/brightscript" uri="pkg:/components/shared/ParentalControlStore.brs" />
   <script type="text/brightscript" uri="pkg:/components/pages/SettingsPage.brs" />
 </component>

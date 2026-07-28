@@ -6,6 +6,12 @@ sub init()
     m.status = entitlementStatusLoad()
     m.feedbackTitle = ""
     m.feedbackMessage = ""
+    m.recoveryOpen = false
+    m.recoveryInput = ""
+    m.recoveryMessage = ""
+    m.recoveryKeyboardIndex = 0
+    m.recoveryTask = invalid
+    m.recoveryKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "-", "DEL", "CLEAR", "DONE"]
     render()
 end sub
 
@@ -18,6 +24,7 @@ sub refreshClock()
 end sub
 
 function handleKey(key as String) as Boolean
+    if m.recoveryOpen then return handleRecoveryCodeKey(key)
     if key = "left" then move(-1, 0) : return true
     if key = "right" then move(1, 0) : return true
     if key = "up" then move(0, -1) : return true
@@ -37,8 +44,8 @@ sub activate()
     action = m.focusItems[m.focusIndex].action
     if action = "subscribe" then m.top.navigateTo = "WelcomePage" : return
     if action = "restore" then
-        entitlementRestoreMock()
-        setSubscriptionFeedback("Restore simulated", "Monthly access is active in Roku Pay test mode.")
+        openRecoveryCodeFlow()
+        return
     end if
     m.status = entitlementStatusLoad()
     render()
@@ -63,6 +70,7 @@ sub render()
     drawStatusPanel()
     drawActionPanel()
     drawFeedback()
+    if m.recoveryOpen then drawRecoveryCodeOverlay()
 end sub
 
 sub drawSubscriptionHeader()
@@ -97,8 +105,8 @@ sub drawActionPanel()
     panelH = 202
     uiPoster(m.canvas, "pkg:/images/ui/rr_720x218_panel_whiteLine.png", x, y, 720, panelH, 0.94)
     uiLabel(m.canvas, "Account Actions", x + 34, y + 22, 300, 34, 24, m.colors.textGreen)
-    copy = "Review available plans and update your access from the plan screen."
-    if entitlementBillingUseMock() then copy = "Restore uses local test mode until Roku Product Catalog and payout setup are ready."
+    copy = "Review available plans or restore this account with your recovery code."
+    if entitlementBillingUseMock() then copy = "Restore links the backend account by recovery code; plan status remains mocked until backend entitlement is ready."
     uiScaledLabel(m.canvas, copy, x + 34, y + 68, 620, 42, 11, m.colors.textMuted, "left", 0.72)
     drawSubscriptionAction(x + 34, y + 126, 190, "View Plans", "subscribe", 0, 0)
 
@@ -132,6 +140,157 @@ sub drawFeedback()
     uiScaledLabel(m.canvas, m.feedbackTitle, x + 2, y + 6, 128, 16, 9, m.colors.text, "center", 0.62)
     uiScaledLabel(m.canvas, m.feedbackMessage, x + 144, y + 3, 560, 24, 11, m.colors.textMuted, "left", 0.72)
 end sub
+
+sub openRecoveryCodeFlow()
+    m.recoveryOpen = true
+    m.recoveryInput = ""
+    m.recoveryMessage = "Enter the recovery code you saved after purchase."
+    m.recoveryKeyboardIndex = 0
+    render()
+end sub
+
+sub closeRecoveryCodeFlow()
+    if m.recoveryTask <> invalid then return
+    m.recoveryOpen = false
+    m.recoveryInput = ""
+    m.recoveryMessage = ""
+    render()
+end sub
+
+function handleRecoveryCodeKey(key as String) as Boolean
+    if m.recoveryTask <> invalid then return true
+    cols = 10
+    if key = "back" then closeRecoveryCodeFlow() : return true
+    nextIndex = uiKeyboardMoveIndex(m.recoveryKeys, m.recoveryKeyboardIndex, key, cols)
+    if nextIndex <> m.recoveryKeyboardIndex then m.recoveryKeyboardIndex = nextIndex : render() : return true
+    if key = "OK" then pressRecoveryCodeKey() : return true
+    return true
+end function
+
+sub pressRecoveryCodeKey()
+    selected = m.recoveryKeys[m.recoveryKeyboardIndex]
+    m.recoveryMessage = ""
+    if selected = "DEL" then
+        if m.recoveryInput.len() > 0 then m.recoveryInput = Left(m.recoveryInput, m.recoveryInput.len() - 1)
+        render()
+        return
+    end if
+    if selected = "CLEAR" then
+        m.recoveryInput = ""
+        render()
+        return
+    end if
+    if selected = "DONE" then
+        submitRecoveryCode()
+        return
+    end if
+    if m.recoveryInput.len() < 64 then m.recoveryInput += selected
+    render()
+end sub
+
+sub submitRecoveryCode()
+    code = cleanSubscriptionRecoveryCode(m.recoveryInput)
+    if code = "" then
+        m.recoveryMessage = "Recovery code is required."
+        render()
+        return
+    end if
+
+    task = CreateObject("roSGNode", "BackendApiTask")
+    if task = invalid then
+        m.recoveryMessage = "Backend connection is unavailable."
+        render()
+        return
+    end if
+
+    m.recoveryInput = code
+    m.recoveryMessage = "Restoring your account..."
+    task.observeField("response", "onRecoveryAuthLinked")
+    task.request = backendApiRecoverAuthRequest(code)
+    m.recoveryTask = task
+    render()
+    task.control = "RUN"
+end sub
+
+sub onRecoveryAuthLinked()
+    if m.recoveryTask = invalid then return
+    response = m.recoveryTask.response
+    m.recoveryTask = invalid
+
+    if backendApiResponseOk(response) then
+        backendApiStoreAuthData(backendApiResponseData(response))
+        entitlementRestoreMock()
+        m.status = entitlementStatusLoad()
+        m.recoveryOpen = false
+        setSubscriptionFeedback("Account Restored", "Recovery code accepted. Plan status uses mock entitlement until backend subscription status is available.")
+        render()
+        return
+    end if
+
+    m.recoveryMessage = backendApiResponseProblem(response, "Recovery code could not be restored.")
+    render()
+end sub
+
+sub drawRecoveryCodeOverlay()
+    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.88)
+    x = 220
+    y = 104
+    w = 840
+    h = 524
+    uiPoster(m.canvas, "pkg:/images/ui/rr_840x524_panel_purpleLine.png", x, y, w, h, 0.98)
+    titleLabel = uiLabel(m.canvas, "Restore with Recovery Code", x + 40, y + 30, w - 80, 38, 24, m.colors.textGreen, "center")
+    titleLabel.font.size = 24
+
+    uiPoster(m.canvas, "pkg:/images/ui/rr_680x168_panel_whiteLine.png", x + 80, y + 100, 680, 48, 0.90)
+    displayCode = m.recoveryInput
+    if displayCode = "" then displayCode = "ABCD-EFGH-JKLM-NPQR"
+    codeColor = m.colors.text
+    if m.recoveryInput = "" then codeColor = m.colors.textDim
+    uiLabel(m.canvas, displayCode, x + 104, y + 108, 632, 32, 17, codeColor, "left")
+
+    if m.recoveryMessage <> "" then
+        msgColor = m.colors.textMuted
+        lowerMessage = LCase(m.recoveryMessage)
+        if Instr(1, lowerMessage, "could not") > 0 or Instr(1, lowerMessage, "required") > 0 or Instr(1, lowerMessage, "unavailable") > 0 then msgColor = m.colors.red
+        uiScaledLabel(m.canvas, m.recoveryMessage, x + 70, y + 166, w - 140, 24, 11, msgColor, "center", 0.66)
+    end if
+
+    drawRecoveryCodeKeyboard(x + 58, y + 218)
+end sub
+
+sub drawRecoveryCodeKeyboard(startX as Integer, startY as Integer)
+    keyW = 70
+    keyH = 36
+    gap = 7
+    for i = 0 to m.recoveryKeys.count() - 1
+        keyLabel = m.recoveryKeys[i]
+        keyRect = uiKeyboardKeyRect(m.recoveryKeys, i, startX, startY, keyW, keyH, gap)
+        uiDrawKeyboardKey(m.canvas, keyLabel, uiKeyboardDisplayText(keyLabel, true), keyRect.x, keyRect.y, keyRect.w, keyRect.h, i = m.recoveryKeyboardIndex, m.colors)
+    end for
+end sub
+
+function cleanSubscriptionRecoveryCode(value as Dynamic) as String
+    text = UCase(subscriptionCleanInput(value))
+    out = ""
+    for i = 1 to text.len()
+        ch = Mid(text, i, 1)
+        if Instr(1, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-", ch) > 0 then out += ch
+    end for
+    return out
+end function
+
+function subscriptionCleanInput(value as Dynamic) as String
+    if value = invalid then return ""
+    if Type(value) <> "String" and Type(value) <> "roString" then return ""
+    text = value
+    while text.len() > 0 and Left(text, 1) = " "
+        text = Right(text, text.len() - 1)
+    end while
+    while text.len() > 0 and Right(text, 1) = " "
+        text = Left(text, text.len() - 1)
+    end while
+    return text
+end function
 
 function subscriptionBadgeFill(state as String) as String
     if state = "on_hold" or state = "canceled" then return m.colors.bg2

@@ -52,6 +52,8 @@ sub showPage(componentName as String)
         if m.currentPage.hasField("playbackEpisodeId") then m.currentPage.playbackEpisodeId = m.pendingPlayback.episodeId
         if m.currentPage.hasField("playbackSeasonIndex") then m.currentPage.playbackSeasonIndex = m.pendingPlayback.seasonIndex
         if m.currentPage.hasField("playbackEpisodeIndex") then m.currentPage.playbackEpisodeIndex = m.pendingPlayback.episodeIndex
+        if m.currentPage.hasField("playbackSeasonCount") then m.currentPage.playbackSeasonCount = m.pendingPlayback.seasonCount
+        if m.currentPage.hasField("playbackSeasonEpisodeCount") then m.currentPage.playbackSeasonEpisodeCount = m.pendingPlayback.seasonEpisodeCount
         if m.currentPage.hasField("playbackResumePosition") then m.currentPage.playbackResumePosition = m.pendingPlayback.resumePosition
         m.currentPage.returnPage = m.pendingPlayback.returnPage
         m.currentPage.playbackUrl = m.pendingPlayback.url
@@ -117,6 +119,8 @@ sub onPageNavigation()
                 episodeId: playbackPendingFieldText(m.currentPage, "playbackEpisodeId"),
                 seasonIndex: playbackPendingFieldInt(m.currentPage, "playbackSeasonIndex"),
                 episodeIndex: playbackPendingFieldInt(m.currentPage, "playbackEpisodeIndex"),
+                seasonCount: playbackPendingFieldInt(m.currentPage, "playbackSeasonCount"),
+                seasonEpisodeCount: playbackPendingFieldInt(m.currentPage, "playbackSeasonEpisodeCount"),
                 resumePosition: playbackPendingFieldInt(m.currentPage, "playbackResumePosition"),
                 returnPage: m.currentPage.returnPage
             }
@@ -202,6 +206,7 @@ function isHistoryPage(pageName as String) as Boolean
     if pageName = "SettingsPage" then return true
     if pageName = "ProfilePage" then return true
     if pageName = "SubscriptionPage" then return true
+    if pageName = "FeedbackPage" then return true
     return false
 end function
 
@@ -291,12 +296,9 @@ sub closeParentalGate()
 end sub
 
 function handleParentalGateKey(key as String) as Boolean
-    keyCount = m.parentalGateKeys.count()
     if key = "back" then closeParentalGate() : return true
-    if key = "left" and m.parentalGateKeyboardIndex > 0 then m.parentalGateKeyboardIndex -= 1 : drawParentalGate() : return true
-    if key = "right" and m.parentalGateKeyboardIndex < keyCount - 1 then m.parentalGateKeyboardIndex += 1 : drawParentalGate() : return true
-    if key = "up" and m.parentalGateKeyboardIndex - 3 >= 0 then m.parentalGateKeyboardIndex -= 3 : drawParentalGate() : return true
-    if key = "down" and m.parentalGateKeyboardIndex + 3 < keyCount then m.parentalGateKeyboardIndex += 3 : drawParentalGate() : return true
+    nextIndex = uiKeyboardMoveIndex(m.parentalGateKeys, m.parentalGateKeyboardIndex, key, 3)
+    if nextIndex <> m.parentalGateKeyboardIndex then m.parentalGateKeyboardIndex = nextIndex : drawParentalGate() : return true
     if key = "OK" then pressParentalGateKey() : return true
     return true
 end function
@@ -357,8 +359,7 @@ sub drawParentalGate()
         continueLabel = uiLabel(m.parentalGateHost, "Enter PIN to continue", x + 36, y + 182, w - 72, 34, 18, m.colors.textDim, "center")
         continueLabel.font.size = 18
     end if
-    drawParentalGateKeyboard(x + 118, y + 222)
-    uiLabel(m.parentalGateHost, "Back cancels", x + 32, y + h - 42, w - 64, 22, 11, m.colors.textDim, "center")
+    drawParentalGateKeyboard(x + 133, y + 222)
 end sub
 
 sub drawParentalGateDots(x as Integer, y as Integer)
@@ -387,7 +388,7 @@ sub drawParentalGateKeyboard(startX as Integer, startY as Integer)
     for i = 0 to m.parentalGateKeys.count() - 1
         keyRect = parentalGateKeyRect(i, startX, startY, keyW, keyH, gap)
         keyLabel = m.parentalGateKeys[i]
-        uiDrawKeyboardKey(m.parentalGateHost, keyLabel, uiKeyboardDisplayText(keyLabel, true), keyRect.x, keyRect.y, keyRect.w, keyRect.h, i = m.parentalGateKeyboardIndex, m.colors)
+        uiDrawPinKeyboardKey(m.parentalGateHost, keyLabel, uiKeyboardDisplayText(keyLabel, true), keyRect.x, keyRect.y, keyRect.w, keyRect.h, i = m.parentalGateKeyboardIndex, m.colors)
     end for
 end sub
 

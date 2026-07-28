@@ -12,6 +12,14 @@
     <field id="playbackFormat" type="string" />
     <field id="playbackPosterUrl" type="string" />
     <field id="playbackMediaType" type="string" />
+    <field id="playbackPlaylistId" type="string" />
+    <field id="playbackMediaId" type="string" />
+    <field id="playbackEpisodeId" type="string" />
+    <field id="playbackSeasonIndex" type="integer" />
+    <field id="playbackEpisodeIndex" type="integer" />
+    <field id="playbackSeasonCount" type="integer" />
+    <field id="playbackSeasonEpisodeCount" type="integer" />
+    <field id="playbackResumePosition" type="integer" />
     <field id="returnPage" type="string" />
     <field id="detailId" type="string" />
     <field id="detailTitle" type="string" />

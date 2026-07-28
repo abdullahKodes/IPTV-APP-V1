@@ -86,6 +86,28 @@ function backendApiGetChannelRequest(channelId as String) as Object
     }
 end function
 
+function backendApiCreateSupportReportRequest(category as String, message as String, context = invalid as Dynamic) as Object
+    if context = invalid then context = {}
+    appInfo = CreateObject("roAppInfo")
+    appVersion = ""
+    if appInfo <> invalid then appVersion = appInfo.GetVersion()
+    return {
+        method: "POST",
+        path: "/api/v1/support/reports",
+        body: {
+            category: category,
+            severity: "normal",
+            subject: "Roku app feedback",
+            message: message,
+            contact_email: "",
+            platform: "roku",
+            device_name: "IPTV Max Roku",
+            app_version: appVersion,
+            context: context
+        }
+    }
+end function
+
 function backendApiBuildUrl(path as String) as String
     if path = invalid or path = "" then return backendApiBaseUrl()
     if Left(path, 4) = "http" then return path

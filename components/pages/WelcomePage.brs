@@ -10,6 +10,15 @@ sub init()
     m.pendingPlanId = ""
     m.statusTitle = ""
     m.statusMessage = ""
+    m.recoveryCode = ""
+    m.recoverySource = ""
+    m.authTask = invalid
+    m.recoveryConfirmDialog = invalid
+    m.restoreInput = ""
+    m.restoreMessage = ""
+    m.restoreKeyboardIndex = 0
+    m.restoreTask = invalid
+    m.restoreKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "-", "DEL", "CLEAR", "DONE"]
     m.previousFocusIndex = -1
     m.mockTimer = CreateObject("roSGNode", "Timer")
     m.mockTimer.repeat = false
@@ -28,6 +37,8 @@ end sub
 
 function handleKey(key as String) as Boolean
     if m.mode = "loading" then return true
+    if m.mode = "recovery" then return handleRecoveryPageKey(key)
+    if m.mode = "restore" then return handleRestoreCodeKey(key)
     if key = "left" then moveWelcomeFocus(-1, 0) : return true
     if key = "right" then moveWelcomeFocus(1, 0) : return true
     if key = "up" then moveWelcomeFocus(0, -1) : return true
@@ -69,7 +80,7 @@ sub activate()
     end if
 
     if m.focusIndex = 3 then
-        startBillingFlow("restore", "")
+        openRestoreCodeFlow()
         return
     end if
 
@@ -137,18 +148,21 @@ sub onMockFlowComplete()
         m.statusTitle = "Subscription Restored"
         m.statusMessage = "Your subscription is active."
         m.pendingPlanId = "monthly"
+        m.mode = "success"
     else
         entitlementActivateMockPlan(m.pendingPlanId)
         plan = entitlementPlanById(m.pendingPlanId)
         if m.pendingPlanId = "trial" then
             m.statusTitle = plan.label + " Ready"
             m.statusMessage = "Your trial is active."
+            m.mode = "success"
         else
             m.statusTitle = plan.label + " Subscription Ready"
-            m.statusMessage = "Your subscription is active."
+            m.statusMessage = "Creating your account recovery code."
+            beginRecoveryCodeSetup()
+            return
         end if
     end if
-    m.mode = "success"
     render()
 end sub
 
@@ -193,7 +207,182 @@ sub onRokuOrderComplete()
     m.statusTitle = plan.label + " Subscription Ready"
     if m.pendingPlanId = "trial" then m.statusTitle = plan.label + " Ready"
     m.statusMessage = entitlementText(entitlementStatusLoad(), "message", "Your subscription is active.")
+    if m.pendingPlanId <> "trial" then
+        beginRecoveryCodeSetup()
+        return
+    end if
     m.mode = "success"
+    render()
+end sub
+
+sub beginRecoveryCodeSetup()
+    m.recoveryCode = storedRecoveryCode()
+    m.recoverySource = "backend"
+    if m.recoveryCode <> "" then
+        m.mode = "recovery"
+        render()
+        return
+    end if
+
+    task = CreateObject("roSGNode", "BackendApiTask")
+    if task = invalid then
+        showMockRecoveryCode("Backend task is unavailable.")
+        return
+    end if
+
+    m.authTask = task
+    m.mode = "loading"
+    m.statusTitle = "Creating Account"
+    m.statusMessage = "Preparing your recovery code before playlist setup."
+    task.observeField("response", "onAnonymousAuthCreated")
+    task.request = backendApiAnonymousAuthRequest()
+    render()
+    task.control = "RUN"
+end sub
+
+sub onAnonymousAuthCreated()
+    if m.authTask = invalid then return
+    response = m.authTask.response
+    m.authTask = invalid
+
+    if backendApiResponseOk(response) then
+        data = backendApiResponseData(response)
+        backendApiStoreAuthData(data)
+        m.recoveryCode = backendApiText(data, "recovery_code")
+        m.recoverySource = "backend"
+        if m.recoveryCode = "" then m.recoveryCode = storedRecoveryCode()
+        if m.recoveryCode <> "" then
+            m.mode = "recovery"
+            render()
+            return
+        end if
+    end if
+
+    showMockRecoveryCode(backendApiResponseProblem(response, "Backend account could not be created."))
+end sub
+
+sub showMockRecoveryCode(reason as String)
+    m.recoveryCode = mockRecoveryCodeForPlan(m.pendingPlanId)
+    m.recoverySource = "mock"
+    m.statusMessage = reason
+    m.mode = "recovery"
+    render()
+end sub
+
+function handleRecoveryPageKey(key as String) as Boolean
+    if key = "OK" then openRecoveryConfirmDialog() : return true
+    if key = "back" then
+        m.mode = "plans"
+        render()
+        return true
+    end if
+    return true
+end function
+
+sub openRecoveryConfirmDialog()
+    dialog = CreateObject("roSGNode", "Dialog")
+    dialog.title = "Did you save your recovery code?"
+    dialog.message = "You need this code if the app is removed or installed again. Choose Yes only after you have noted it."
+    dialog.buttons = ["No", "Yes"]
+    dialog.observeField("buttonSelected", "onRecoveryConfirmButton")
+    m.recoveryConfirmDialog = dialog
+    m.top.getScene().dialog = dialog
+end sub
+
+sub onRecoveryConfirmButton()
+    if m.recoveryConfirmDialog = invalid then return
+    selected = m.recoveryConfirmDialog.buttonSelected
+    m.top.getScene().dialog = invalid
+    m.recoveryConfirmDialog = invalid
+    if selected = 1 then
+        m.top.navigateTo = "AddPlaylistPage"
+    else
+        m.mode = "recovery"
+        render()
+    end if
+end sub
+
+sub openRestoreCodeFlow()
+    m.mode = "restore"
+    m.pendingAction = "restore"
+    m.pendingPlanId = "monthly"
+    m.restoreInput = ""
+    m.restoreMessage = "Enter the recovery code you saved after purchase."
+    m.restoreKeyboardIndex = 0
+    render()
+end sub
+
+function handleRestoreCodeKey(key as String) as Boolean
+    if m.restoreTask <> invalid then return true
+    cols = 10
+    if key = "back" then m.mode = "plans" : render() : return true
+    nextIndex = uiKeyboardMoveIndex(m.restoreKeys, m.restoreKeyboardIndex, key, cols)
+    if nextIndex <> m.restoreKeyboardIndex then m.restoreKeyboardIndex = nextIndex : render() : return true
+    if key = "OK" then pressRestoreCodeKey() : return true
+    return true
+end function
+
+sub pressRestoreCodeKey()
+    selected = m.restoreKeys[m.restoreKeyboardIndex]
+    m.restoreMessage = ""
+    if selected = "DEL" then
+        if m.restoreInput.len() > 0 then m.restoreInput = Left(m.restoreInput, m.restoreInput.len() - 1)
+        render()
+        return
+    end if
+    if selected = "CLEAR" then
+        m.restoreInput = ""
+        render()
+        return
+    end if
+    if selected = "DONE" then
+        submitRestoreCode()
+        return
+    end if
+    if m.restoreInput.len() < 64 then m.restoreInput += selected
+    render()
+end sub
+
+sub submitRestoreCode()
+    code = cleanWelcomeRecoveryCode(m.restoreInput)
+    if code = "" then
+        m.restoreMessage = "Recovery code is required."
+        render()
+        return
+    end if
+
+    task = CreateObject("roSGNode", "BackendApiTask")
+    if task = invalid then
+        m.restoreMessage = "Backend connection is unavailable."
+        render()
+        return
+    end if
+
+    m.restoreInput = code
+    m.restoreMessage = "Restoring your account..."
+    task.observeField("response", "onRestoreAuthLinked")
+    task.request = backendApiRecoverAuthRequest(code)
+    m.restoreTask = task
+    render()
+    task.control = "RUN"
+end sub
+
+sub onRestoreAuthLinked()
+    if m.restoreTask = invalid then return
+    response = m.restoreTask.response
+    m.restoreTask = invalid
+
+    if backendApiResponseOk(response) then
+        backendApiStoreAuthData(backendApiResponseData(response))
+        entitlementRestoreMock()
+        m.statusTitle = "Account Restored"
+        m.statusMessage = "Your backend account is linked. Subscription status is mocked until backend entitlement is added."
+        m.mode = "success"
+        render()
+        return
+    end if
+
+    m.restoreMessage = backendApiResponseProblem(response, "Recovery code could not be restored.")
     render()
 end sub
 
@@ -279,6 +468,10 @@ sub render()
     drawWelcomeBackground()
     if m.mode = "plans" then
         drawPlanSelection()
+    else if m.mode = "recovery" then
+        drawRecoveryCodeState()
+    else if m.mode = "restore" then
+        drawRestoreCodeState()
     else
         drawStatusState()
     end if
@@ -405,4 +598,111 @@ sub drawStatusState()
         uiScaledLabel(m.canvas, "Back to Plans", 548, 410, 184, 44, 15, m.colors.text, "center", 0.76)
     end if
 end sub
+
+sub drawRecoveryCodeState()
+    uiPoster(m.canvas, "pkg:/images/logo_full_dark_modified.png", 64, 44, 190, 64)
+    x = 240
+    y = 118
+    w = 800
+    h = 456
+    uiPoster(m.canvas, "pkg:/images/ui/rr_840x524_panel_purpleLine.png", x, y, w, h, 0.90)
+    uiPoster(m.canvas, "pkg:/images/ui/movie_featured_badge_100x34_purpleDeep.png", x + 342, y + 34, 116, 26, 0.84)
+    uiScaledLabel(m.canvas, "Recovery Code", x + 342, y + 39, 116, 16, 9, m.colors.text, "center", 0.62)
+
+    uiLabel(m.canvas, "Save this code", x + 40, y + 86, w - 80, 40, 28, m.colors.amber, "center")
+    uiScaledLabel(m.canvas, "Use it to restore your subscription and playlists", x + 80, y + 136, w - 160, 24, 12, m.colors.textMuted, "center", 0.72)
+    uiScaledLabel(m.canvas, "if this app is removed or installed again.", x + 80, y + 164, w - 160, 24, 12, m.colors.textMuted, "center", 0.72)
+
+    codePanelY = y + 228
+    uiPoster(m.canvas, "pkg:/images/ui/rr_680x168_panel_whiteLine.png", x + 90, codePanelY, 620, 58, 0.90)
+    uiScaledLabel(m.canvas, m.recoveryCode, x + 112, codePanelY + 8, 576, 40, 21, m.colors.textGreen, "center", 0.84)
+
+    note = "Backend account created. Keep this code private."
+    if m.recoverySource = "mock" then note = "Mock code shown until backend auth is reachable on device."
+    uiScaledLabel(m.canvas, note, x + 110, codePanelY + 78, 580, 28, 11, m.colors.textDim, "center", 0.66)
+
+    uiPoster(m.canvas, "pkg:/images/ui/movie_watch_176x40_greenSoft_greenFocus.png", x + 298, codePanelY + 128, 204, 44, 0.78)
+    uiScaledLabel(m.canvas, "Set Up Playlist", x + 298, codePanelY + 128, 204, 44, 15, m.colors.text, "center", 0.76)
+end sub
+
+sub drawRestoreCodeState()
+    uiPoster(m.canvas, "pkg:/images/logo_full_dark_modified.png", 64, 44, 190, 64)
+    x = 220
+    y = 104
+    w = 840
+    h = 524
+    uiPoster(m.canvas, "pkg:/images/ui/rr_840x524_panel_purpleLine.png", x, y, w, h, 0.98)
+    titleLabel = uiLabel(m.canvas, "Restore with Recovery Code", x + 40, y + 30, w - 80, 38, 24, m.colors.textGreen, "center")
+    titleLabel.font.size = 24
+
+    uiPoster(m.canvas, "pkg:/images/ui/rr_680x168_panel_whiteLine.png", x + 80, y + 100, 680, 48, 0.90)
+    displayCode = m.restoreInput
+    if displayCode = "" then displayCode = "ABCD-EFGH-JKLM-NPQR"
+    codeColor = m.colors.text
+    if m.restoreInput = "" then codeColor = m.colors.textDim
+    uiLabel(m.canvas, displayCode, x + 104, y + 108, 632, 32, 17, codeColor, "left")
+
+    if m.restoreMessage <> "" then
+        msgColor = m.colors.textMuted
+        lowerMessage = LCase(m.restoreMessage)
+        if Instr(1, lowerMessage, "could not") > 0 or Instr(1, lowerMessage, "required") > 0 or Instr(1, lowerMessage, "unavailable") > 0 then msgColor = m.colors.red
+        uiScaledLabel(m.canvas, m.restoreMessage, x + 70, y + 166, w - 140, 24, 11, msgColor, "center", 0.66)
+    end if
+
+    drawRestoreCodeKeyboard(x + 58, y + 218)
+end sub
+
+sub drawRestoreCodeKeyboard(startX as Integer, startY as Integer)
+    keyW = 70
+    keyH = 36
+    gap = 7
+    for i = 0 to m.restoreKeys.count() - 1
+        keyLabel = m.restoreKeys[i]
+        keyRect = uiKeyboardKeyRect(m.restoreKeys, i, startX, startY, keyW, keyH, gap)
+        uiDrawKeyboardKey(m.canvas, keyLabel, uiKeyboardDisplayText(keyLabel, true), keyRect.x, keyRect.y, keyRect.w, keyRect.h, i = m.restoreKeyboardIndex, m.colors)
+    end for
+end sub
+
+function storedRecoveryCode() as String
+    section = CreateObject("roRegistrySection", backendApiAuthRegistrySection())
+    if section <> invalid and section.Exists("recoveryCode") then
+        code = section.Read("recoveryCode")
+        if code <> invalid and code <> "" then return code
+    end if
+    return ""
+end function
+
+function mockRecoveryCodeForPlan(planId as String) as String
+    suffix = "0000"
+    now = CreateObject("roDateTime")
+    seconds = now.AsSeconds().toStr()
+    if seconds.len() >= 4 then suffix = Right(seconds, 4)
+    planCode = "PLAN"
+    if planId = "monthly" then planCode = "MONTH"
+    if planId = "annual" then planCode = "YEAR"
+    return "MOCK-" + planCode + "-SAVE-" + suffix
+end function
+
+function cleanWelcomeRecoveryCode(value as Dynamic) as String
+    text = UCase(welcomeCleanInput(value))
+    out = ""
+    for i = 1 to text.len()
+        ch = Mid(text, i, 1)
+        if Instr(1, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-", ch) > 0 then out += ch
+    end for
+    return out
+end function
+
+function welcomeCleanInput(value as Dynamic) as String
+    if value = invalid then return ""
+    if Type(value) <> "String" and Type(value) <> "roString" then return ""
+    text = value
+    while text.len() > 0 and Left(text, 1) = " "
+        text = Right(text, text.len() - 1)
+    end while
+    while text.len() > 0 and Right(text, 1) = " "
+        text = Left(text, text.len() - 1)
+    end while
+    return text
+end function
 

@@ -1,6 +1,6 @@
 # IPTV App Progress
 
-Last updated: 2026-07-27
+Last updated: 2026-07-28
 
 Read this file before starting a new session. Update it only after a meaningful milestone is completed, such as finishing a screen, fixing a major workflow, committing/pushing, or changing project structure. Do not update it for every tiny visual tweak.
 
@@ -28,6 +28,26 @@ Read this file before starting a new session. Update it only after a meaningful 
 - Live TV now uses a purpose-made teal/emerald broadcast-studio background with separately colored screens, reflections, and studio accents instead of a flat recolor.
 - Add Playlist Back behavior is source-aware: opening it from Home now returns to Home, while playlist edit/manage flows keep their existing playlist return targets.
 - Backend Swagger playlists can now be linked into the Roku app from Settings via the backend recovery code; My Playlists auto-loads backend playlists on open, then merges them into the local card list. The Swagger account tested on 2026-07-27 contains Series Test, Weather Test, and Science; all imports completed with zero failed records. The app now preserves backend `content_type` on channel rows, and Movies/Series request typed sync rows while Live TV still accepts unknown rows for category-style live playlists.
+- Paid-plan onboarding now creates/shows an account recovery code before playlist setup. Monthly/Yearly in mock billing mode activates the local entitlement, calls backend anonymous auth when available, saves returned auth data locally, then shows a recovery-code page with a `Set Up Playlist` button and a `Did you save your recovery code?` Yes/No warning; No stays on the code page, Yes opens Add Playlist. If backend auth is unavailable, the page shows a mock recovery code so the UI flow remains testable.
+- Welcome `Restore Subscription` now opens a recovery-code keyboard and calls `/api/v1/auth/recover`; successful restore saves the returned backend token and uses the current mock entitlement restore until backend subscription/plan status is exposed. Settings account recovery copy was changed from Swagger wording to customer-facing recovery wording.
+- Recovery restore is now centered in Profile -> Manage Subscription: the `Restore` action opens the recovery-code keyboard and calls `/api/v1/auth/recover`, while the duplicate visible recovery button was removed from Settings.
+- Screenshot follow-up tightened recovery UI: the post-purchase recovery-code page now uses a taller contained panel with split instruction copy, and restore-code keyboards no longer show duplicate instruction lines.
+- Added a customer feedback flow under Settings: the new Feedback page lets users choose a category, type a message with the Roku keyboard, and submit it to the backend `/api/v1/support/reports` endpoint using the saved bearer auth session.
+- Feedback UI follow-up removed the page sidebar, re-centered the form, replaced the music-note-looking feedback icon with the info icon, and switched category buttons to rounder supported pill assets.
+- Feedback page polish removed the icon from `Send Feedback`, made category button widths follow their labels, and replaced the message-field square focus outline with the rounded field focus treatment.
+- Feedback page Roku review follow-up changed Settings Feedback to a bell icon, moved category chips to pill-style action surfaces with text-based widths, and removed the dark green message-field focus tint.
+- Feedback page button follow-up matched category controls to the same pill artwork family as `Send Feedback`, widened the panel to preserve button rounding, changed Settings Feedback to a heart icon, and switched message focus to a rounded purple-line treatment.
+- Feedback category buttons now use tighter label-based pill widths with smaller gaps, selected chips use the filled pill state, `Send Feedback` is centered in the form, and message focus uses a subtle rounded inner surface instead of a color tint.
+- Feedback page latest Roku polish uses compact category pills with separate selected/focused states, a taller message area and panel, and a transparent rounded teal focus outline around the message box only.
+- Feedback page screenshot follow-up restored the Settings Feedback bell icon, moved `Send Feedback` back to the left side of the form, and replaced the message box with exact-size rounded normal/focused field assets so the teal focus border is thinner and aligned.
+- Feedback page buttons now animate with same-size focus-layer opacity fades on category pills and `Send Feedback`, avoiding any scale/widening behavior on Roku.
+- Feedback `Send Feedback` now uses a filled purple button base with a purple focused overlay instead of the teal/green action styling.
+- Feedback `Send Feedback` now uses the same Add Playlist submit button artwork, and Feedback Back now bubbles to MainScene history so Settings does not loop back into Feedback.
+- Feedback button shape polish replaced stretched submit/category artwork with exact-size rounded assets, giving `Send Feedback` a sleeker blue-purple border and keeping the long `Complaint` pill consistent with the other category buttons.
+- Feedback button asset follow-up removed the inner highlight line from category/submit pills and matched `Send Feedback` normal/focused colors to the category button family.
+- Feedback wording polish changed visible categories to `Suggestion`, `Playback`, `App Bug`, `Complaint`, and `Other`, and renamed the action to `Send Message` so it does not sound tied only to a feedback category.
+- On-screen keyboards now share corrected bottom-row arrow navigation, so uneven action rows no longer block Down movement; on text keyboards `V/B` go to `SPACE`, `N/M` to `DEL`, `/` or `,` to `CLEAR`, and `:`/`-`/`?`/`!` to `DONE`.
+- Keyboard bottom-row navigation now remembers the source key for a Down jump, so pressing Up from `SPACE`/`DEL`/`CLEAR`/`DONE` returns to the exact key that moved down there.
 - Live TV now splits backend semicolon group titles such as `Documentary;Education;Science` into separate category memberships, so a channel appears under each relevant pill instead of creating one oversized combined pill. The category row also stops drawing before the right edge to prevent overflow on TV.
 - Backend Series and Movies poster cards now keep the full remote logo/poster artwork underneath while drawing a compact taller bottom title strip. Title placement stays low on the card, and focused card titles switch to the same green accent as the focus border.
 - Player playback settings now sync the Subtitles row with the active Roku subtitle track name instead of leaving it on `Off` while captions are visibly applied.

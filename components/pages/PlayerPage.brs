@@ -13,7 +13,9 @@ sub init()
     m.trackMenuSection = "main"
     m.selectedAudioLabel = "Default"
     m.selectedSubtitleLabel = "Off"
-    m.selectedQualityLabel = qualityDisplayLabel(settingsStoreText(m.settings, "defaultQuality", "Auto"))
+    m.playbackQuality = settingsStoreText(m.settings, "defaultQuality", "Auto")
+    m.selectedQualityLabel = qualityDisplayLabel(m.playbackQuality)
+    m.playbackCaptionMode = settingsStoreText(m.settings, "captionMode", "System")
     m.qualityResumePosition = 0
     m.resumePendingPosition = 0
     m.resumeApplied = false
@@ -21,7 +23,7 @@ sub init()
     m.audioTracks = []
     m.subtitleTracks = []
     m.playing = false
-    m.captionsEnabled = playerCaptionModeEnabled(settingsStoreText(m.settings, "captionMode", "System"))
+    m.captionsEnabled = playerCaptionModeEnabled(m.playbackCaptionMode)
     m.loadedUrl = ""
     m.errorText = ""
     m.errorCode = 0
@@ -137,6 +139,10 @@ sub onPlaybackChanged()
     if m.isLive then m.focusIndex = 0 else m.focusIndex = 2
     m.selectedAudioLabel = "Default"
     m.selectedSubtitleLabel = "Off"
+    m.playbackQuality = settingsStoreText(m.settings, "defaultQuality", "Auto")
+    m.selectedQualityLabel = qualityDisplayLabel(m.playbackQuality)
+    m.playbackCaptionMode = settingsStoreText(m.settings, "captionMode", "System")
+    m.captionsEnabled = playerCaptionModeEnabled(m.playbackCaptionMode)
     m.resumePendingPosition = m.top.playbackResumePosition
     if m.resumePendingPosition < 0 then m.resumePendingPosition = 0
     m.resumeApplied = false
@@ -155,7 +161,7 @@ sub startPlayback(force as Boolean)
 
     content = CreateObject("roSGNode", "ContentNode")
     content.url = url
-    content.streamFormat = streamFormat()
+    content.streamFormat = playbackStreamFormat()
     content.title = playbackTitle()
     posterUrl = m.top.playbackPosterUrl
     if posterUrl <> invalid and posterUrl <> "" then content.HDPosterUrl = posterUrl
@@ -227,6 +233,7 @@ sub onVideoStateChange()
             return
         end if
         removePlaybackProgress()
+        if autoplayEnabled() and autoplayNextItem() then return
         m.playbackState = "finished"
         m.finishedFocusIndex = 0
         showControls()
@@ -289,6 +296,105 @@ sub replayMedia()
     showControls()
     render()
 end sub
+
+function autoplayEnabled() as Boolean
+    return settingsStoreBool(m.settings, "autoplay", true) and not m.isLive
+end function
+
+function autoplayNextItem() as Boolean
+    mediaType = playbackMediaType()
+    if mediaType = "series" then return autoplayNextSeriesEpisode()
+    if mediaType = "movie" then return autoplayNextMovie()
+    return false
+end function
+
+function autoplayNextSeriesEpisode() as Boolean
+    episodeCount = m.top.playbackSeasonEpisodeCount
+    if episodeCount <= 0 then return false
+    nextEpisodeIndex = m.top.playbackEpisodeIndex + 1
+    if nextEpisodeIndex >= episodeCount then return false
+
+    m.top.playbackEpisodeIndex = nextEpisodeIndex
+    m.top.playbackEpisodeId = seriesEpisodeId(m.top.playbackSeasonIndex, nextEpisodeIndex)
+    m.top.playbackSubtitle = seriesEpisodeId(m.top.playbackSeasonIndex, nextEpisodeIndex)
+    m.top.playbackResumePosition = 0
+    prepareAutoplayPlayback()
+    startPlayback(true)
+    return true
+end function
+
+function autoplayNextMovie() as Boolean
+    playlistId = m.top.playbackPlaylistId
+    mediaId = m.top.playbackMediaId
+    if playlistId = invalid or playlistId = "" or mediaId = invalid or mediaId = "" then return false
+
+    movies = mediaMovieCatalogForPlaylist(playlistId)
+    if movies = invalid or movies.count() = 0 then return false
+
+    for i = 0 to movies.count() - 2
+        itemId = playerMediaText(movies[i], "id", playerMediaText(movies[i], "title", ""))
+        if itemId = mediaId then
+            item = movies[i + 1]
+            playbackUrl = mediaPlaybackUrl(item)
+            if playbackUrl = invalid or playbackUrl = "" then return false
+            m.top.playbackTitle = playerMediaText(item, "title", "Video")
+            m.top.playbackSubtitle = movieAutoplaySubtitle(item)
+            m.top.playbackUrl = playbackUrl
+            m.top.playbackFormat = mediaPlaybackFormat(item)
+            m.top.playbackPosterUrl = playerMediaText(item, "posterUrl", playerMediaText(item, "cardUrl", ""))
+            m.top.playbackMediaId = playerMediaText(item, "id", m.top.playbackTitle)
+            m.top.playbackEpisodeId = ""
+            m.top.playbackSeasonIndex = 0
+            m.top.playbackEpisodeIndex = 0
+            m.top.playbackResumePosition = 0
+            prepareAutoplayPlayback()
+            startPlayback(true)
+            return true
+        end if
+    end for
+    return false
+end function
+
+sub prepareAutoplayPlayback()
+    m.loadedUrl = ""
+    m.qualityResumePosition = 0
+    m.resumePendingPosition = 0
+    m.resumeApplied = true
+    m.lastProgressSavePosition = 0
+    m.retryPending = false
+    m.retryCount = 0
+    m.trackMenuOpen = false
+    m.selectedAudioLabel = "Default"
+    m.selectedSubtitleLabel = "Off"
+    m.audioTracks = []
+    m.subtitleTracks = []
+end sub
+
+function seriesEpisodeId(seasonIndex as Integer, episodeIndex as Integer) as String
+    return "S" + (seasonIndex + 1).toStr() + "-E" + (episodeIndex + 1).toStr()
+end function
+
+function movieAutoplaySubtitle(item as Dynamic) as String
+    year = playerMediaText(item, "year", "")
+    duration = playerMediaText(item, "duration", "")
+    genre = playerMediaText(item, "genre", "")
+    subtitle = year
+    if duration <> "" then
+        if subtitle <> "" then subtitle += " - "
+        subtitle += duration
+    end if
+    if genre <> "" then
+        if subtitle <> "" then subtitle += " - "
+        subtitle += genre
+    end if
+    return subtitle
+end function
+
+function playerMediaText(item as Dynamic, key as String, fallback = "" as String) as String
+    value = mediaValue(item, key)
+    if value <> invalid then return value.toStr()
+    return fallback
+end function
 
 sub onProgressTick()
     if m.playbackState = "playing" then
@@ -396,7 +502,7 @@ sub persistPlaybackProgress(force as Boolean)
         subtitle: playbackSubtitle(),
         posterUrl: m.top.playbackPosterUrl,
         streamUrl: m.top.playbackUrl,
-        streamFormat: streamFormat(),
+        streamFormat: playbackStreamFormat(),
         position: playPosition,
         duration: duration,
         percent: percent
@@ -426,7 +532,8 @@ end function
 
 sub applyCaptionMode()
     if m.video = invalid then return
-    mode = settingsStoreText(m.settings, "captionMode", "System")
+    mode = m.playbackCaptionMode
+    if mode = invalid or mode = "" then mode = settingsStoreText(m.settings, "captionMode", "System")
     if mode = "System" then return
     m.captionsEnabled = playerCaptionModeEnabled(mode)
 
@@ -449,18 +556,18 @@ end function
 sub toggleCaptions()
     m.captionsEnabled = not m.captionsEnabled
     if m.captionsEnabled then
-        m.settings.captionMode = "On"
+        m.playbackCaptionMode = "On"
     else
-        m.settings.captionMode = "Off"
+        m.playbackCaptionMode = "Off"
     end if
-    settingsStoreSave(m.settings)
     applyCaptionMode()
     syncSelectedSubtitleLabel()
 end sub
 
 sub applyQualityPreference(content as Object)
     if content = invalid then return
-    quality = settingsStoreText(m.settings, "defaultQuality", "Auto")
+    quality = m.playbackQuality
+    if quality = invalid or quality = "" then quality = settingsStoreText(m.settings, "defaultQuality", "Auto")
     if quality = "Auto" then return
     maxBandwidth = 0
     if quality = "1080p" then maxBandwidth = 9000
@@ -472,7 +579,7 @@ end sub
 sub refreshAvailableTracks()
     m.audioTracks = []
     m.subtitleTracks = []
-    if settingsStoreText(m.settings, "captionMode", "System") = "System" then
+    if m.playbackCaptionMode = "System" then
         currentMode = ""
         if m.video.hasField("globalCaptionMode") then currentMode = m.video.globalCaptionMode
         if currentMode = "" and m.video.hasField("closedCaptionMode") then currentMode = m.video.closedCaptionMode
@@ -709,9 +816,8 @@ sub applyTrackMenuSelection()
         return
     end if
     if item.action = "quality" then
+        m.playbackQuality = item.value
         m.selectedQualityLabel = qualityDisplayLabel(item.value)
-        m.settings.defaultQuality = item.value
-        settingsStoreSave(m.settings)
         if not m.isLive then m.qualityResumePosition = videoPosition()
         m.trackMenuOpen = false
         startPlayback(true)
@@ -1073,7 +1179,7 @@ function playbackMediaType() as String
     return "movie"
 end function
 
-function streamFormat() as String
+function playbackStreamFormat() as String
     format = m.top.playbackFormat
     if format = invalid or format = "" then return "hls"
     return format

@@ -722,12 +722,9 @@ end sub
 
 function handleSearchKeyboardKey(key as String) as Boolean
     cols = 10
-    keyCount = m.searchKeys.count()
-    if key = "left" and m.searchKeyboardIndex > 0 then m.searchKeyboardIndex -= 1 : render() : return true
-    if key = "right" and m.searchKeyboardIndex < keyCount - 1 then m.searchKeyboardIndex += 1 : render() : return true
-    if key = "up" and m.searchKeyboardIndex - cols >= 0 then m.searchKeyboardIndex -= cols : render() : return true
-    if key = "down" and m.searchKeyboardIndex + cols < keyCount then m.searchKeyboardIndex += cols : render() : return true
     if key = "back" then closeSearchKeyboard() : return true
+    nextIndex = uiKeyboardMoveIndex(m.searchKeys, m.searchKeyboardIndex, key, cols)
+    if nextIndex <> m.searchKeyboardIndex then m.searchKeyboardIndex = nextIndex : render() : return true
     if key = "OK" then pressSearchKey() : return true
     return true
 end function

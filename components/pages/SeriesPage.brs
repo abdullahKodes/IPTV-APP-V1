@@ -204,6 +204,14 @@ sub playSeries(series as Object)
     m.top.playbackFormat = mediaPlaybackFormat(series)
     m.top.playbackPosterUrl = seriesCardUrl(series)
     m.top.playbackMediaType = "series"
+    m.top.playbackPlaylistId = m.activePlaylistId
+    m.top.playbackMediaId = seriesProgressMediaId(series)
+    m.top.playbackEpisodeId = ""
+    m.top.playbackSeasonIndex = 0
+    m.top.playbackEpisodeIndex = 0
+    m.top.playbackSeasonCount = 0
+    m.top.playbackSeasonEpisodeCount = 0
+    m.top.playbackResumePosition = 0
     m.top.returnPage = "SeriesPage"
     m.top.navigateTo = "PlayerPage"
 end sub
@@ -1183,12 +1191,9 @@ end sub
 
 function handleSearchKeyboardKey(key as String) as Boolean
     cols = 10
-    keyCount = m.searchKeys.count()
-    if key = "left" and m.searchKeyboardIndex > 0 then m.searchKeyboardIndex -= 1 : render() : return true
-    if key = "right" and m.searchKeyboardIndex < keyCount - 1 then m.searchKeyboardIndex += 1 : render() : return true
-    if key = "up" and m.searchKeyboardIndex - cols >= 0 then m.searchKeyboardIndex -= cols : render() : return true
-    if key = "down" and m.searchKeyboardIndex + cols < keyCount then m.searchKeyboardIndex += cols : render() : return true
     if key = "back" then closeSearchKeyboard() : return true
+    nextIndex = uiKeyboardMoveIndex(m.searchKeys, m.searchKeyboardIndex, key, cols)
+    if nextIndex <> m.searchKeyboardIndex then m.searchKeyboardIndex = nextIndex : render() : return true
     if key = "OK" then pressSearchKey() : return true
     return true
 end function

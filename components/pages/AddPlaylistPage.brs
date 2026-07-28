@@ -426,12 +426,9 @@ end sub
 
 function handleKeyboardKey(key as String) as Boolean
     cols = 10
-    keyCount = m.keyboardKeys.count()
-    if key = "left" and m.keyboardIndex > 0 then m.keyboardIndex -= 1 : render() : return true
-    if key = "right" and m.keyboardIndex < keyCount - 1 then m.keyboardIndex += 1 : render() : return true
-    if key = "up" and m.keyboardIndex - cols >= 0 then m.keyboardIndex -= cols : render() : return true
-    if key = "down" and m.keyboardIndex + cols < keyCount then m.keyboardIndex += cols : render() : return true
     if key = "back" then closeKeyboard() : return true
+    nextIndex = uiKeyboardMoveIndex(m.keyboardKeys, m.keyboardIndex, key, cols)
+    if nextIndex <> m.keyboardIndex then m.keyboardIndex = nextIndex : render() : return true
     if key = "OK" then pressKeyboardKey() : return true
     return true
 end function

@@ -165,7 +165,7 @@ end sub
 sub openProfileDialog()
     dialog = CreateObject("roSGNode", "Dialog")
     dialog.title = "Sign out?"
-    dialog.message = "This clears the local account session. Playlists and app settings stay on this Roku."
+    dialog.message = "This resets the local plan on this Roku. Playlists and app settings stay saved."
     dialog.buttons = ["Cancel", "Sign out"]
     dialog.observeField("buttonSelected", "onProfileDialogButton")
     m.signOutDialog = dialog
@@ -180,9 +180,11 @@ end sub
 sub onProfileDialogButton()
     if m.signOutDialog = invalid then return
     if m.signOutDialog.buttonSelected = 1 then
-        m.settings.signedIn = false
-        m.settings.lastSync = "Signed out locally"
-        settingsStoreSave(m.settings)
+        entitlementClearLocalAccess()
+        backendApiClearAuthSession()
+        closeProfileDialog()
+        m.top.navigateTo = "WelcomePage"
+        return
     end if
     closeProfileDialog()
     render()

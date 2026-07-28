@@ -225,6 +225,13 @@ sub entitlementSetMockState(state as String)
     entitlementStatusSave(status)
 end sub
 
+sub entitlementClearLocalAccess()
+    status = entitlementDefaultStatus()
+    status.lastAction = "Signed out locally"
+    status.message = "Choose a plan or restore your Roku purchase to unlock access."
+    entitlementStatusSave(status)
+end sub
+
 sub entitlementStatusSave(status as Object)
     section = CreateObject("roRegistrySection", "iptvmax_entitlement")
     section.Write("state", entitlementText(status, "state", "none"))
