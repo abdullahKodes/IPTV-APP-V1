@@ -2,6 +2,7 @@
 <component name="ProfilePage" extends="Group">
   <children>
     <Group id="profileCanvas" />
+    <ChannelStore id="rokuPayStore" />
   </children>
   <interface>
     <field id="navigateTo" type="string" alwaysNotify="true" />

@@ -5,7 +5,7 @@ sub init()
     m.focusIndex = 0
     m.settings = settingsStoreLoad()
     m.qualityOptions = ["Auto", "1080p", "720p", "480p"]
-    m.captionOptions = ["System", "On", "Off", "Replay", "Mute"]
+    m.captionOptions = ["System", "On", "Off"]
     m.clockFormatOptions = ["24-hour", "12-hour"]
     m.versionText = settingsAppVersionText()
     m.signOutDialog = invalid
@@ -647,8 +647,6 @@ end function
 
 function captionDisplayText(value as String) as String
     if value = "System" then return "System"
-    if value = "Replay" then return "Replay"
-    if value = "Mute" then return "On mute"
     return value
 end function
 

@@ -204,6 +204,7 @@ sub drawPlaylistRow(p as Object, playlistIndex as Integer, slot as Integer)
     y = 178 + slot * 70
     w = 1020
     h = 58
+    panelTopPad = 6
     active = playlistStoreText(p, "id") = playlistStoreActiveId()
     protected = playlistStoreBool(p, "isProtected", false)
     itemIndex = m.focusItems.count()
@@ -217,7 +218,7 @@ sub drawPlaylistRow(p as Object, playlistIndex as Integer, slot as Integer)
         textColor = m.colors.text
         rowOpacity = 0.90
     end if
-    uiPoster(m.canvas, surfaceUri, x, y, w, h, rowOpacity)
+    uiPoster(m.canvas, surfaceUri, x, y - panelTopPad, w, h + panelTopPad, rowOpacity)
 
     actionX = x + w - 128
     badge = managePlaylistBadgeText(p, active, protected)
@@ -229,15 +230,15 @@ sub drawPlaylistRow(p as Object, playlistIndex as Integer, slot as Integer)
     uiLabel(m.canvas, playlistStoreText(p, "title", "Playlist"), x + 24, y + 3, titleW, 30, 17, textColor)
     uiScaledLabel(m.canvas, managePlaylistSource(p), x + 25, y + 31, titleW, 22, 10, m.colors.textDim, "left", 0.66)
 
-    drawManageBadge(badge, badgeX, y + 15, badgeW)
-    drawManageSelect(actionX, y + 12, p, playlistIndex, protected)
+    drawManageBadge(badge, badgeX, y + 12, badgeW)
+    drawManageSelect(actionX, y + 9, p, playlistIndex, protected)
 end sub
 
 function managePlaylistBadgeText(p as Object, active as Boolean, protected as Boolean) as String
     badge = playlistStoreText(p, "status", "Ready")
     if active then badge = "Active"
     if protected and not active then badge = "Protected"
-    if playlistStoreText(p, "id") = m.refreshingId then badge = "Syncing"
+    if playlistStoreText(p, "id") = m.refreshingId then badge = "Refreshing"
     if badge = "Active" and not active then badge = "Ready"
     return badge
 end function
@@ -245,7 +246,7 @@ end function
 function manageBadgeWidth(label as String) as Integer
     if label = "Ready" then return 68
     if label = "Active" then return 74
-    if label = "Syncing" then return 94
+    if label = "Refreshing" then return 94
     if label = "Protected" then return 94
     return 84
 end function
@@ -366,7 +367,7 @@ sub openRefreshConfirm(playlistId as String, playlistTitle as String)
     m.pendingTitle = playlistTitle
     dialog = CreateObject("roSGNode", "Dialog")
     dialog.title = "Refresh playlist?"
-    dialog.message = "Validate " + playlistTitle + " and prepare it for provider synchronization."
+    dialog.message = "Check " + playlistTitle + " for the latest provider content."
     dialog.buttons = ["Cancel", "Refresh"]
     dialog.observeField("buttonSelected", "onRefreshDialogButton")
     m.refreshDialog = dialog
@@ -389,7 +390,7 @@ sub onRefreshDialogButton()
             return
         end if
         m.refreshingId = playlistId
-        m.feedbackMessage = "Validating playlist details..."
+        m.feedbackMessage = ""
         m.feedbackSuccess = true
         render()
         m.refreshTimer.control = "stop"
@@ -401,7 +402,7 @@ sub startBackendPlaylistRefresh(playlistId as String)
     p = playlistStoreGet(playlistId)
     backendId = playlistStoreText(p, "backendPlaylistId")
     if backendId = "" then
-        m.feedbackMessage = "Backend playlist ID is missing."
+        m.feedbackMessage = "This playlist needs to be added again."
         m.feedbackSuccess = false
         render()
         return
@@ -409,7 +410,7 @@ sub startBackendPlaylistRefresh(playlistId as String)
 
     task = CreateObject("roSGNode", "BackendApiTask")
     if task = invalid then
-        m.feedbackMessage = "Backend connection is unavailable."
+        m.feedbackMessage = "Playlist service is unavailable."
         m.feedbackSuccess = false
         render()
         return
@@ -418,7 +419,7 @@ sub startBackendPlaylistRefresh(playlistId as String)
     m.refreshingId = playlistId
     m.backendAction = "refresh"
     m.backendActionPlaylistId = playlistId
-    m.feedbackMessage = "Starting backend refresh..."
+    m.feedbackMessage = ""
     m.feedbackSuccess = true
     task.observeField("response", "onBackendPlaylistAction")
     task.request = backendApiRefreshPlaylistRequest(backendId)
@@ -485,7 +486,7 @@ sub startBackendPlaylistDelete(playlistId as String, playlistTitle as String)
     p = playlistStoreGet(playlistId)
     backendId = playlistStoreText(p, "backendPlaylistId")
     if backendId = "" then
-        m.feedbackMessage = "Backend playlist ID is missing."
+        m.feedbackMessage = "This playlist needs to be added again."
         m.feedbackSuccess = false
         render()
         return
@@ -493,7 +494,7 @@ sub startBackendPlaylistDelete(playlistId as String, playlistTitle as String)
 
     task = CreateObject("roSGNode", "BackendApiTask")
     if task = invalid then
-        m.feedbackMessage = "Backend connection is unavailable."
+        m.feedbackMessage = "Playlist service is unavailable."
         m.feedbackSuccess = false
         render()
         return
@@ -502,7 +503,7 @@ sub startBackendPlaylistDelete(playlistId as String, playlistTitle as String)
     m.backendAction = "delete"
     m.backendActionPlaylistId = playlistId
     m.pendingTitle = playlistTitle
-    m.feedbackMessage = "Deleting playlist from backend..."
+    m.feedbackMessage = ""
     m.feedbackSuccess = true
     task.observeField("response", "onBackendPlaylistAction")
     task.request = backendApiDeletePlaylistRequest(backendId)
@@ -526,9 +527,9 @@ sub onBackendPlaylistAction()
     if not backendApiResponseOk(response) then
         m.feedbackSuccess = false
         if action = "delete" then
-            m.feedbackMessage = "Backend could not delete " + playlistTitle + "."
+            m.feedbackMessage = playlistTitle + " could not be deleted."
         else
-            m.feedbackMessage = "Backend refresh could not be started."
+            m.feedbackMessage = "Refresh could not be started."
         end if
         render()
         return
@@ -540,12 +541,12 @@ sub onBackendPlaylistAction()
         if deleted then
             m.feedbackMessage = playlistTitle + " was deleted."
         else
-            m.feedbackMessage = "Playlist was deleted on backend, but local cleanup failed."
+            m.feedbackMessage = "Playlist was deleted, but local cleanup failed."
         end if
     else
         playlistStoreMarkBackendImporting(playlistId)
         m.feedbackSuccess = true
-        m.feedbackMessage = "Backend refresh started."
+        m.feedbackMessage = "Refresh requested."
     end if
 
     m.playlists = playlistStoreList()

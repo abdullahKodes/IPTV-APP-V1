@@ -131,8 +131,8 @@ sub entitlementActivateMockPlan(planId as String)
         renewsAt: entitlementRenewalLabel(plan.id),
         customerName: "Roku Viewer",
         customerEmail: "roku-account@example.com",
-        lastAction: "Mock Roku Pay activation complete",
-        message: "Roku Pay-ready test mode is active. Real product IDs can replace this after payout enrollment.",
+        lastAction: "Subscription activated",
+        message: "Your subscription is active.",
         mockMode: "1"
     }
     entitlementStatusSave(status)
@@ -150,12 +150,23 @@ sub entitlementRestoreMock()
         renewsAt: "Renews after Roku validation",
         customerName: "Roku Viewer",
         customerEmail: "roku-account@example.com",
-        lastAction: "Mock restore completed",
-        message: "Restore path is ready for getAllPurchases once Roku Pay products are approved.",
+        lastAction: "Subscription restored",
+        message: "Your subscription is active.",
         mockMode: "1"
     }
     entitlementStatusSave(status)
     entitlementCompleteOnboarding("restore")
+end sub
+
+sub entitlementMarkAccountRestored()
+    status = entitlementDefaultStatus()
+    status.state = "account_restored"
+    status.customerName = "Restored Account"
+    status.customerEmail = "Subscription pending"
+    status.lastAction = "Account restored"
+    status.message = "Account restored. Restore Subscription to unlock playback and playlist changes."
+    entitlementStatusSave(status)
+    entitlementCompleteOnboarding("account_restore")
 end sub
 
 sub entitlementActivateRokuPurchase(purchase as Object, fallbackPlanId as String, action as String)
@@ -201,7 +212,7 @@ sub entitlementSetMockState(state as String)
         status.price = "$3.49"
         status.billingTerm = "per month"
         status.renewsAt = "Payment recovery grace period"
-        status.lastAction = "Mock grace-period state"
+        status.lastAction = "Payment recovery state"
         status.message = "Playback can continue while Roku Pay asks the customer to update payment."
     else if state = "on_hold" then
         status.planName = "Monthly"
@@ -209,7 +220,7 @@ sub entitlementSetMockState(state as String)
         status.price = "$3.49"
         status.billingTerm = "per month"
         status.renewsAt = "Payment update required"
-        status.lastAction = "Mock on-hold state"
+        status.lastAction = "Payment update required"
         status.message = "Premium playback is blocked until Roku Pay recovery succeeds."
     else if state = "canceled" then
         status.planName = "Canceled"
@@ -217,7 +228,7 @@ sub entitlementSetMockState(state as String)
         status.price = ""
         status.billingTerm = ""
         status.renewsAt = "Expired"
-        status.lastAction = "Mock canceled state"
+        status.lastAction = "Subscription canceled"
         status.message = "Customer must choose a plan again to regain access."
     else if state = "none" then
         status = entitlementDefaultStatus()
@@ -272,11 +283,17 @@ function entitlementCanEnterApp(status as Object) as Boolean
     return state = "trial" or state = "active" or state = "grace"
 end function
 
+function entitlementCanBrowseApp(status as Object) as Boolean
+    state = entitlementText(status, "state", "none")
+    return state = "account_restored" or entitlementCanEnterApp(status)
+end function
+
 function entitlementRequiresSubscriptionPage(status as Object) as Boolean
-    return not entitlementCanEnterApp(status)
+    return not entitlementCanBrowseApp(status)
 end function
 
 function entitlementAccessMessageForState(state as String) as String
+    if state = "account_restored" then return "Restore Subscription to unlock playback and playlist changes."
     if state = "trial" then return "Trial access is active."
     if state = "active" then return "Premium playback is active."
     if state = "grace" then return "Playback can continue during Roku Pay payment recovery."
@@ -287,6 +304,7 @@ end function
 
 function entitlementProfileLabel(status as Object) as String
     state = entitlementText(status, "state", "none")
+    if state = "account_restored" then return "Restored"
     if state = "trial" then return "Trial"
     if state = "active" then return "Premium"
     if state = "grace" then return "Grace"
@@ -297,6 +315,7 @@ end function
 
 function entitlementStatusTitle(status as Object) as String
     label = entitlementProfileLabel(status)
+    if label = "Restored" then return "Account restored"
     if label = "Preview" then return "No subscription"
     if label = "Premium" then return "Premium active"
     if label = "Trial" then return "Trial active"
@@ -304,6 +323,7 @@ function entitlementStatusTitle(status as Object) as String
 end function
 
 function entitlementSignedInValue(state as String) as String
+    if state = "account_restored" then return "1"
     if state = "trial" or state = "active" or state = "grace" then return "1"
     return "0"
 end function

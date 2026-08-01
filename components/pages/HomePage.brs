@@ -24,9 +24,44 @@ function handleKey(key as String) as Boolean
 end function
 
 sub move(dx as Integer, dy as Integer)
+    if dx < 0 and dy = 0 and homeIsAddPlaylistFocused() then
+        targetIndex = homeTopSidebarFocusIndex()
+        if targetIndex >= 0 then
+            m.focusIndex = targetIndex
+            drawFocus()
+            return
+        end if
+    end if
+
     m.focusIndex = uiMoveFocus(m.focusItems, m.focusIndex, dx, dy)
     drawFocus()
 end sub
+
+function homeIsAddPlaylistFocused() as Boolean
+    if m.focusItems.count() = 0 then return false
+    if m.focusIndex < 0 or m.focusIndex >= m.focusItems.count() then return false
+
+    item = m.focusItems[m.focusIndex]
+    if item.doesExist("page") and item.page = "AddPlaylistPage" then return true
+    return false
+end function
+
+function homeTopSidebarFocusIndex() as Integer
+    best = -1
+    bestRow = 999999
+
+    for i = 0 to m.focusItems.count() - 1
+        item = m.focusItems[i]
+        if item.doesExist("col") and item.col = 0 then
+            if item.doesExist("row") and item.row < bestRow then
+                bestRow = item.row
+                best = i
+            end if
+        end if
+    end for
+
+    return best
+end function
 
 sub activate()
     item = m.focusItems[m.focusIndex]

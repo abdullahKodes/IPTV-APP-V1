@@ -23,7 +23,7 @@ function settingsStoreLoad() as Object
     section = CreateObject("roRegistrySection", "iptvmax_settings")
     return {
         defaultQuality: settingsStoreReadString(section, "defaultQuality", defaults.defaultQuality),
-        captionMode: settingsStoreReadString(section, "captionMode", defaults.captionMode),
+        captionMode: settingsStoreCaptionMode(settingsStoreReadString(section, "captionMode", defaults.captionMode)),
         autoplay: settingsStoreReadBool(section, "autoplay", defaults.autoplay),
         notifications: settingsStoreReadBool(section, "notifications", defaults.notifications),
         appLanguage: settingsStoreReadString(section, "appLanguage", defaults.appLanguage),
@@ -44,7 +44,7 @@ sub settingsStoreSave(settings as Object)
     if settings = invalid then return
     section = CreateObject("roRegistrySection", "iptvmax_settings")
     section.Write("defaultQuality", settingsStoreText(settings, "defaultQuality", "Auto"))
-    section.Write("captionMode", settingsStoreText(settings, "captionMode", "System"))
+    section.Write("captionMode", settingsStoreCaptionMode(settingsStoreText(settings, "captionMode", "System")))
     section.Write("autoplay", settingsStoreBoolValue(settings, "autoplay", true))
     section.Write("notifications", settingsStoreBoolValue(settings, "notifications", true))
     section.Write("appLanguage", settingsStoreText(settings, "appLanguage", "English"))
@@ -107,6 +107,11 @@ function settingsStoreValue(settings as Object, key as String) as Dynamic
     lowerKey = LCase(key)
     if lowerKey <> key and settings.doesExist(lowerKey) then return settings[lowerKey]
     return invalid
+end function
+
+function settingsStoreCaptionMode(value as String) as String
+    if value = "On" or value = "Off" then return value
+    return "System"
 end function
 
 function settingsStoreBoolValue(settings as Object, key as String, fallback as Boolean) as String

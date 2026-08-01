@@ -62,7 +62,7 @@ function playlistStoreAdd(input as Object, mode as String) as Object
         item = {
             id: id,
             title: title,
-            meta: "Ready to sync - Xtreme",
+            meta: "Ready - Xtreme",
             itemCount: 0,
             type: "Xtreme",
             status: "Active",
@@ -80,7 +80,7 @@ function playlistStoreAdd(input as Object, mode as String) as Object
         sourceUrl = playlistStoreM3uInputUrl(input)
         if sourceUrl = "" then return invalid
         contentProfile = ""
-        meta = "Ready to sync - M3U"
+        meta = "Ready - M3U"
         itemCount = 0
         icon = "m3u"
         if playlistStoreIsFakeLiveText(sourceUrl) or playlistStoreIsFakeLiveText(title) then
@@ -157,9 +157,9 @@ function playlistStoreMarkBackendImporting(id as String) as Boolean
     for i = 0 to items.count() - 1
         item = items[i]
         if playlistStoreText(item, "id") = id and playlistStoreBool(item, "backendManaged", false) then
-            item.status = "Syncing"
-            item.time = "Import queued on backend"
-            item.lastSync = "syncing"
+            item.status = "Refreshing"
+            item.time = "Refresh requested"
+            item.lastSync = "refreshing"
             items[i] = item
             return playlistStoreSave(items)
         end if
@@ -190,7 +190,7 @@ function playlistStoreRefreshResult(id as String) as Object
                 if playlistStoreText(item, "serverUrl") = "" or playlistStoreText(item, "username") = "" or playlistStoreText(item, "password") = "" then
                     item.status = "Offline"
                     item.time = "Account details are incomplete"
-                    item.lastSync = "sync failed"
+                    item.lastSync = "refresh failed"
                     items[i] = item
                     playlistStoreSave(items)
                     return { success: false, message: "Complete the Xtreme account details before refreshing." }
@@ -198,7 +198,7 @@ function playlistStoreRefreshResult(id as String) as Object
             else if playlistStoreText(item, "sourceUrl") = "" then
                 item.status = "Offline"
                 item.time = "Playlist URL is missing"
-                item.lastSync = "sync failed"
+                item.lastSync = "refresh failed"
                 items[i] = item
                 playlistStoreSave(items)
                 return { success: false, message: "Add a valid M3U URL before refreshing." }
@@ -207,10 +207,10 @@ function playlistStoreRefreshResult(id as String) as Object
             item.status = "Active"
             item.time = "Validated just now"
             item.lastSync = "just now"
-            if playlistStoreNumber(item, "itemCount") = 0 then item.meta = "Provider sync pending - " + playlistType
+            if playlistStoreNumber(item, "itemCount") = 0 then item.meta = "Provider content pending - " + playlistType
             items[i] = item
             saved = playlistStoreSave(items)
-            if saved then return { success: true, message: "Playlist details validated. Provider sync is ready for backend integration." }
+            if saved then return { success: true, message: "Playlist is ready." }
             return { success: false, message: "Playlist status could not be saved." }
         end if
     end for
@@ -253,7 +253,7 @@ function playlistStoreUpdate(id as String, input as Object, mode as String) as O
                 item.sourceUrl = ""
                 item.contentProfile = ""
                 item.icon = "link"
-                item.meta = "Provider sync pending - Xtreme"
+                item.meta = "Provider content pending - Xtreme"
             else
                 item.title = playlistStoreNormalizeInputText(playlistStoreText(input, "playlistTitle"))
                 item.type = "M3U"
@@ -264,7 +264,7 @@ function playlistStoreUpdate(id as String, input as Object, mode as String) as O
                 item.contentProfile = playlistStoreInferInputProfile(item.title, item.sourceUrl)
                 item.icon = "m3u"
                 item.itemCount = 0
-                item.meta = "Provider sync pending - M3U"
+                item.meta = "Provider content pending - M3U"
                 if item.contentProfile = "demo_live_m3u" then
                     item.icon = "tv"
                     item.itemCount = 4
@@ -382,7 +382,7 @@ function playlistStoreMapBackendPlaylist(apiItem as Object, previous = invalid a
     backendId = playlistStoreText(apiItem, "id")
     if backendId = "" then return invalid
 
-    backendName = playlistStoreText(apiItem, "name", "Backend Playlist")
+    backendName = playlistStoreText(apiItem, "name", "Playlist")
     title = backendName
     localTitle = ""
     if previous <> invalid then
@@ -419,7 +419,7 @@ function playlistStoreMapBackendPlaylist(apiItem as Object, previous = invalid a
         itemCount: itemCount,
         type: typeLabel,
         status: status,
-        time: "Synced from backend",
+        time: "Saved online",
         icon: icon,
         accent: "green",
         sourceUrl: sourceUrl,
@@ -459,7 +459,7 @@ function playlistStoreBackendStatusLabel(status as String) as String
     statusText = playlistStoreNormalizeMatchText(status)
     if statusText = "ready" then return "Ready"
     if statusText = "failed" or statusText = "disabled" then return "Offline"
-    if statusText = "importing" or statusText = "created" then return "Syncing"
+    if statusText = "importing" or statusText = "created" then return "Refreshing"
     return "Ready"
 end function
 
@@ -472,7 +472,7 @@ function playlistStoreBackendMeta(itemCount as Integer, contentProfile as String
         if contentProfile = "backend_series" then label = "series stream"
         if contentProfile = "backend_live" then label = "live channel"
     end if
-    return itemCount.toStr() + " " + label + " - Backend"
+    return itemCount.toStr() + " " + label
 end function
 
 function playlistStoreInferInputProfile(title as String, sourceUrl as String) as String
@@ -511,7 +511,7 @@ function playlistStoreNormalize(items as Object) as Object
             end if
             usedIds[itemId] = true
             if not item.doesExist("title") then item.title = "Playlist"
-            if not item.doesExist("meta") then item.meta = "Ready to sync"
+            if not item.doesExist("meta") then item.meta = "Ready"
             if not item.doesExist("itemCount") then item.itemCount = 0
             if not item.doesExist("type") then item.type = "M3U"
             if not item.doesExist("status") then item.status = "Active"

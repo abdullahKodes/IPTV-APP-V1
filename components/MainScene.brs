@@ -16,6 +16,7 @@ sub init()
     m.parentalGateKeyboardIndex = 0
     m.parentalGateKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "DEL", "0", "DONE"]
     m.parentalUnlockedToken = ""
+    m.subscriptionGateDialog = invalid
     m.top.backgroundColor = m.colors.bg
     m.top.setFocus(true)
 
@@ -101,10 +102,14 @@ end sub
 sub onPageNavigation()
     target = m.currentPage.navigateTo
     if target <> invalid and target <> "" then
-        target = gatedPageName(target)
-        if target = m.currentPageName then return
         currentName = m.currentPageName
         if m.currentPage.hasField("navigateTo") then m.currentPage.navigateTo = ""
+        if subscriptionGateNeededForTarget(target) then
+            openSubscriptionGate(target)
+            return
+        end if
+        target = gatedPageName(target)
+        if target = m.currentPageName then return
         if target = "AddPlaylistPage" then m.pendingAddPlaylistReturnPage = addPlaylistReturnPageForCurrent(currentName)
         if target = "PlayerPage" and m.currentPage.hasField("playbackUrl") then
             m.pendingPlayback = {
@@ -180,9 +185,47 @@ end function
 function gatedPageName(componentName as String) as String
     if componentName = invalid or componentName = "" then return "WelcomePage"
     if componentName = "WelcomePage" or componentName = "SubscriptionPage" then return componentName
-    if entitlementRequiresSubscriptionPage(entitlementStatusLoad()) then return "WelcomePage"
+    entitlement = entitlementStatusLoad()
+    if not entitlementCanBrowseApp(entitlement) then return "WelcomePage"
     return componentName
 end function
+
+function routeRequiresSubscription(componentName as String) as Boolean
+    return componentName = "AddPlaylistPage" or componentName = "PlayerPage"
+end function
+
+function subscriptionGateNeededForTarget(componentName as String) as Boolean
+    if not routeRequiresSubscription(componentName) then return false
+    entitlement = entitlementStatusLoad()
+    if entitlementCanEnterApp(entitlement) then return false
+    return entitlementCanBrowseApp(entitlement)
+end function
+
+sub openSubscriptionGate(target as String)
+    dialog = CreateObject("roSGNode", "Dialog")
+    dialog.title = "Subscription Required"
+    if target = "AddPlaylistPage" then
+        dialog.message = "Your account is restored, but your subscription is not active yet. Restore Subscription before adding a new playlist."
+    else
+        dialog.message = "Your account is restored, but playback is locked until your subscription is restored through Roku Pay."
+    end if
+    dialog.buttons = ["Not Now", "Restore Subscription"]
+    dialog.observeField("buttonSelected", "onSubscriptionGateButton")
+    m.subscriptionGateDialog = dialog
+    m.top.dialog = dialog
+end sub
+
+sub closeSubscriptionGate()
+    m.top.dialog = invalid
+    m.subscriptionGateDialog = invalid
+end sub
+
+sub onSubscriptionGateButton()
+    if m.subscriptionGateDialog = invalid then return
+    selected = m.subscriptionGateDialog.buttonSelected
+    closeSubscriptionGate()
+    if selected = 1 then completePageNavigation("ProfilePage", m.currentPageName)
+end sub
 
 function shouldRestorePreviousForTarget(target as String, currentName as String) as Boolean
     if currentName = "MovieDetailPage" or currentName = "SeriesDetailPage" or currentName = "PlayerPage" then return true
@@ -192,6 +235,7 @@ end function
 
 function shouldPreservePageForTarget(target as String, currentName as String) as Boolean
     if target = "MovieDetailPage" or target = "SeriesDetailPage" or target = "PlayerPage" then return true
+    if currentName = "SubscriptionPage" and target = "WelcomePage" then return true
     if isHistoryPage(currentName) and isHistoryPage(target) then return true
     return false
 end function
@@ -428,6 +472,10 @@ end function
 
 function onKeyEvent(key as String, press as Boolean) as Boolean
     if not press then return false
+    if m.subscriptionGateDialog <> invalid then
+        if key = "back" then closeSubscriptionGate() : return true
+        return false
+    end if
     if m.parentalGateOpen then return handleParentalGateKey(key)
 
     if key = "back" then

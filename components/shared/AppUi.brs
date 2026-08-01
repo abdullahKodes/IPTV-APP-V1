@@ -497,6 +497,31 @@ sub uiAnimateActionFocus(parent as Object, actionCanvas as Object)
     animation.control = "start"
 end sub
 
+sub uiContentLoader(parent as Object, colors as Object, title as String)
+    loader = CreateObject("roSGNode", "Group")
+    loader.id = "contentLoader"
+    loader.translation = [244, 316]
+    parent.appendChild(loader)
+
+    uiRoundRect(loader, 0, 0, 860, 92, colors.panel, colors.whiteLine, 0.24)
+    uiLabel(loader, title, 0, 10, 860, 34, 18, colors.text, "center")
+    uiRect(loader, 56, 56, 748, 2, colors.greenFocus, 0.20)
+
+    sweep = uiRect(loader, 56, 56, 118, 2, colors.greenFocus, 0.86)
+    sweep.id = "contentLoaderSweep"
+
+    sweepAnimation = CreateObject("roSGNode", "Animation")
+    sweepAnimation.duration = 1.6
+    sweepAnimation.easeFunction = "inOutQuad"
+    sweepAnimation.repeat = true
+    sweepMove = sweepAnimation.createChild("Vector2DFieldInterpolator")
+    sweepMove.key = [0.0, 0.5, 1.0]
+    sweepMove.keyValue = [[56, 56], [686, 56], [56, 56]]
+    sweepMove.fieldToInterp = "contentLoaderSweep.translation"
+    parent.appendChild(sweepAnimation)
+    sweepAnimation.control = "start"
+end sub
+
 sub uiClear(parent as Object)
     while parent.getChildCount() > 0
         parent.removeChild(parent.getChild(0))
@@ -671,7 +696,10 @@ end sub
 
 function uiMoveFocus(focusItems as Object, focusIndex as Integer, dx as Integer, dy as Integer) as Integer
     if focusItems.count() = 0 then return 0
+    if focusIndex < 0 then focusIndex = 0
+    if focusIndex >= focusItems.count() then focusIndex = focusItems.count() - 1
     current = focusItems[focusIndex]
+    if current = invalid then return 0
     best = focusIndex
     bestScore = 999999
 

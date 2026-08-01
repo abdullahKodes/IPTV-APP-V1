@@ -10,6 +10,7 @@ sub init()
     m.pendingPlanId = ""
     m.statusTitle = ""
     m.statusMessage = ""
+    m.confirmFocusIndex = 0
     m.recoveryCode = ""
     m.recoverySource = ""
     m.authTask = invalid
@@ -37,6 +38,7 @@ end sub
 
 function handleKey(key as String) as Boolean
     if m.mode = "loading" then return true
+    if m.mode = "confirm" then return handlePlanConfirmKey(key)
     if m.mode = "recovery" then return handleRecoveryPageKey(key)
     if m.mode = "restore" then return handleRestoreCodeKey(key)
     if key = "left" then moveWelcomeFocus(-1, 0) : return true
@@ -48,8 +50,9 @@ function handleKey(key as String) as Boolean
         if m.mode <> "plans" then
             m.mode = "plans"
             render()
+            return true
         end if
-        return true
+        return false
     end if
     return true
 end function
@@ -85,12 +88,49 @@ sub activate()
     end if
 
     if m.focusIndex = 0 then
-        startBillingFlow("purchase", "trial")
+        openPlanConfirm("trial")
     else if m.focusIndex = 1 then
-        startBillingFlow("purchase", "monthly")
+        openPlanConfirm("monthly")
     else if m.focusIndex = 2 then
-        startBillingFlow("purchase", "annual")
+        openPlanConfirm("annual")
     end if
+end sub
+
+sub openPlanConfirm(planId as String)
+    m.pendingAction = "purchase"
+    m.pendingPlanId = planId
+    m.confirmFocusIndex = 0
+    m.mode = "confirm"
+    render()
+end sub
+
+function handlePlanConfirmKey(key as String) as Boolean
+    if key = "back" then
+        closePlanConfirm()
+        return true
+    end if
+    if key = "left" or key = "right" or key = "up" or key = "down" then
+        m.confirmFocusIndex = 1 - m.confirmFocusIndex
+        render()
+        return true
+    end if
+    if key = "OK" then
+        if m.confirmFocusIndex = 0 then
+            startBillingFlow("purchase", m.pendingPlanId)
+        else
+            closePlanConfirm()
+        end if
+        return true
+    end if
+    return true
+end function
+
+sub closePlanConfirm()
+    m.mode = "plans"
+    m.pendingAction = ""
+    m.pendingPlanId = ""
+    m.confirmFocusIndex = 0
+    render()
 end sub
 
 sub startBillingFlow(action as String, planId as String)
@@ -108,11 +148,11 @@ sub startMockFlow(action as String, planId as String)
     m.mode = "loading"
     if action = "restore" then
         m.statusTitle = "Restoring Subscription"
-        m.statusMessage = "Checking your Roku account in test mode."
+        m.statusMessage = ""
     else
         plan = entitlementPlanById(planId)
-        m.statusTitle = "Roku Pay Test Mode"
-        m.statusMessage = "Preparing " + plan.label + " with placeholder product IDs."
+        m.statusTitle = "Starting Subscription"
+        m.statusMessage = ""
     end if
     render()
     m.mockTimer.control = "start"
@@ -130,13 +170,13 @@ sub startRokuPayFlow(action as String, planId as String)
 
     if action = "restore" then
         m.statusTitle = "Restoring Subscription"
-        m.statusMessage = "Checking Roku Pay purchase history."
+        m.statusMessage = ""
         render()
         m.rokuPay.command = "getAllPurchases"
     else
         plan = entitlementPlanById(planId)
-        m.statusTitle = "Checking Roku Pay"
-        m.statusMessage = "Looking for " + plan.label + " in the Roku Pay catalog."
+        m.statusTitle = "Opening Roku Pay"
+        m.statusMessage = ""
         render()
         m.rokuPay.command = "getCatalog"
     end if
@@ -158,7 +198,7 @@ sub onMockFlowComplete()
             m.mode = "success"
         else
             m.statusTitle = plan.label + " Subscription Ready"
-            m.statusMessage = "Creating your account recovery code."
+            m.statusMessage = ""
             beginRecoveryCodeSetup()
             return
         end if
@@ -226,14 +266,14 @@ sub beginRecoveryCodeSetup()
 
     task = CreateObject("roSGNode", "BackendApiTask")
     if task = invalid then
-        showMockRecoveryCode("Backend task is unavailable.")
+        showBillingError("Recovery Code Unavailable", "Account service is unavailable.")
         return
     end if
 
     m.authTask = task
     m.mode = "loading"
-    m.statusTitle = "Creating Account"
-    m.statusMessage = "Preparing your recovery code before playlist setup."
+    m.statusTitle = "Setting Up"
+    m.statusMessage = ""
     task.observeField("response", "onAnonymousAuthCreated")
     task.request = backendApiAnonymousAuthRequest()
     render()
@@ -258,15 +298,7 @@ sub onAnonymousAuthCreated()
         end if
     end if
 
-    showMockRecoveryCode(backendApiResponseProblem(response, "Backend account could not be created."))
-end sub
-
-sub showMockRecoveryCode(reason as String)
-    m.recoveryCode = mockRecoveryCodeForPlan(m.pendingPlanId)
-    m.recoverySource = "mock"
-    m.statusMessage = reason
-    m.mode = "recovery"
-    render()
+    showBillingError("Recovery Code Unavailable", backendApiResponseProblem(response, "Recovery code could not be created."))
 end sub
 
 function handleRecoveryPageKey(key as String) as Boolean
@@ -304,10 +336,10 @@ end sub
 
 sub openRestoreCodeFlow()
     m.mode = "restore"
-    m.pendingAction = "restore"
-    m.pendingPlanId = "monthly"
+    m.pendingAction = "restoreAccount"
+    m.pendingPlanId = ""
     m.restoreInput = ""
-    m.restoreMessage = "Enter the recovery code you saved after purchase."
+    m.restoreMessage = "Enter the recovery code saved for this account."
     m.restoreKeyboardIndex = 0
     render()
 end sub
@@ -353,13 +385,16 @@ sub submitRestoreCode()
 
     task = CreateObject("roSGNode", "BackendApiTask")
     if task = invalid then
-        m.restoreMessage = "Backend connection is unavailable."
+        m.restoreMessage = "Account service is unavailable."
         render()
         return
     end if
 
     m.restoreInput = code
-    m.restoreMessage = "Restoring your account..."
+    m.restoreMessage = ""
+    m.statusTitle = "Restoring Account"
+    m.statusMessage = ""
+    m.mode = "loading"
     task.observeField("response", "onRestoreAuthLinked")
     task.request = backendApiRecoverAuthRequest(code)
     m.restoreTask = task
@@ -373,16 +408,17 @@ sub onRestoreAuthLinked()
     m.restoreTask = invalid
 
     if backendApiResponseOk(response) then
-        backendApiStoreAuthData(backendApiResponseData(response))
-        entitlementRestoreMock()
-        m.statusTitle = "Account Restored"
-        m.statusMessage = "Your backend account is linked. Subscription status is mocked until backend entitlement is added."
-        m.mode = "success"
-        render()
-        return
+        data = backendApiResponseData(response)
+        if backendApiText(data, "access_token") <> "" then
+            backendApiStoreAuthData(data)
+            entitlementMarkAccountRestored()
+            m.top.navigateTo = "HomePage"
+            return
+        end if
     end if
 
-    m.restoreMessage = backendApiResponseProblem(response, "Recovery code could not be restored.")
+    m.mode = "restore"
+    m.restoreMessage = backendApiResponseProblem(response, "Recovery code could not restore this account.")
     render()
 end sub
 
@@ -468,6 +504,8 @@ sub render()
     drawWelcomeBackground()
     if m.mode = "plans" then
         drawPlanSelection()
+    else if m.mode = "confirm" then
+        drawPlanConfirmState()
     else if m.mode = "recovery" then
         drawRecoveryCodeState()
     else if m.mode = "restore" then
@@ -557,19 +595,81 @@ sub drawRestoreButton(x as Integer, y as Integer, focused as Boolean)
         opacity = 0.68
     end if
     uiPoster(g, uri, 0, 0, 230, 44, opacity)
-    uiScaledLabel(g, "Restore Subscription", 0, 0, 230, 44, 14, textColor, "center", 0.74)
+    uiScaledLabel(g, "Restore Account", 0, 0, 230, 44, 14, textColor, "center", 0.74)
 
     if focused and m.previousFocusIndex <> 3 then uiAnimateActionFocus(m.canvas, g)
 end sub
 
+sub drawPlanConfirmState()
+    uiPoster(m.canvas, "pkg:/images/logo_full_dark_modified.png", 64, 44, 190, 64)
+    plan = entitlementPlanById(m.pendingPlanId)
+    x = 340
+    y = 204
+    w = 600
+    h = 276
+    uiPoster(m.canvas, "pkg:/images/ui/rr_590x206_panel_whiteLine.png", x, y, w, h, 0.82)
+    badgeLabel = "Confirm"
+    badgeW = confirmBadgeWidth(badgeLabel)
+    badgeX = x + Int((w - badgeW) / 2)
+    uiPoster(m.canvas, "pkg:/images/ui/playlist_badge_" + badgeW.toStr() + "x28.png", badgeX, y + 30, badgeW, 28, 0.94)
+    uiScaledLabel(m.canvas, badgeLabel, badgeX, y + 36, badgeW, 16, 10, m.colors.text, "center", 0.68)
+
+    title = "Confirm Subscription"
+    if m.pendingPlanId = "trial" then title = "Confirm Free Trial"
+    uiLabel(m.canvas, title, x + 50, y + 80, w - 100, 40, 28, m.colors.text, "center")
+
+    selectedText = "You selected " + plan.label + " at " + plan.price + " " + plan.billingTerm + "."
+    if m.pendingPlanId = "trial" then selectedText = "You selected the 7-day free trial."
+    uiScaledLabel(m.canvas, selectedText, x + 70, y + 132, w - 140, 28, 15, m.colors.textMuted, "center", 0.76)
+
+    drawConfirmAction(x + 110, y + 192, 174, "Back to Plans", 1)
+    drawConfirmAction(x + 326, y + 192, 170, "Continue", 0)
+end sub
+
+function confirmBadgeWidth(label as String) as Integer
+    if label.len() <= 5 then return 68
+    if label.len() <= 7 then return 84
+    return 94
+end function
+
+sub drawConfirmAction(x as Integer, y as Integer, w as Integer, label as String, index as Integer)
+    focused = index = m.confirmFocusIndex
+    uri = "pkg:/images/ui/movie_watch_176x40_panel_greenFocus.png"
+    textColor = m.colors.textPurple
+    opacity = 0.72
+    if focused then
+        uri = "pkg:/images/ui/movie_watch_176x40_greenSoft_greenFocus.png"
+        textColor = m.colors.text
+        opacity = 0.84
+    end if
+    uiPoster(m.canvas, uri, x, y, w, 44, opacity)
+    uiScaledLabel(m.canvas, label, x + 8, y, w - 16, 44, 15, textColor, "center", 0.76)
+end sub
+
 sub drawStatusState()
     uiPoster(m.canvas, "pkg:/images/logo_full_dark_modified.png", 64, 44, 190, 64)
-    uiPoster(m.canvas, "pkg:/images/ui/rr_590x206_panel_whiteLine.png", 375, 230, 530, 260, 0.7)
 
     if m.mode = "loading" then
-        uiPoster(m.canvas, "pkg:/images/ui/movie_featured_badge_100x34_purpleDeep.png", 594, 256, 92, 26, 0.82)
-        uiScaledLabel(m.canvas, "Roku Pay", 594, 261, 92, 16, 9, m.colors.text, "center", 0.62)
-    else if m.mode = "success" then
+        x = 385
+        y = 252
+        w = 510
+        h = 204
+        uiPoster(m.canvas, "pkg:/images/ui/rr_590x206_panel_whiteLine.png", x, y, w, h, 0.7)
+        uiPoster(m.canvas, "pkg:/images/ui/movie_featured_badge_100x34_purpleDeep.png", x + 209, y + 26, 92, 26, 0.82)
+        uiScaledLabel(m.canvas, "Working", x + 209, y + 31, 92, 16, 9, m.colors.text, "center", 0.62)
+        uiLabel(m.canvas, m.statusTitle, x + 35, y + 78, w - 70, 42, 27, m.colors.text, "center")
+        if m.statusMessage <> "" then
+            uiScaledLabel(m.canvas, m.statusMessage, x + 60, y + 120, w - 120, 28, 13, m.colors.textMuted, "center", 0.72)
+            uiLabel(m.canvas, "Please wait...", x + 115, y + 154, 280, 34, 16, m.colors.textGreen, "center")
+        else
+            uiLabel(m.canvas, "Please wait...", x + 115, y + 126, 280, 34, 16, m.colors.textGreen, "center")
+        end if
+        return
+    end if
+
+    uiPoster(m.canvas, "pkg:/images/ui/rr_590x206_panel_whiteLine.png", 375, 230, 530, 260, 0.7)
+
+    if m.mode = "success" then
         uiPoster(m.canvas, "pkg:/images/ui/movie_featured_badge_100x34_purpleDeep.png", 606, 256, 68, 24, 0.82)
         uiScaledLabel(m.canvas, "Ready", 606, 261, 68, 14, 10, m.colors.text, "center", 0.62)
     else
@@ -580,9 +680,7 @@ sub drawStatusState()
     uiLabel(m.canvas, m.statusTitle, 390, 306, 500, 42, 27, m.colors.text, "center")
     uiScaledLabel(m.canvas, m.statusMessage, 420, 354, 440, 54, 13, m.colors.textMuted, "center", 0.72)
 
-    if m.mode = "loading" then
-        uiLabel(m.canvas, "Please wait...", 500, 410, 280, 34, 16, m.colors.textGreen, "center")
-    else if m.mode = "success" then
+    if m.mode = "success" then
         buttonText = "Continue"
         if m.pendingPlanId <> "trial" then buttonText = "Set Up Playlist"
         buttonW = 144
@@ -593,7 +691,7 @@ sub drawStatusState()
         end if
         uiPoster(m.canvas, "pkg:/images/ui/movie_watch_176x40_greenSoft_greenFocus.png", buttonX, 410, buttonW, 44, 0.78)
         uiScaledLabel(m.canvas, buttonText, buttonX, 410, buttonW, 44, 15, m.colors.text, "center", 0.76)
-    else
+    else if m.mode = "error" then
         uiPoster(m.canvas, "pkg:/images/ui/movie_watch_176x40_panel_greenFocus.png", 548, 410, 184, 44, 0.82)
         uiScaledLabel(m.canvas, "Back to Plans", 548, 410, 184, 44, 15, m.colors.text, "center", 0.76)
     end if
@@ -610,15 +708,14 @@ sub drawRecoveryCodeState()
     uiScaledLabel(m.canvas, "Recovery Code", x + 342, y + 39, 116, 16, 9, m.colors.text, "center", 0.62)
 
     uiLabel(m.canvas, "Save this code", x + 40, y + 86, w - 80, 40, 28, m.colors.amber, "center")
-    uiScaledLabel(m.canvas, "Use it to restore your subscription and playlists", x + 80, y + 136, w - 160, 24, 12, m.colors.textMuted, "center", 0.72)
+    uiScaledLabel(m.canvas, "Use it to restore this account and playlist identity", x + 80, y + 136, w - 160, 24, 12, m.colors.textMuted, "center", 0.72)
     uiScaledLabel(m.canvas, "if this app is removed or installed again.", x + 80, y + 164, w - 160, 24, 12, m.colors.textMuted, "center", 0.72)
 
     codePanelY = y + 228
     uiPoster(m.canvas, "pkg:/images/ui/rr_680x168_panel_whiteLine.png", x + 90, codePanelY, 620, 58, 0.90)
     uiScaledLabel(m.canvas, m.recoveryCode, x + 112, codePanelY + 8, 576, 40, 21, m.colors.textGreen, "center", 0.84)
 
-    note = "Backend account created. Keep this code private."
-    if m.recoverySource = "mock" then note = "Mock code shown until backend auth is reachable on device."
+    note = "Keep this code private."
     uiScaledLabel(m.canvas, note, x + 110, codePanelY + 78, 580, 28, 11, m.colors.textDim, "center", 0.66)
 
     uiPoster(m.canvas, "pkg:/images/ui/movie_watch_176x40_greenSoft_greenFocus.png", x + 298, codePanelY + 128, 204, 44, 0.78)
@@ -626,13 +723,13 @@ sub drawRecoveryCodeState()
 end sub
 
 sub drawRestoreCodeState()
-    uiPoster(m.canvas, "pkg:/images/logo_full_dark_modified.png", 64, 44, 190, 64)
+    uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.88)
     x = 220
     y = 104
     w = 840
     h = 524
     uiPoster(m.canvas, "pkg:/images/ui/rr_840x524_panel_purpleLine.png", x, y, w, h, 0.98)
-    titleLabel = uiLabel(m.canvas, "Restore with Recovery Code", x + 40, y + 30, w - 80, 38, 24, m.colors.textGreen, "center")
+    titleLabel = uiLabel(m.canvas, "Restore Account", x + 40, y + 30, w - 80, 38, 24, m.colors.textGreen, "center")
     titleLabel.font.size = 24
 
     uiPoster(m.canvas, "pkg:/images/ui/rr_680x168_panel_whiteLine.png", x + 80, y + 100, 680, 48, 0.90)
@@ -670,17 +767,6 @@ function storedRecoveryCode() as String
         if code <> invalid and code <> "" then return code
     end if
     return ""
-end function
-
-function mockRecoveryCodeForPlan(planId as String) as String
-    suffix = "0000"
-    now = CreateObject("roDateTime")
-    seconds = now.AsSeconds().toStr()
-    if seconds.len() >= 4 then suffix = Right(seconds, 4)
-    planCode = "PLAN"
-    if planId = "monthly" then planCode = "MONTH"
-    if planId = "annual" then planCode = "YEAR"
-    return "MOCK-" + planCode + "-SAVE-" + suffix
 end function
 
 function cleanWelcomeRecoveryCode(value as Dynamic) as String

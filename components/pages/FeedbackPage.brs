@@ -76,14 +76,14 @@ sub submitFeedback()
     task = CreateObject("roSGNode", "BackendApiTask")
     if task = invalid then
         m.feedbackSuccess = false
-        m.feedbackMessage = "Backend connection is unavailable."
+        m.feedbackMessage = "Message service is unavailable."
         render()
         return
     end if
 
     m.message = message
     m.feedbackSuccess = true
-    m.feedbackMessage = "Sending feedback..."
+    m.feedbackMessage = ""
     task.observeField("response", "onFeedbackSubmitted")
     task.request = backendApiCreateSupportReportRequest(currentCategoryId(), message, feedbackContext())
     m.submitTask = task
@@ -102,7 +102,7 @@ sub onFeedbackSubmitted()
         m.feedbackMessage = "Message sent. Thank you."
     else
         m.feedbackSuccess = false
-        m.feedbackMessage = backendApiResponseProblem(response, "Message could not be sent.")
+        m.feedbackMessage = backendApiUserMessage(response, "Message could not be sent.")
     end if
     render()
 end sub

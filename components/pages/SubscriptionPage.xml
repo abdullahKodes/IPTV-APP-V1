@@ -2,6 +2,7 @@
 <component name="SubscriptionPage" extends="Group">
   <children>
     <Group id="subscriptionCanvas" />
+    <ChannelStore id="rokuPayStore" />
   </children>
   <interface>
     <field id="navigateTo" type="string" alwaysNotify="true" />

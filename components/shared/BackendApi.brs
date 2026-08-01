@@ -169,6 +169,14 @@ function backendApiResponseProblem(response as Dynamic, fallback as String) as S
     return message
 end function
 
+function backendApiUserMessage(response as Dynamic, fallback as String) as String
+    if response <> invalid and Type(response) = "roAssociativeArray" and response.doesExist("statusCode") then
+        statusCode = response.statusCode
+        if statusCode > 0 then return fallback + " (" + statusCode.toStr() + ")"
+    end if
+    return fallback
+end function
+
 function backendApiResponseStatusCode(response as Dynamic) as Integer
     if response = invalid then return 0
     if not response.doesExist("statusCode") then return 0

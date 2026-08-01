@@ -45,7 +45,7 @@ sub init()
     else
         m.channels = mediaLiveCatalogForPlaylist(m.activePlaylistId)
         if m.channels.count() = 0 and playlistStoreText(m.activePlaylist, "sourceUrl") <> "" then
-            m.backendMessage = "This playlist is local-only. Add it again to import through backend."
+            m.backendMessage = "Add this playlist again to refresh its content."
         end if
     end if
     m.categories = liveCategoriesFromChannels(m.channels)
@@ -55,16 +55,16 @@ end sub
 sub startBackendLiveLoad()
     backendId = playlistStoreText(m.activePlaylist, "backendPlaylistId")
     if backendId = "" then
-        m.backendMessage = "Backend playlist ID is missing."
+        m.backendMessage = "This playlist needs to be added again."
         return
     end if
     task = CreateObject("roSGNode", "BackendApiTask")
     if task = invalid then
-        m.backendMessage = "Backend connection is unavailable."
+        m.backendMessage = "Playlist service is unavailable."
         return
     end if
     m.backendLoading = true
-    m.backendMessage = "Loading channels..."
+    m.backendMessage = ""
     task.observeField("response", "onBackendLiveLoaded")
     task.request = backendApiSyncChannelsRequest(backendId, 1000)
     m.backendTask = task
@@ -79,7 +79,7 @@ sub startBackendLiveRepair()
     if task = invalid then return
     m.backendRepairAttempted = true
     m.backendLoading = true
-    m.backendMessage = "Reconnecting playlist..."
+    m.backendMessage = ""
     task.observeField("response", "onBackendLiveRepairCreated")
     task.request = backendApiCreatePlaylistRequest(m.activePlaylistTitle, sourceUrl)
     m.backendTask = task
@@ -98,13 +98,13 @@ sub onBackendLiveRepairCreated()
             m.activePlaylist = savedPlaylist
             m.activePlaylistId = playlistStoreText(savedPlaylist, "id")
             m.activePlaylistTitle = playlistStoreText(savedPlaylist, "title", m.activePlaylistTitle)
-            m.backendMessage = "Playlist reconnected. Loading channels..."
+            m.backendMessage = ""
             startBackendLiveLoad()
             return
         end if
     end if
     m.backendLoading = false
-    m.backendMessage = backendApiResponseProblem(response, "Backend playlist could not be reconnected.")
+    m.backendMessage = backendApiUserMessage(response, "Playlist could not be opened.")
     render()
 end sub
 
@@ -120,7 +120,7 @@ sub onBackendLiveLoaded()
         if m.channels.count() > 0 then
             m.backendMessage = ""
         else
-            m.backendMessage = "Backend returned 0 channels."
+            m.backendMessage = "No live channels found in this playlist."
         end if
         m.selectedChannelIndex = 0
         m.channelWindowStart = 0
@@ -129,7 +129,7 @@ sub onBackendLiveLoaded()
             startBackendLiveRepair()
             return
         end if
-        m.backendMessage = backendApiResponseProblem(response, "Backend channels could not be loaded.")
+        m.backendMessage = backendApiUserMessage(response, "Live channels could not be loaded.")
     end if
     render()
 end sub
@@ -188,11 +188,11 @@ sub startBackendLivePlaybackLoad(channel as Object)
     if backendChannelId = "" then return
     task = CreateObject("roSGNode", "BackendApiTask")
     if task = invalid then
-        m.favoriteMessage = "Backend connection is unavailable."
+        m.favoriteMessage = "Playlist service is unavailable."
         render()
         return
     end if
-    m.favoriteMessage = "Preparing stream..."
+    m.favoriteMessage = ""
     m.backendPlaybackChannel = channel
     m.backendPlaybackTask = task
     task.observeField("response", "onBackendLivePlaybackLoaded")
@@ -275,13 +275,19 @@ sub render()
     if visible.count() = 0 then
         emptyTitle = "No live channels in " + m.activePlaylistTitle
         emptySubtitle = "Choose another category or switch playlists."
-        if m.backendLoading or m.backendMessage <> "" then
+        if m.backendLoading then
+            emptyTitle = ""
+            emptySubtitle = ""
+        else if m.backendMessage <> "" then
             emptyTitle = m.backendMessage
             emptySubtitle = "Switch playlist or add this playlist again."
-            if m.backendLoading then emptySubtitle = "This playlist is loading from the backend."
         end if
-        uiLabel(m.canvas, emptyTitle, 244, 332, 860, 28, 15, m.colors.textDim, "center")
-        uiLabel(m.canvas, emptySubtitle, 244, 366, 860, 24, 11, m.colors.textMuted, "center")
+        if not m.backendLoading then
+            uiLabel(m.canvas, emptyTitle, 244, 332, 860, 28, 15, m.colors.textDim, "center")
+            uiLabel(m.canvas, emptySubtitle, 244, 366, 860, 24, 11, m.colors.textMuted, "center")
+        else
+            uiContentLoader(m.canvas, m.colors, "Loading Live TV")
+        end if
     else
         drawCategoryPills()
         sectionTitle = "LIVE TV"
@@ -1075,6 +1081,8 @@ sub clearLiveSearchAndStay()
     if m.searchReturnPending then
         m.categoryIndex = m.searchPreviousCategoryIndex
         if m.categoryIndex < 0 or m.categoryIndex >= m.categories.count() then m.categoryIndex = 0
+    else if returnToCategory then
+        m.categoryIndex = 0
     end if
     m.searchReturnPending = false
     m.categoryResultsActive = false

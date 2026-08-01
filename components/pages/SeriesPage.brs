@@ -40,7 +40,7 @@ sub init()
     else
         m.series = mediaSeriesCatalogForPlaylist(m.activePlaylistId)
         if m.series.count() = 0 and playlistStoreText(m.activePlaylist, "sourceUrl") <> "" then
-            m.backendMessage = "This playlist is local-only. Add it again to import through backend."
+            m.backendMessage = "Add this playlist again to refresh its content."
         end if
     end if
     applySeriesProgress()
@@ -55,16 +55,16 @@ end sub
 sub startBackendSeriesLoad()
     backendId = playlistStoreText(m.activePlaylist, "backendPlaylistId")
     if backendId = "" then
-        m.backendMessage = "Backend playlist ID is missing."
+        m.backendMessage = "This playlist needs to be added again."
         return
     end if
     task = CreateObject("roSGNode", "BackendApiTask")
     if task = invalid then
-        m.backendMessage = "Backend connection is unavailable."
+        m.backendMessage = "Playlist service is unavailable."
         return
     end if
     m.backendLoading = true
-    m.backendMessage = "Loading series..."
+    m.backendMessage = ""
     task.observeField("response", "onBackendSeriesLoaded")
     task.request = backendApiSyncChannelsRequest(backendId, 1000, "series")
     m.backendTask = task
@@ -79,7 +79,7 @@ sub startBackendSeriesRepair()
     if task = invalid then return
     m.backendRepairAttempted = true
     m.backendLoading = true
-    m.backendMessage = "Reconnecting playlist..."
+    m.backendMessage = ""
     task.observeField("response", "onBackendSeriesRepairCreated")
     task.request = backendApiCreatePlaylistRequest(m.activePlaylistTitle, sourceUrl)
     m.backendTask = task
@@ -98,13 +98,13 @@ sub onBackendSeriesRepairCreated()
             m.activePlaylist = savedPlaylist
             m.activePlaylistId = playlistStoreText(savedPlaylist, "id")
             m.activePlaylistTitle = playlistStoreText(savedPlaylist, "title", m.activePlaylistTitle)
-            m.backendMessage = "Playlist reconnected. Loading series..."
+            m.backendMessage = ""
             startBackendSeriesLoad()
             return
         end if
     end if
     m.backendLoading = false
-    m.backendMessage = backendApiResponseProblem(response, "Backend playlist could not be reconnected.")
+    m.backendMessage = backendApiUserMessage(response, "Playlist could not be opened.")
     render()
 end sub
 
@@ -121,7 +121,7 @@ sub onBackendSeriesLoaded()
         if m.series.count() > 0 then
             m.backendMessage = ""
         else
-            m.backendMessage = "Backend returned 0 series."
+            m.backendMessage = "No series found in this playlist."
         end if
         resetSeriesWindow()
     else
@@ -129,7 +129,7 @@ sub onBackendSeriesLoaded()
             startBackendSeriesRepair()
             return
         end if
-        m.backendMessage = backendApiResponseProblem(response, "Backend series could not be loaded.")
+        m.backendMessage = backendApiUserMessage(response, "Series could not be loaded.")
     end if
     render()
 end sub
@@ -239,13 +239,19 @@ sub render()
     if visible.count() = 0 then
         emptyTitle = "No series in " + m.activePlaylistTitle
         emptySubtitle = "Switch playlist or add one with series content."
-        if m.backendLoading or m.backendMessage <> "" then
+        if m.backendLoading then
+            emptyTitle = ""
+            emptySubtitle = ""
+        else if m.backendMessage <> "" then
             emptyTitle = m.backendMessage
             emptySubtitle = "Switch playlist or add this playlist again."
-            if m.backendLoading then emptySubtitle = "This playlist is loading from the backend."
         end if
-        uiLabel(m.canvas, emptyTitle, 244, 332, 860, 28, 15, m.colors.textDim, "center")
-        uiLabel(m.canvas, emptySubtitle, 244, 366, 860, 24, 11, m.colors.textMuted, "center")
+        if not m.backendLoading then
+            uiLabel(m.canvas, emptyTitle, 244, 332, 860, 28, 15, m.colors.textDim, "center")
+            uiLabel(m.canvas, emptySubtitle, 244, 366, 860, 24, 11, m.colors.textMuted, "center")
+        else
+            uiContentLoader(m.canvas, m.colors, "Loading Series")
+        end if
         uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
         if m.searchEditing then drawSearchKeyboardOverlay()
         return

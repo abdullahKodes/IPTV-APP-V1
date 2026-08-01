@@ -155,7 +155,7 @@ sub startBackendPlaylistCreate()
     task = CreateObject("roSGNode", "BackendApiTask")
     if task = invalid then
         m.submitState = ""
-        setFieldError("m3uUrl", "Backend connection is unavailable.")
+        setFieldError("m3uUrl", "Playlist service is unavailable.")
         render()
         return
     end if
@@ -173,7 +173,7 @@ sub onBackendPlaylistCreated()
     m.submitState = ""
 
     if not backendApiResponseOk(response) then
-        setFieldError("m3uUrl", "Backend could not add this playlist.")
+        setFieldError("m3uUrl", "Playlist could not be added.")
         render()
         return
     end if
@@ -252,14 +252,11 @@ end sub
 
 sub drawValidationOverlay()
     uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.72)
-    uiPoster(m.canvas, "pkg:/images/ui/rr_500x158_panel_purpleLine.png", 400, 282, 560, 132, 0.98)
-    heading = "Validating playlist"
-    if m.mode = "xtreme" then heading = "Validating account"
-    if m.mode = "m3u" and m.editPlaylistId = "" then heading = "Adding playlist"
-    uiLabel(m.canvas, heading, 440, 306, 480, 32, 20, m.colors.text, "center")
-    detail = "Checking required details and preparing local storage..."
-    if m.mode = "m3u" and m.editPlaylistId = "" then detail = "Sending playlist URL to the backend..."
-    uiLabel(m.canvas, detail, 440, 350, 480, 28, 12, m.colors.textMuted, "center")
+    uiPoster(m.canvas, "pkg:/images/ui/rr_500x158_panel_purpleLine.png", 410, 302, 540, 92, 0.98)
+    heading = "Adding playlist"
+    if m.editPlaylistId <> "" then heading = "Saving changes"
+    if m.mode = "xtreme" then heading = "Connecting account"
+    uiLabel(m.canvas, heading, 450, 332, 460, 32, 20, m.colors.text, "center")
 end sub
 
 function drawAddPlaylistSideNav() as Integer
