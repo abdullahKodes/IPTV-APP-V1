@@ -70,6 +70,7 @@ sub render()
     drawProfileHeader()
     drawProfileSummary()
     drawManageSubscriptionPanel()
+    drawProfileFeedback(258, 584)
 end sub
 
 function drawProfileSideNav() as Integer
@@ -118,65 +119,83 @@ sub addProfileProfileItem()
 end sub
 
 sub drawProfileHeader()
-    title = uiLabel(m.canvas, "Profile", 300, 98, 520, 56, 28, m.colors.text)
+    title = uiLabel(m.canvas, "Profile", 258, 106, 520, 46, 30, m.colors.text)
     title.font.size = 28
 end sub
 
 sub drawProfileSummary()
-    x = 300
-    y = 184
-    w = 680
-    uiRoundRect(m.canvas, x, y, w, 188, m.colors.panel, m.colors.whiteLine, 0.94)
-    uiPoster(m.canvas, "pkg:/images/ui/profile_avatar_circle.png", x + 34, y + 48, 88, 88)
+    x = 258
+    y = 174
+    w = 840
+    h = 168
+    drawProfilePanel(x, y, w, h, 0.94)
+
+    uiPoster(m.canvas, "pkg:/images/ui/profile_avatar_circle.png", x + 38, y + 39, 90, 90)
     initials = profileInitials(settingsStoreText(m.settings, "userName", "John Doe"))
-    initialsLabel = uiLabel(m.canvas, initials, x + 34, y + 48, 88, 88, 32, m.colors.text, "center")
+    initialsLabel = uiLabel(m.canvas, initials, x + 38, y + 39, 90, 90, 32, m.colors.text, "center")
     initialsLabel.font.size = 32
-    uiLabel(m.canvas, settingsStoreText(m.settings, "userName", "John Doe"), x + 150, y + 38, 340, 34, 23, m.colors.text)
-    uiLabel(m.canvas, settingsStoreText(m.settings, "userEmail", "john.doe@email.com"), x + 150, y + 76, 360, 28, 15, m.colors.purpleLine)
-    uiLabel(m.canvas, profilePlanLine(), x + 150, y + 112, 360, 28, 14, m.colors.textDim)
+
+    nameLabel = uiLabel(m.canvas, settingsStoreText(m.settings, "userName", "John Doe"), x + 158, y + 48, 390, 34, 23, m.colors.text)
+    nameLabel.font.size = 23
+    uiLabel(m.canvas, profilePlanNameLine(), x + 158, y + 86, 390, 28, 16, m.colors.textGreen)
+
     badge = profileStatusLabel()
     badgeW = 100
     if badge = "Canceled" or badge = "On Hold" or badge = "Restored" then badgeW = 112
-    badgeX = x + w - badgeW - 56
-    uiPoster(m.canvas, "pkg:/images/ui/movie_featured_badge_100x34_purpleDeep.png", badgeX, y + 48, badgeW, 34, 0.95)
-    uiScaledLabel(m.canvas, badge, badgeX, y + 55, badgeW, 20, 10, m.colors.text, "center", 0.78)
-    uiScaledLabel(m.canvas, profilePlanPriceLine(), badgeX - 48, y + 94, badgeW + 96, 28, 12, m.colors.textGreen, "center", 0.72)
+    infoX = x + 584
+    badgeX = infoX + Int((210 - badgeW) / 2)
+    uiPoster(m.canvas, "pkg:/images/ui/movie_featured_badge_100x34_purpleDeep.png", badgeX, y + 52, badgeW, 34, 0.95)
+    uiScaledLabel(m.canvas, badge, badgeX, y + 59, badgeW, 20, 10, m.colors.text, "center", 0.78)
+    priceLine = profilePlanPriceLine()
+    if priceLine <> "" then uiScaledLabel(m.canvas, priceLine, infoX, y + 94, 210, 28, 12, m.colors.textGreen, "center", 0.74)
 end sub
 
 sub drawManageSubscriptionPanel()
-    x = 300
-    y = 414
-    w = 680
-    uiRoundRect(m.canvas, x, y, w, 176, m.colors.panel, m.colors.whiteLine, 0.94)
-    uiLabel(m.canvas, "Manage Subscription", x + 34, y + 20, 360, 34, 24, m.colors.textGreen)
+    x = 258
+    y = 374
+    w = 840
+    h = 188
+    uiPoster(m.canvas, "pkg:/images/ui/profile_panel_840x188_panel_whiteLine.png", x, y, w, h, 0.94)
+
+    uiLabel(m.canvas, "Manage Subscription", x + 34, y + 20, 420, 34, 24, m.colors.textGreen)
     copy = "Review plans or restore a subscription on this Roku account."
-    uiScaledLabel(m.canvas, copy, x + 34, y + 64, 590, 28, 11, m.colors.textMuted, "left", 0.72)
-    drawProfileAction(x + 34, y + 110, 190, "View Plans", "subscribe", "", 0, 0)
-    drawProfileAction(x + 242, y + 110, 224, "Restore Subscription", "restore", "", 0, 1)
-    drawProfileFeedback(x, y + 204)
+    uiScaledLabel(m.canvas, copy, x + 34, y + 62, 700, 28, 11, m.colors.textMuted, "left", 0.72)
+    drawProfileAction(x + 34, y + 112, 224, "View Plans", "subscribe", "", 0, 0)
+    drawProfileAction(x + 286, y + 112, 276, "Restore Subscription", "restore", "", 0, 1)
+end sub
+
+sub drawProfilePanel(x as Integer, y as Integer, w as Integer, h as Integer, opacity as Float)
+    uiPoster(m.canvas, "pkg:/images/ui/profile_panel_840x168_panel_whiteLine.png", x, y, w, h, opacity)
 end sub
 
 sub drawProfileAction(x as Integer, y as Integer, w as Integer, label as String, action as String, page as String, row as Integer, col as Integer)
     index = m.focusItems.count()
     focused = index = m.focusIndex
-    surfaceUri = "pkg:/images/ui/rr_500x44_bg2_bg2.png"
     textColor = m.colors.textPurple
-    opacity = 0.62
+    opacity = 0.78
     if focused then
-        surfaceUri = "pkg:/images/ui/rr_500x44_greenSoft_greenFocus.png"
         textColor = m.colors.text
-        opacity = 0.78
+        opacity = 0.92
     end if
-    uiPoster(m.canvas, surfaceUri, x, y, w, 44, opacity)
-    uiLabel(m.canvas, label, x + 22, y, w - 44, 44, 14, textColor)
-    m.focusItems.push({ x: x, y: y, w: w, h: 44, icon: "", label: label, subtitle: "", iconSize: 1, titleSize: 14, subSize: 10, bg: m.colors.bg2, border: m.colors.bg2, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text, row: row, col: col, page: page, action: action, mode: "manual", noFocusShift: true })
+    buttonUri = profileButtonUri(w, focused)
+    uiPoster(m.canvas, buttonUri, x, y, w, 44, opacity)
+    uiScaledLabel(m.canvas, label, x + 12, y, w - 24, 44, 15, textColor, "center", 0.76)
+    m.focusItems.push({ x: x, y: y, w: w, h: 44, icon: "", label: label, subtitle: "", iconSize: 1, titleSize: 14, subSize: 10, bg: m.colors.bg2, border: m.colors.bg2, textColor: textColor, subColor: m.colors.textDim, focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: textColor, row: row, col: col, page: page, action: action, mode: "manual", noFocusShift: true })
 end sub
+
+function profileButtonUri(w as Integer, focused as Boolean) as String
+    widthKey = "276"
+    if w <= 224 then widthKey = "224"
+    stateKey = "panel"
+    if focused then stateKey = "greenSoft"
+    return "pkg:/images/ui/profile_button_" + widthKey + "x44_" + stateKey + "_greenFocus.png"
+end function
 
 sub drawProfileFeedback(x as Integer, y as Integer)
     if m.feedbackTitle = "" and m.feedbackMessage = "" then return
-    uiPoster(m.canvas, "pkg:/images/ui/movie_featured_badge_100x34_purpleDeep.png", x + 2, y, 128, 28, 0.82)
-    uiScaledLabel(m.canvas, m.feedbackTitle, x + 2, y + 6, 128, 16, 9, m.colors.text, "center", 0.62)
-    uiScaledLabel(m.canvas, m.feedbackMessage, x + 144, y + 3, 520, 24, 11, m.colors.textMuted, "left", 0.72)
+    message = m.feedbackTitle
+    if m.feedbackMessage <> "" then message += ". " + m.feedbackMessage
+    uiScaledLabel(m.canvas, message, x, y, 840, 28, 12, m.colors.textMuted, "left", 0.72)
 end sub
 
 sub setProfileFeedback(title as String, message as String)
@@ -185,6 +204,13 @@ sub setProfileFeedback(title as String, message as String)
 end sub
 
 sub startProfileRestoreSubscriptionFlow()
+    currentStatus = entitlementStatusLoad()
+    if profileSubscriptionAlreadyActive(currentStatus) then
+        setProfileFeedback("Subscription already active", profileActiveSubscriptionMessage(currentStatus))
+        render()
+        return
+    end if
+
     m.restoreInProgress = true
     setProfileFeedback("Restoring", "Checking Roku Pay purchase history...")
     render()
@@ -193,7 +219,7 @@ sub startProfileRestoreSubscriptionFlow()
         entitlementRestoreMock()
         m.restoreInProgress = false
         m.status = entitlementStatusLoad()
-        setProfileFeedback("Subscription Restored", "Your subscription is active.")
+        setProfileFeedback("Subscription restored", profileActiveSubscriptionMessage(m.status))
         render()
         return
     end if
@@ -227,7 +253,7 @@ sub onProfileRokuPurchasesLoaded()
     planId = entitlementText(entitlementPlanByStoreCode(entitlementNodeText(purchase, "code", "")), "id", "monthly")
     entitlementActivateRokuPurchase(purchase, planId, "restore")
     m.status = entitlementStatusLoad()
-    setProfileFeedback("Subscription Restored", entitlementText(m.status, "message", "Your subscription is active."))
+    setProfileFeedback("Subscription restored", profileActiveSubscriptionMessage(m.status))
     render()
 end sub
 
@@ -269,11 +295,32 @@ function profilePlanLine() as String
     return "Plan: " + planName
 end function
 
+function profilePlanNameLine() as String
+    status = entitlementStatusLoad()
+    state = entitlementText(status, "state", "none")
+    if state = "account_restored" then return "No active subscription"
+    planName = entitlementText(status, "planName", "")
+    if planName = "" or planName = "No subscription" then return "No subscription"
+    return planName + " plan"
+end function
+
+function profileSubscriptionAlreadyActive(status as Object) as Boolean
+    state = entitlementText(status, "state", "none")
+    return state = "active" or state = "trial" or state = "grace"
+end function
+
+function profileActiveSubscriptionMessage(status as Object) as String
+    planName = entitlementText(status, "planName", "")
+    if planName = "" or planName = "No subscription" then return "Your subscription is active."
+    return planName + " plan is active."
+end function
+
 function profilePlanPriceLine() as String
     status = entitlementStatusLoad()
+    if not profileSubscriptionAlreadyActive(status) then return ""
     price = entitlementText(status, "price", "")
     term = entitlementText(status, "billingTerm", "")
-    if price = "" then return entitlementText(status, "renewsAt", "Not active")
+    if price = "" then return ""
     if term <> "" then return price + " " + term
     return price
 end function
