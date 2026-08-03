@@ -34,6 +34,7 @@ sub init()
     m.retryPending = false
     m.retryCount = 0
     m.maxAutoRetries = 2
+    m.liveResumeRefreshQuiet = false
 
     m.video.translation = [0, 0]
     m.video.width = 1280
@@ -63,6 +64,11 @@ sub init()
     m.retryTimer.repeat = false
     m.retryTimer.duration = 2
     m.retryTimer.observeField("fire", "onRetryTimer")
+
+    m.liveResumeTimer = CreateObject("roSGNode", "Timer")
+    m.liveResumeTimer.repeat = false
+    m.liveResumeTimer.duration = 5
+    m.liveResumeTimer.observeField("fire", "onLiveResumeTimer")
 
     resetHideTimer()
     render()
@@ -135,6 +141,8 @@ function handleKey(key as String) as Boolean
 end function
 
 sub onPlaybackChanged()
+    stopLiveResumeTimer()
+    m.liveResumeRefreshQuiet = false
     m.isLive = playbackMediaType() = "live"
     if m.isLive then m.focusIndex = 0 else m.focusIndex = 2
     m.selectedAudioLabel = "Default"
@@ -150,7 +158,7 @@ sub onPlaybackChanged()
     startPlayback(false)
 end sub
 
-sub startPlayback(force as Boolean)
+sub startPlayback(force as Boolean, quiet = false as Boolean)
     url = m.top.playbackUrl
     if url = invalid or url = "" then
         m.playbackState = "preparing"
@@ -158,6 +166,7 @@ sub startPlayback(force as Boolean)
         return
     end if
     if not force and url = m.loadedUrl then return
+    if not quiet then m.liveResumeRefreshQuiet = false
 
     content = CreateObject("roSGNode", "ContentNode")
     content.url = url
@@ -179,14 +188,22 @@ sub startPlayback(force as Boolean)
     m.errorText = ""
     m.errorCode = 0
     m.retryPending = false
-    showControls()
-    render()
+    if quiet then
+        m.liveResumeRefreshQuiet = true
+        m.controlsVisible = false
+        m.playbackState = "buffering"
+        render()
+    else
+        showControls()
+        render()
+    end if
 end sub
 
 sub stopPlayback()
     persistPlaybackProgress(true)
     m.exiting = true
     m.retryTimer.control = "stop"
+    stopLiveResumeTimer()
     if m.video <> invalid then m.video.control = "stop"
 end sub
 
@@ -203,10 +220,12 @@ sub onVideoStateChange()
     if state = "buffering" then
         m.playbackState = "buffering"
         m.playing = false
-        showControls()
+        if not m.liveResumeRefreshQuiet then showControls()
     else if state = "playing" then
+        wasQuietLiveRefresh = m.liveResumeRefreshQuiet
         m.playbackState = "playing"
         m.playing = true
+        m.liveResumeRefreshQuiet = false
         m.errorText = ""
         m.errorCode = 0
         m.retryPending = false
@@ -221,7 +240,12 @@ sub onVideoStateChange()
         end if
         refreshAvailableTracks()
         resetHideTimer()
+        if wasQuietLiveRefresh then
+            render()
+            return
+        end if
     else if state = "paused" then
+        stopLiveResumeTimer()
         m.playbackState = "paused"
         m.playing = false
         persistPlaybackProgress(true)
@@ -238,6 +262,7 @@ sub onVideoStateChange()
         m.finishedFocusIndex = 0
         showControls()
     else if state = "error" then
+        m.liveResumeRefreshQuiet = false
         handlePlaybackFailure(videoErrorMessage())
         return
     end if
@@ -246,6 +271,7 @@ end sub
 
 sub onVideoError()
     if m.video = invalid or m.exiting then return
+    m.liveResumeRefreshQuiet = false
     if m.video.errorMsg <> invalid and m.video.errorMsg <> "" then m.errorText = m.video.errorMsg
     if m.video.hasField("errorCode") then m.errorCode = m.video.errorCode
     if m.video.state = "error" then handlePlaybackFailure(videoErrorMessage())
@@ -253,6 +279,8 @@ end sub
 
 sub handlePlaybackFailure(message as String)
     if m.exiting or m.retryPending then return
+    stopLiveResumeTimer()
+    m.liveResumeRefreshQuiet = false
     m.playing = false
     if message = invalid or message = "" then message = "The stream is unavailable."
     m.errorText = message
@@ -449,6 +477,7 @@ end sub
 sub togglePlayback()
     if m.video = invalid then return
     if m.playing then
+        stopLiveResumeTimer()
         m.video.control = "pause"
         m.playing = false
         m.playbackState = "paused"
@@ -456,8 +485,28 @@ sub togglePlayback()
         m.video.control = "resume"
         m.playing = true
         m.playbackState = "playing"
+        if m.isLive then scheduleLiveResumeRefresh()
     end if
     render()
+end sub
+
+sub scheduleLiveResumeRefresh()
+    if not m.isLive then return
+    if m.liveResumeTimer = invalid then return
+    m.liveResumeTimer.control = "stop"
+    m.liveResumeTimer.control = "start"
+end sub
+
+sub stopLiveResumeTimer()
+    if m.liveResumeTimer = invalid then return
+    m.liveResumeTimer.control = "stop"
+end sub
+
+sub onLiveResumeTimer()
+    if m.exiting or not m.isLive or not m.playing then return
+    if m.trackMenuOpen then return
+    if m.top.playbackUrl = invalid or m.top.playbackUrl = "" then return
+    startPlayback(true, true)
 end sub
 
 sub seekPlayer(offset as Integer, absolute as Boolean)

@@ -13,6 +13,9 @@ sub init()
     m.windowStarts = [0, 0, 0]
     m.windowSize = 6
     m.focusArea = "cards"
+    m.playbackMessage = ""
+    m.backendPlaybackTask = invalid
+    m.backendPlaybackChannel = invalid
     loadFavorites()
     render()
 end sub
@@ -186,9 +189,60 @@ sub openSeriesFavorite(series as Object)
 end sub
 
 sub playLiveFavorite(channel as Object)
+    playbackUrl = mediaPlaybackUrl(channel)
+    if playbackUrl = "" then
+        backendChannelId = favItemText(channel, "backendChannelId")
+        if backendChannelId <> "" then
+            startBackendFavoritePlaybackLoad(channel)
+        else
+            m.playbackMessage = "Stream URL could not be loaded."
+            render()
+        end if
+        return
+    end if
+
+    playLiveFavoriteWithUrl(channel, playbackUrl)
+end sub
+
+sub startBackendFavoritePlaybackLoad(channel as Object)
+    backendChannelId = favItemText(channel, "backendChannelId")
+    if backendChannelId = "" then return
+    task = CreateObject("roSGNode", "BackendApiTask")
+    if task = invalid then
+        m.playbackMessage = "Playlist service is unavailable."
+        render()
+        return
+    end if
+    m.playbackMessage = ""
+    m.backendPlaybackChannel = channel
+    m.backendPlaybackTask = task
+    task.observeField("response", "onBackendFavoritePlaybackLoaded")
+    task.request = backendApiGetChannelRequest(backendChannelId)
+    task.control = "RUN"
+    render()
+end sub
+
+sub onBackendFavoritePlaybackLoaded()
+    if m.backendPlaybackTask = invalid then return
+    response = m.backendPlaybackTask.response
+    channel = m.backendPlaybackChannel
+    m.backendPlaybackTask = invalid
+    m.backendPlaybackChannel = invalid
+    playbackUrl = backendApiChannelStreamUrl(response)
+    if backendApiResponseOk(response) and playbackUrl <> "" and channel <> invalid then
+        m.playbackMessage = ""
+        playLiveFavoriteWithUrl(channel, playbackUrl)
+    else
+        m.playbackMessage = "Stream URL could not be loaded."
+        render()
+    end if
+end sub
+
+sub playLiveFavoriteWithUrl(channel as Object, playbackUrl as String)
+    if channel = invalid or playbackUrl = "" then return
     m.top.playbackTitle = favoriteTitle(channel)
     m.top.playbackSubtitle = favItemText(channel, "category", favItemText(channel, "groupTitle", "Live TV")) + " - " + favItemText(channel, "now", "Live stream")
-    m.top.playbackUrl = mediaPlaybackUrl(channel)
+    m.top.playbackUrl = playbackUrl
     m.top.playbackFormat = mediaPlaybackFormat(channel)
     m.top.playbackPosterUrl = favoritePosterUrl(channel)
     if m.top.hasField("playbackPlaylistId") then m.top.playbackPlaylistId = m.activePlaylistId
@@ -216,9 +270,15 @@ sub render()
     drawSearchBox()
     drawVisibleSections()
     drawEmptyStateIfNeeded()
+    drawPlaybackMessage()
     ensureFavoritesFocus()
     uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
     if m.searchEditing then drawSearchKeyboardOverlay()
+end sub
+
+sub drawPlaybackMessage()
+    if m.playbackMessage = invalid or m.playbackMessage = "" then return
+    uiLabel(m.canvas, m.playbackMessage, 244, 684, 860, 24, 12, m.colors.textMuted, "center")
 end sub
 
 sub drawFavoritesBackdrop()
@@ -239,11 +299,11 @@ sub drawFavoritesSideNav()
     uiRect(m.canvas, 0, 86, 226, 634, m.colors.panel, 0.26)
     uiRect(m.canvas, 225, 86, 1, 634, "0xFFFFFF14", 0.26)
     addFavoriteNavItem(12, 112, "home", "Home", "HomePage", 0, false)
-    addFavoriteNavItem(12, 168, "tv", "Live TV", "LiveTvPage", 1, false)
-    addFavoriteNavItem(12, 224, "series", "Series", "SeriesPage", 2, false)
-    addFavoriteNavItem(12, 280, "movies", "Movies", "MoviesPage", 3, false)
-    addFavoriteNavItem(12, 336, "heart", "Favorites", "FavoritesPage", 4, true)
-    addFavoriteNavItem(12, 392, "settings", "Settings", "SettingsPage", 5, false)
+    addFavoriteNavItem(12, 171, "tv", "Live TV", "LiveTvPage", 1, false)
+    addFavoriteNavItem(12, 230, "series", "Series", "SeriesPage", 2, false)
+    addFavoriteNavItem(12, 289, "movies", "Movies", "MoviesPage", 3, false)
+    addFavoriteNavItem(12, 348, "heart", "Favorites", "FavoritesPage", 4, true)
+    addFavoriteNavItem(12, 407, "settings", "Settings", "SettingsPage", 5, false)
     addFavoriteProfileItem()
 end sub
 
@@ -266,7 +326,7 @@ sub addFavoriteNavItem(x as Integer, y as Integer, icon as String, label as Stri
         opacity = 0.66
         textColor = m.colors.text
     end if
-    uiRoundRect(m.canvas, x, y, 204, 52, fill, border, opacity)
+    uiPoster(m.canvas, uiSidebarPillUri(fill, border), x, y, 204, 52, opacity)
     uiDrawIcon(m.canvas, icon, x + 22, y + 14, 24, 24, focused or active, textColor, 12)
     uiLabel(m.canvas, label, x + 62, y + 9, 128, 34, 12, textColor)
     m.focusItems.push({
@@ -293,7 +353,7 @@ sub addFavoriteProfileItem()
         opacity = 0.66
         textColor = m.colors.text
     end if
-    uiRoundRect(m.canvas, 12, 640, 204, 52, fill, border, opacity)
+    uiPoster(m.canvas, uiSidebarPillUri(fill, border), 12, 640, 204, 52, opacity)
     uiDrawIcon(m.canvas, "profile", 30, 652, 24, 24, focused, textColor, 14)
     uiLabel(m.canvas, "My Profile", 70, 652, 126, 28, 11, textColor)
     m.focusItems.push({

@@ -96,7 +96,12 @@ function favoriteStoreCompactList(items as Object, playlistId as String) as Obje
             favoriteStoreCopyField(compact, item, "heroUrl")
             favoriteStoreCopyField(compact, item, "backdropUrl")
             favoriteStoreCopyField(compact, item, "streamUrl")
+            favoriteStoreCopyField(compact, item, "videoUrl")
+            favoriteStoreCopyField(compact, item, "playbackUrl")
             favoriteStoreCopyField(compact, item, "streamFormat")
+            favoriteStoreCopyField(compact, item, "backendChannelId")
+            favoriteStoreCopyField(compact, item, "contentType")
+            favoriteStoreCopyField(compact, item, "streamHost")
             favoriteStoreCopyField(compact, item, "seasons")
             favoriteStoreCopyField(compact, item, "episodeCount")
             favoriteStoreCopyField(compact, item, "episodeNames")
@@ -186,7 +191,12 @@ function favoriteStoreNormalizeItem(kind as String, item as Object, playlistId a
     favoriteStoreCopyField(out, item, "heroUrl")
     favoriteStoreCopyField(out, item, "backdropUrl")
     favoriteStoreCopyField(out, item, "streamUrl")
+    favoriteStoreCopyField(out, item, "videoUrl")
+    favoriteStoreCopyField(out, item, "playbackUrl")
     favoriteStoreCopyField(out, item, "streamFormat")
+    favoriteStoreCopyField(out, item, "backendChannelId")
+    favoriteStoreCopyField(out, item, "contentType")
+    favoriteStoreCopyField(out, item, "streamHost")
     favoriteStoreCopyField(out, item, "resumePercent")
     favoriteStoreCopyField(out, item, "featured")
     favoriteStoreCopyField(out, item, "accent")
@@ -209,6 +219,7 @@ function favoriteStoreNormalizeItem(kind as String, item as Object, playlistId a
     favoriteStoreCopyField(out, item, "channelNumber")
     favoriteStoreCopyField(out, item, "live")
     favoriteStoreCopyField(out, item, "description")
+    favoriteStoreBackfillBackendChannelId(out, kind, playlistId)
     return out
 end function
 
@@ -216,6 +227,26 @@ sub favoriteStoreCopyField(out as Object, item as Object, key as String)
     value = favoriteStoreValue(item, key)
     if value <> invalid then out[key] = value
 end sub
+
+sub favoriteStoreBackfillBackendChannelId(item as Object, kind as String, playlistId as String)
+    if item = invalid then return
+    if kind <> "live" then return
+    if favoriteStoreText(item, "backendChannelId") <> "" then return
+    if favoriteStoreText(item, "streamUrl") <> "" then return
+    playlistItem = favoriteStorePlaylistItem(playlistId)
+    if playlistItem = invalid then return
+    if not playlistStoreBool(playlistItem, "backendManaged", false) then return
+    itemId = favoriteStoreText(item, "id")
+    if itemId <> "" then item.backendChannelId = itemId
+end sub
+
+function favoriteStorePlaylistItem(playlistId as String) as Dynamic
+    items = playlistStoreList()
+    for each item in items
+        if playlistStoreText(item, "id") = playlistId then return item
+    end for
+    return invalid
+end function
 
 function favoriteStoreDemoItems(playlistId as String) as Object
     out = []

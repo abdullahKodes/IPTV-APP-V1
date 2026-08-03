@@ -102,8 +102,8 @@ function drawHomeSideNav() as Integer
     uiRect(m.canvas, 225, 86, 1, 634, "0xFFFFFF14", 0.26)
 
     addHomeNavItem(12, 112, "list", "My Playlists", "MyPlaylistsPage", 0, false)
-    addHomeNavItem(12, 168, "heart", "Favorites", "FavoritesPage", 1, false)
-    addHomeNavItem(12, 224, "settings", "Settings", "SettingsPage", 2, false)
+    addHomeNavItem(12, 171, "heart", "Favorites", "FavoritesPage", 1, false)
+    addHomeNavItem(12, 230, "settings", "Settings", "SettingsPage", 2, false)
 
     addHomeProfileItem()
     return 5
@@ -117,7 +117,7 @@ sub addHomeNavItem(x as Integer, y as Integer, icon as String, label as String, 
         bg: m.colors.bg, border: m.colors.whiteLine, textColor: m.colors.textPurple, subColor: m.colors.textDim,
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         opacity: 0.42, focusOpacity: 0.66,
-        row: row, col: 0, page: page, mode: "row", noFocusShift: true
+        row: row, col: 0, page: page, mode: "row", pillStyle: "sidebar", noFocusShift: true
     }
     if active then
         item.bg = m.colors.purpleSoft
@@ -136,7 +136,7 @@ sub addHomeProfileItem()
         bg: m.colors.bg, border: m.colors.whiteLine, textColor: m.colors.textPurple, subColor: m.colors.textDim,
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         opacity: 0.42, focusOpacity: 0.66,
-        row: 3, col: 0, page: "ProfilePage", mode: "row", noFocusShift: true
+        row: 3, col: 0, page: "ProfilePage", mode: "row", pillStyle: "sidebar", noFocusShift: true
     }
     m.focusItems.push(item)
 end sub

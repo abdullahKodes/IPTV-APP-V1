@@ -152,6 +152,25 @@ function uiRoundUri(w as Integer, h as Integer, fill as String, border as String
     return "pkg:/images/ui/rr_" + widthStr + "x" + h.toStr() + "_" + uiColorKey(fill) + "_" + uiColorKey(border) + ".png"
 end function
 
+function uiCategoryPillUri(w as Integer, selected as Boolean, focused as Boolean) as String
+    state = "base"
+    if selected then state = "selected"
+    if focused then state = "focus"
+    return "pkg:/images/ui/category_pill_" + uiCategoryPillAssetWidth(w) + "x34_" + state + ".png"
+end function
+
+function uiCategoryPillAssetWidth(w as Integer) as String
+    if w <= 70 then return "70"
+    if w <= 82 then return "82"
+    if w <= 96 then return "96"
+    if w <= 116 then return "116"
+    return "172"
+end function
+
+function uiSidebarPillUri(fill as String, border as String) as String
+    return "pkg:/images/ui/sidebar_pill_204x52_" + uiColorKey(fill) + "_" + uiColorKey(border) + ".png"
+end function
+
 function uiThinRoundUri(w as Integer, h as Integer, fill as String, border as String) as String
     return "pkg:/images/ui/thin_" + w.toStr() + "x" + h.toStr() + "_" + uiColorKey(fill) + "_" + uiColorKey(border) + ".png"
 end function
@@ -571,6 +590,8 @@ function uiButton(parent as Object, item as Object, focused as Boolean) as Objec
         if focused and item.doesExist("artFocusOverlayUri") then
             uiPoster(g, item.artFocusOverlayUri, 0, 0, item.w, item.h, opacity)
         end if
+    else if item.doesExist("pillStyle") and item.pillStyle = "sidebar" then
+        uiPoster(g, uiSidebarPillUri(bg, border), 0, 0, item.w, item.h, opacity)
     else if thin then
         uiThinRoundRect(g, 0, 0, item.w, item.h, bg, border, opacity)
     else
@@ -660,7 +681,7 @@ function uiSideNav(parent as Object, colors as Object, activeKey as String, focu
             bg: colors.bg, border: colors.whiteLine, textColor: colors.textPurple, subColor: colors.textDim,
             focusBg: colors.greenSoft, focusBorder: colors.greenFocus, focusTextColor: colors.text,
             opacity: 0.42, focusOpacity: 0.66,
-            row: row, col: 0, page: nav.page, mode: "row", noFocusShift: true
+            row: row, col: 0, page: nav.page, mode: "row", pillStyle: "sidebar", noFocusShift: true
         }
         if nav.active then
             item.bg = colors.purpleSoft
@@ -670,7 +691,7 @@ function uiSideNav(parent as Object, colors as Object, activeKey as String, focu
         end if
         item.node = uiButton(parent, item, false)
         focusItems.push(item)
-        y += 58
+        y += 59
         row += 1
     end for
 

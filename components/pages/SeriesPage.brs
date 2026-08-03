@@ -313,11 +313,11 @@ function drawSeriesSideNav() as Integer
     uiRect(m.canvas, 225, 86, 1, 634, "0xFFFFFF14", 0.26)
 
     addSeriesNavItem(12, 112, "home", "Home", "HomePage", 0, false)
-    addSeriesNavItem(12, 168, "tv", "Live TV", "LiveTvPage", 1, false)
-    addSeriesNavItem(12, 224, "series", "Series", "SeriesPage", 2, true)
-    addSeriesNavItem(12, 280, "movies", "Movies", "MoviesPage", 3, false)
-    addSeriesNavItem(12, 336, "heart", "Favorites", "FavoritesPage", 4, false)
-    addSeriesNavItem(12, 392, "settings", "Settings", "SettingsPage", 5, false)
+    addSeriesNavItem(12, 171, "tv", "Live TV", "LiveTvPage", 1, false)
+    addSeriesNavItem(12, 230, "series", "Series", "SeriesPage", 2, true)
+    addSeriesNavItem(12, 289, "movies", "Movies", "MoviesPage", 3, false)
+    addSeriesNavItem(12, 348, "heart", "Favorites", "FavoritesPage", 4, false)
+    addSeriesNavItem(12, 407, "settings", "Settings", "SettingsPage", 5, false)
 
     addSeriesProfileItem()
     return 6
@@ -348,7 +348,7 @@ sub addSeriesNavItem(x as Integer, y as Integer, icon as String, label as String
         opacity = 0.66
         textColor = m.colors.text
     end if
-    uiRoundRect(m.canvas, x, y, 204, 52, fill, border, opacity)
+    uiPoster(m.canvas, uiSidebarPillUri(fill, border), x, y, 204, 52, opacity)
     uiDrawIcon(m.canvas, icon, x + 22, y + 14, 24, 24, focused or active, textColor, 12)
     uiLabel(m.canvas, label, x + 62, y + 9, 128, 34, 12, textColor)
 
@@ -383,7 +383,7 @@ sub addSeriesProfileItem()
         opacity = 0.66
         textColor = m.colors.text
     end if
-    uiRoundRect(m.canvas, 12, 640, 204, 52, fill, border, opacity)
+    uiPoster(m.canvas, uiSidebarPillUri(fill, border), 12, 640, 204, 52, opacity)
     uiDrawIcon(m.canvas, "profile", 30, 652, 24, 24, focused, textColor, 14)
     uiLabel(m.canvas, "My Profile", 70, 652, 126, 28, 11, textColor)
 
@@ -439,9 +439,6 @@ sub drawCategoryPills(row as Integer)
         label = m.categories[i]
         pillW = seriesCategoryPillWidth(label)
         if x + pillW > 1116 then exit for
-        assetW = 100
-        if pillW > 100 then assetW = 140
-        if pillW > 140 then assetW = 150
         itemIndex = m.focusItems.count()
         focused = m.focusArea = "categories" and i = m.focusedCategoryIndex
         if focused then m.focusIndex = itemIndex
@@ -463,12 +460,7 @@ sub drawCategoryPills(row as Integer)
             pillOpacity = 0.66
         end if
 
-        pillUri = uiRoundUri(assetW, 40, bg, border)
-        if pillW > 150 then
-            pillUri = "pkg:/images/ui/rr_190x44_bg_whiteLine.png"
-            if selected then pillUri = "pkg:/images/ui/rr_190x44_purpleSoft_greenFocus.png"
-            if focused then pillUri = "pkg:/images/ui/rr_172x48_greenSoft_greenFocus.png"
-        end if
+        pillUri = uiCategoryPillUri(pillW, selected, focused)
         uiPoster(m.canvas, pillUri, x, 104, pillW, 36, pillOpacity)
         labelScale = 0.80
         if label = "All" then labelScale = 0.74

@@ -15,9 +15,15 @@ end function
 function mediaPlaybackUrl(item as Dynamic) as String
     streamUrl = mediaValue(item, "streamUrl")
     if streamUrl <> invalid and streamUrl <> "" then return streamUrl
+    streamUrl = mediaValue(item, "stream_url")
+    if streamUrl <> invalid and streamUrl <> "" then return streamUrl
     videoUrl = mediaValue(item, "videoUrl")
     if videoUrl <> invalid and videoUrl <> "" then return videoUrl
+    videoUrl = mediaValue(item, "video_url")
+    if videoUrl <> invalid and videoUrl <> "" then return videoUrl
     playbackUrl = mediaValue(item, "playbackUrl")
+    if playbackUrl <> invalid and playbackUrl <> "" then return playbackUrl
+    playbackUrl = mediaValue(item, "playback_url")
     if playbackUrl <> invalid and playbackUrl <> "" then return playbackUrl
     backendChannelId = mediaValue(item, "backendChannelId")
     if backendChannelId <> invalid and backendChannelId <> "" then return ""

@@ -341,14 +341,15 @@ sub openRestoreCodeFlow()
     m.restoreInput = ""
     m.restoreMessage = "Enter the recovery code saved for this account."
     m.restoreKeyboardIndex = 0
+    m.uiKeyboardReturnTargetIndex = -1
+    m.uiKeyboardReturnSourceIndex = -1
     render()
 end sub
 
 function handleRestoreCodeKey(key as String) as Boolean
     if m.restoreTask <> invalid then return true
-    cols = 10
     if key = "back" then m.mode = "plans" : render() : return true
-    nextIndex = uiKeyboardMoveIndex(m.restoreKeys, m.restoreKeyboardIndex, key, cols)
+    nextIndex = restoreKeyboardMoveIndex(m.restoreKeyboardIndex, key)
     if nextIndex <> m.restoreKeyboardIndex then m.restoreKeyboardIndex = nextIndex : render() : return true
     if key = "OK" then pressRestoreCodeKey() : return true
     return true
@@ -755,10 +756,111 @@ sub drawRestoreCodeKeyboard(startX as Integer, startY as Integer)
     gap = 7
     for i = 0 to m.restoreKeys.count() - 1
         keyLabel = m.restoreKeys[i]
-        keyRect = uiKeyboardKeyRect(m.restoreKeys, i, startX, startY, keyW, keyH, gap)
+        keyRect = restoreKeyboardKeyRect(i, startX, startY, keyW, keyH, gap)
         uiDrawKeyboardKey(m.canvas, keyLabel, uiKeyboardDisplayText(keyLabel, true), keyRect.x, keyRect.y, keyRect.w, keyRect.h, i = m.restoreKeyboardIndex, m.colors)
     end for
 end sub
+
+function restoreKeyboardMoveIndex(currentIndex as Integer, key as String) as Integer
+    keyCount = m.restoreKeys.count()
+    if keyCount = 0 then return 0
+    if currentIndex < 0 then currentIndex = 0
+    if currentIndex >= keyCount then currentIndex = keyCount - 1
+
+    if key = "left" and currentIndex > 0 then return restoreKeyboardHorizontalMoveIndex(currentIndex - 1)
+    if key = "right" and currentIndex < keyCount - 1 then return restoreKeyboardHorizontalMoveIndex(currentIndex + 1)
+    if key = "up" then
+        returnIndex = uiKeyboardStoredReturnIndex(currentIndex)
+        if returnIndex >= 0 and returnIndex < keyCount then return returnIndex
+        return restoreKeyboardVerticalMoveIndex(currentIndex, -1)
+    end if
+    if key = "down" then
+        nextIndex = restoreKeyboardVerticalMoveIndex(currentIndex, 1)
+        if nextIndex <> currentIndex then uiKeyboardStoreReturnIndex(nextIndex, currentIndex)
+        return nextIndex
+    end if
+    return currentIndex
+end function
+
+function restoreKeyboardHorizontalMoveIndex(nextIndex as Integer) as Integer
+    returnIndex = restoreKeyboardDefaultReturnIndex(nextIndex)
+    if returnIndex >= 0 then uiKeyboardStoreReturnIndex(nextIndex, returnIndex)
+    return nextIndex
+end function
+
+function restoreKeyboardVerticalMoveIndex(currentIndex as Integer, rowDelta as Integer) as Integer
+    cols = 10
+    currentRow = Int(currentIndex / cols)
+    targetRow = currentRow + rowDelta
+    if targetRow < 0 then return currentIndex
+    first = restoreKeyboardRowFirst(targetRow)
+    if first < 0 or first >= m.restoreKeys.count() then return currentIndex
+    last = restoreKeyboardRowLast(targetRow)
+    targetOffset = currentIndex - (currentRow * cols)
+    rowCount = last - first + 1
+    if targetOffset > rowCount - 1 then targetOffset = rowCount - 1
+    if targetOffset < 0 then targetOffset = 0
+    return first + targetOffset
+end function
+
+function restoreKeyboardRowFirst(row as Integer) as Integer
+    if row < 0 then return -1
+    first = row * 10
+    if first >= m.restoreKeys.count() then return -1
+    return first
+end function
+
+function restoreKeyboardRowLast(row as Integer) as Integer
+    first = restoreKeyboardRowFirst(row)
+    if first < 0 then return -1
+    last = first + 9
+    if last > m.restoreKeys.count() - 1 then last = m.restoreKeys.count() - 1
+    return last
+end function
+
+function restoreKeyboardDefaultReturnIndex(targetIndex as Integer) as Integer
+    cols = 10
+    targetRow = Int(targetIndex / cols)
+    if targetRow <= 0 then return -1
+    bottomFirst = restoreKeyboardRowFirst(targetRow)
+    bottomLast = restoreKeyboardRowLast(targetRow)
+    if bottomFirst < 0 or bottomLast < 0 then return -1
+    if bottomLast - bottomFirst + 1 >= cols then return -1
+    sourceFirst = restoreKeyboardRowFirst(targetRow - 1)
+    sourceLast = restoreKeyboardRowLast(targetRow - 1)
+    if sourceFirst < 0 or sourceLast < 0 then return -1
+    sourceIndex = sourceFirst + (targetIndex - bottomFirst)
+    if sourceIndex > sourceLast then sourceIndex = sourceLast
+    return sourceIndex
+end function
+
+function restoreKeyboardKeyRect(index as Integer, startX as Integer, startY as Integer, baseW as Integer, keyH as Integer, gap as Integer) as Object
+    cols = 10
+    row = Int(index / cols)
+    y = startY + row * (keyH + gap)
+    rowStart = row * cols
+    rowEnd = rowStart + cols - 1
+    if rowEnd > m.restoreKeys.count() - 1 then rowEnd = m.restoreKeys.count() - 1
+    rowCount = rowEnd - rowStart + 1
+
+    if rowCount >= cols then
+        col = index MOD cols
+        return { x: startX + col * (baseW + gap), y: y, w: baseW, h: keyH }
+    end if
+
+    totalW = 0
+    for i = rowStart to rowEnd
+        totalW += uiKeyboardKeyWidth(m.restoreKeys[i])
+        if i < rowEnd then totalW += gap
+    end for
+
+    fullRowW = cols * baseW + (cols - 1) * gap
+    x = startX + Int((fullRowW - totalW) / 2)
+    for i = rowStart to index - 1
+        x += uiKeyboardKeyWidth(m.restoreKeys[i]) + gap
+    end for
+    return { x: x, y: y, w: uiKeyboardKeyWidth(m.restoreKeys[index]), h: keyH }
+end function
 
 function storedRecoveryCode() as String
     section = CreateObject("roRegistrySection", backendApiAuthRegistrySection())

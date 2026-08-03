@@ -143,10 +143,10 @@ function drawSettingsSideNav() as Integer
     uiRect(m.canvas, 225, 86, 1, 634, "0xFFFFFF14")
 
     addSettingsNavItem(12, 112, "home", "Home", "HomePage", 0, false)
-    addSettingsNavItem(12, 168, "tv", "Live TV", "LiveTvPage", 1, false)
-    addSettingsNavItem(12, 224, "series", "Series", "SeriesPage", 2, false)
-    addSettingsNavItem(12, 280, "movies", "Movies", "MoviesPage", 3, false)
-    addSettingsNavItem(12, 336, "settings", "Settings", "SettingsPage", 4, true)
+    addSettingsNavItem(12, 171, "tv", "Live TV", "LiveTvPage", 1, false)
+    addSettingsNavItem(12, 230, "series", "Series", "SeriesPage", 2, false)
+    addSettingsNavItem(12, 289, "movies", "Movies", "MoviesPage", 3, false)
+    addSettingsNavItem(12, 348, "settings", "Settings", "SettingsPage", 4, true)
     addSettingsProfileItem()
     return 6
 end function
@@ -159,7 +159,7 @@ sub addSettingsNavItem(x as Integer, y as Integer, icon as String, label as Stri
         bg: m.colors.bg, border: m.colors.whiteLine, textColor: m.colors.textPurple, subColor: m.colors.textDim,
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         opacity: 0.42, focusOpacity: 0.66,
-        row: row, col: 0, page: page, mode: "row", noFocusShift: true
+        row: row, col: 0, page: page, mode: "row", pillStyle: "sidebar", noFocusShift: true
     }
     if active then
         item.bg = m.colors.purpleSoft
@@ -178,7 +178,7 @@ sub addSettingsProfileItem()
         bg: m.colors.bg, border: m.colors.whiteLine, textColor: m.colors.textPurple, subColor: m.colors.textDim,
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         opacity: 0.42, focusOpacity: 0.66,
-        row: 5, col: 0, page: "ProfilePage", mode: "row", noFocusShift: true
+        row: 5, col: 0, page: "ProfilePage", mode: "row", pillStyle: "sidebar", noFocusShift: true
     }
     m.focusItems.push(item)
 end sub
