@@ -318,7 +318,7 @@ function playlistStoreMergeBackendPlaylists(apiItems as Object) as Object
     return playlistStoreList()
 end function
 
-function playlistStoreUpsertBackendPlaylist(apiItem as Object) as Dynamic
+function playlistStoreUpsertBackendPlaylist(apiItem as Object, importJob = invalid as Dynamic) as Dynamic
     if apiItem = invalid then return invalid
     backendId = playlistStoreText(apiItem, "id")
     if backendId = "" then return invalid
@@ -336,7 +336,7 @@ function playlistStoreUpsertBackendPlaylist(apiItem as Object) as Dynamic
         end if
     end for
 
-    mapped = playlistStoreMapBackendPlaylist(apiItem, previous)
+    mapped = playlistStoreMapBackendPlaylist(apiItem, previous, importJob)
     if mapped = invalid then return invalid
     merged.push(mapped)
     if playlistStoreSave(merged) then return mapped
@@ -377,7 +377,7 @@ function playlistStoreRepairBackendPlaylist(staleLocalId as String, apiItem as O
     return invalid
 end function
 
-function playlistStoreMapBackendPlaylist(apiItem as Object, previous = invalid as Dynamic) as Dynamic
+function playlistStoreMapBackendPlaylist(apiItem as Object, previous = invalid as Dynamic, importJob = invalid as Dynamic) as Dynamic
     if apiItem = invalid then return invalid
     backendId = playlistStoreText(apiItem, "id")
     if backendId = "" then return invalid
@@ -394,19 +394,34 @@ function playlistStoreMapBackendPlaylist(apiItem as Object, previous = invalid a
     if localTitle <> "" then title = localTitle
 
     sourceUrl = playlistStoreText(apiItem, "source_url")
+    sourceType = playlistStoreText(apiItem, "source_type", "m3u")
     contentProfile = playlistStoreBackendContentProfile(backendName, sourceUrl)
+    if sourceType = "xtream" then contentProfile = "backend_xtream"
     icon = "tv"
     typeLabel = "M3U"
+    if sourceType = "xtream" then
+        icon = "link"
+        typeLabel = "Xtreme"
+    end if
     if contentProfile = "backend_movies" then icon = "movies"
     if contentProfile = "backend_series" then icon = "series"
 
     itemCount = playlistStoreNumber(apiItem, "active_channel_count")
     if itemCount = 0 then itemCount = playlistStoreNumber(apiItem, "channel_count")
 
-    status = playlistStoreBackendStatusLabel(playlistStoreText(apiItem, "status"))
-    meta = playlistStoreBackendMeta(itemCount, contentProfile)
+    lastImportStatus = playlistStoreText(apiItem, "last_import_status")
+    if lastImportStatus = "" and importJob <> invalid then lastImportStatus = playlistStoreText(importJob, "status")
+    if lastImportStatus = "" and previous <> invalid and itemCount = 0 then lastImportStatus = playlistStoreText(previous, "lastImportStatus")
+    status = playlistStoreBackendStatusLabel(playlistStoreText(apiItem, "status"), lastImportStatus)
+    meta = playlistStoreBackendMeta(itemCount, contentProfile, lastImportStatus)
     lastSync = "not synced yet"
-    if playlistStoreText(apiItem, "last_import_status") = "completed" then lastSync = "just now"
+    if lastImportStatus = "completed" then
+        lastSync = "just now"
+    else if playlistStoreIsBackendImportPending(lastImportStatus) then
+        lastSync = "refreshing"
+    else if playlistStoreIsBackendImportFailed(lastImportStatus) then
+        lastSync = "refresh failed"
+    end if
 
     return {
         id: "backend_" + backendId,
@@ -423,15 +438,45 @@ function playlistStoreMapBackendPlaylist(apiItem as Object, previous = invalid a
         icon: icon,
         accent: "green",
         sourceUrl: sourceUrl,
-        serverUrl: "",
+        serverUrl: sourceUrl,
         username: "",
         password: "",
         lastSync: lastSync,
+        lastImportStatus: lastImportStatus,
+        importJobId: playlistStoreImportJobText(importJob, previous, "id"),
+        importParserMode: playlistStoreImportJobText(importJob, previous, "parser_mode"),
+        importRecordsSeen: playlistStoreImportJobNumber(importJob, previous, "records_seen"),
+        importRecordsInserted: playlistStoreImportJobNumber(importJob, previous, "records_inserted"),
+        importRecordsFailed: playlistStoreImportJobNumber(importJob, previous, "records_failed"),
+        importErrorCode: playlistStoreImportJobText(importJob, previous, "error_code"),
+        importErrorMessage: playlistStoreImportJobText(importJob, previous, "error_message"),
         isDemo: false,
         isProtected: false,
+        sourceType: sourceType,
         contentProfile: contentProfile,
         playlistVersion: playlistStoreNumber(apiItem, "playlist_version")
     }
+end function
+
+function playlistStoreImportJobText(importJob as Dynamic, previous as Dynamic, key as String) as String
+    value = playlistStoreText(importJob, key)
+    if value <> "" then return value
+    if previous = invalid then return ""
+    if key = "id" then return playlistStoreText(previous, "importJobId")
+    if key = "parser_mode" then return playlistStoreText(previous, "importParserMode")
+    if key = "error_code" then return playlistStoreText(previous, "importErrorCode")
+    if key = "error_message" then return playlistStoreText(previous, "importErrorMessage")
+    return ""
+end function
+
+function playlistStoreImportJobNumber(importJob as Dynamic, previous as Dynamic, key as String) as Integer
+    value = playlistStoreNumber(importJob, key)
+    if value > 0 then return value
+    if previous = invalid then return 0
+    if key = "records_seen" then return playlistStoreNumber(previous, "importRecordsSeen")
+    if key = "records_inserted" then return playlistStoreNumber(previous, "importRecordsInserted")
+    if key = "records_failed" then return playlistStoreNumber(previous, "importRecordsFailed")
+    return 0
 end function
 
 function playlistStoreBackendContentProfile(title as String, sourceUrl as String) as String
@@ -444,9 +489,10 @@ end function
 function playlistStoreEffectiveContentProfile(item as Object) as String
     stored = playlistStoreText(item, "contentProfile")
     if playlistStoreBool(item, "backendManaged", false) then
+        if playlistStoreText(item, "sourceType") = "xtream" or playlistStoreText(item, "type") = "Xtreme" then return "backend_xtream"
         inferred = playlistStoreBackendContentProfile(playlistStoreText(item, "title") + " " + playlistStoreText(item, "backendName"), playlistStoreText(item, "sourceUrl"))
         if inferred <> "backend_live" then return inferred
-        if stored = "backend_movies" or stored = "backend_series" then return stored
+        if stored = "backend_movies" or stored = "backend_series" or stored = "backend_xtream" then return stored
         return inferred
     end if
 
@@ -455,7 +501,9 @@ function playlistStoreEffectiveContentProfile(item as Object) as String
     return stored
 end function
 
-function playlistStoreBackendStatusLabel(status as String) as String
+function playlistStoreBackendStatusLabel(status as String, lastImportStatus = "" as String) as String
+    if playlistStoreIsBackendImportFailed(lastImportStatus) then return "Offline"
+    if playlistStoreIsBackendImportPending(lastImportStatus) then return "Refreshing"
     statusText = playlistStoreNormalizeMatchText(status)
     if statusText = "ready" then return "Ready"
     if statusText = "failed" or statusText = "disabled" then return "Offline"
@@ -463,16 +511,30 @@ function playlistStoreBackendStatusLabel(status as String) as String
     return "Ready"
 end function
 
-function playlistStoreBackendMeta(itemCount as Integer, contentProfile as String) as String
+function playlistStoreBackendMeta(itemCount as Integer, contentProfile as String, lastImportStatus = "" as String) as String
+    if playlistStoreIsBackendImportFailed(lastImportStatus) then return "Import failed"
+    if itemCount = 0 and playlistStoreIsBackendImportPending(lastImportStatus) then return "Import in progress"
     label = "live channels"
+    if contentProfile = "backend_xtream" then label = "provider items"
     if contentProfile = "backend_movies" then label = "movie streams"
     if contentProfile = "backend_series" then label = "series streams"
     if itemCount = 1 then
+        if contentProfile = "backend_xtream" then label = "provider item"
         if contentProfile = "backend_movies" then label = "movie stream"
         if contentProfile = "backend_series" then label = "series stream"
         if contentProfile = "backend_live" then label = "live channel"
     end if
     return itemCount.toStr() + " " + label
+end function
+
+function playlistStoreIsBackendImportPending(status as String) as Boolean
+    statusText = playlistStoreNormalizeMatchText(status)
+    return statusText = "queued" or statusText = "pending" or statusText = "created" or statusText = "importing" or statusText = "running" or statusText = "processing"
+end function
+
+function playlistStoreIsBackendImportFailed(status as String) as Boolean
+    statusText = playlistStoreNormalizeMatchText(status)
+    return statusText = "failed" or statusText = "error"
 end function
 
 function playlistStoreInferInputProfile(title as String, sourceUrl as String) as String

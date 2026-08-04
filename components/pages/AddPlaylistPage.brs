@@ -11,8 +11,9 @@ sub init()
     m.submitState = ""
     m.backendTask = invalid
     m.editPlaylistId = ""
-    m.showPlaylistTypeButtons = false
-    m.showXtremeControls = false
+    m.showPlaylistTypeButtons = true
+    m.showXtremeControls = true
+    m.phoneLinkActive = false
     m.keyboardIndex = 0
     m.keyboardUpper = true
     m.previousFocusIndex = -1
@@ -89,9 +90,32 @@ function addPlaylistBackTarget() as String
 end function
 
 sub move(dx as Integer, dy as Integer)
+    if dx > 0 and focusPhoneLinkFromLeft() then
+        render()
+        return
+    end if
     m.focusIndex = uiMoveFocus(m.focusItems, m.focusIndex, dx, dy)
     render()
 end sub
+
+function focusPhoneLinkFromLeft() as Boolean
+    if m.editPlaylistId <> "" or m.phoneLinkActive then return false
+    if m.focusItems.count() = 0 then return false
+    if m.focusIndex < 0 or m.focusIndex >= m.focusItems.count() then return false
+    current = m.focusItems[m.focusIndex]
+    if current = invalid or current.col = invalid or current.col <= 0 then return false
+    if current.action = "phoneLink" then return false
+    if current.action = "m3u" then return false
+
+    for i = 0 to m.focusItems.count() - 1
+        candidate = m.focusItems[i]
+        if candidate <> invalid and candidate.action = "phoneLink" then
+            m.focusIndex = i
+            return true
+        end if
+    end for
+    return false
+end function
 
 sub activate()
     item = m.focusItems[m.focusIndex]
@@ -103,6 +127,11 @@ sub activate()
         return
     end if
     if item.action = "field" then openKeyboard(item.fieldKey, item.fieldLabel) : return
+    if item.action = "phoneLink" then
+        m.phoneLinkActive = true
+        render()
+        return
+    end if
     if item.action = "submit" then
         errorText = validatePlaylistInput()
         if errorText <> "" then
@@ -122,8 +151,6 @@ sub finishPlaylistSubmit()
     savedPlaylist = invalid
     if m.editPlaylistId <> "" then
         savedPlaylist = playlistStoreUpdate(m.editPlaylistId, m.inputs, m.mode)
-    else if m.mode = "xtreme" then
-        savedPlaylist = playlistStoreAdd(m.inputs, m.mode)
     else
         startBackendPlaylistCreate()
         return
@@ -155,13 +182,21 @@ sub startBackendPlaylistCreate()
     task = CreateObject("roSGNode", "BackendApiTask")
     if task = invalid then
         m.submitState = ""
-        setFieldError("m3uUrl", "Playlist service is unavailable.")
+        if m.mode = "xtreme" then
+            setFieldError("serverUrl", "Playlist service is unavailable.")
+        else
+            setFieldError("m3uUrl", "Playlist service is unavailable.")
+        end if
         render()
         return
     end if
 
     task.observeField("response", "onBackendPlaylistCreated")
-    task.request = backendApiCreatePlaylistRequest(m.inputs.playlistTitle, m.inputs.m3uUrl)
+    if m.mode = "xtreme" then
+        task.request = backendApiCreateXtremePlaylistRequest(m.inputs.accountName, m.inputs.serverUrl, m.inputs.username, m.inputs.password)
+    else
+        task.request = backendApiCreatePlaylistRequest(m.inputs.playlistTitle, m.inputs.m3uUrl)
+    end if
     m.backendTask = task
     task.control = "RUN"
 end sub
@@ -173,15 +208,24 @@ sub onBackendPlaylistCreated()
     m.submitState = ""
 
     if not backendApiResponseOk(response) then
-        setFieldError("m3uUrl", "Playlist could not be added.")
+        if m.mode = "xtreme" then
+            setFieldError("serverUrl", "Account could not be connected.")
+        else
+            setFieldError("m3uUrl", "Playlist could not be added.")
+        end if
         render()
         return
     end if
 
     apiPlaylist = backendApiResponsePlaylist(response)
-    savedPlaylist = playlistStoreUpsertBackendPlaylist(apiPlaylist)
+    importJob = backendApiResponseImportJob(response)
+    savedPlaylist = playlistStoreUpsertBackendPlaylist(apiPlaylist, importJob)
     if savedPlaylist = invalid then
-        setFieldError("m3uUrl", "Playlist was added, but could not be saved.")
+        if m.mode = "xtreme" then
+            setFieldError("serverUrl", "Account was connected, but could not be saved.")
+        else
+            setFieldError("m3uUrl", "Playlist was added, but could not be saved.")
+        end if
         render()
         return
     end if
@@ -205,37 +249,25 @@ sub render()
     refreshClock()
     row = drawAddPlaylistSideNav()
 
-    pageTitle = "ADD M3U PLAYLIST"
+    pageTitle = "ADD PLAYLIST"
     if m.editPlaylistId <> "" then pageTitle = "EDIT M3U PLAYLIST"
-    uiScaledLabel(m.canvas, pageTitle, 380, 124, 760, 58, 32, m.colors.text, "center", 1.22)
-
-    if m.showPlaylistTypeButtons then
-        addSmallButton(505, 186, 230, 48, "", "M3U Playlist", row, 1, "m3u")
-        if m.showXtremeControls then addSmallButton(765, 186, 230, 48, "", "Xtreme Account", row, 2, "xtreme")
+    titleX = 292
+    titleW = 520
+    titleAlign = "center"
+    if m.editPlaylistId <> "" then
+        titleX = 380
+        titleW = 760
     end if
+    uiScaledLabel(m.canvas, pageTitle, titleX, 112, titleW, 52, 31, m.colors.text, titleAlign, 1.12)
 
-    if m.mode = "m3u" then
-        formTop = 276
-        submitTop = 504
-        if m.showPlaylistTypeButtons then
-            formTop = 292
-            submitTop = 510
-        end if
-        addInputField(380, formTop, 760, "Playlist Title", "playlistTitle", row + 1, 1, false)
-        addInputField(380, formTop + 106, 760, "M3U URL", "m3uUrl", row + 2, 1, false)
-        submitLabel = "Add Playlist"
-        if m.editPlaylistId <> "" then submitLabel = "Save Changes"
-        addWideAction(530, submitTop, 460, 56, "plus", submitLabel, row + 3, 1)
+    if m.editPlaylistId <> "" then
+        drawEditPlaylistForm(row)
     else
-        addInputField(380, 250, 760, "Account Name", "accountName", row + 1, 1, false)
-        addInputField(380, 334, 760, "Server URL", "serverUrl", row + 2, 1, false)
-        addInputField(380, 418, 760, "Username", "username", row + 3, 1, false)
-        addInputField(380, 502, 760, "Password", "password", row + 4, 1, true)
-        submitLabel = "Connect Account"
-        if m.editPlaylistId <> "" then submitLabel = "Save Changes"
-        addWideAction(530, 602, 460, 56, "link", submitLabel, row + 5, 1)
+        drawAddPlaylistSplitForm(row)
     end if
 
+    if m.focusIndex >= m.focusItems.count() then m.focusIndex = m.focusItems.count() - 1
+    if m.focusIndex < 0 then m.focusIndex = 0
     uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
     if m.editing then drawKeyboardOverlay()
     if m.submitState = "validating" then drawValidationOverlay()
@@ -248,6 +280,120 @@ sub drawAddPlaylistArtwork()
     uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.5)
     uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.16)
     uiRect(m.canvas, 334, 92, 850, 604, m.colors.bg, 0.08)
+end sub
+
+sub drawAddPlaylistSplitForm(row as Integer)
+    if m.showPlaylistTypeButtons then
+        addSmallButton(331, 188, 204, 42, "", "M3U Playlist", row, 1, "m3u")
+        if m.showXtremeControls then addSmallButton(569, 188, 204, 42, "", "Xtreme Account", row, 2, "xtreme")
+    end if
+
+    if m.mode = "m3u" then
+        addInputField(292, 276, 520, "Playlist Title", "playlistTitle", row + 1, 1, false)
+        addInputField(292, 384, 520, "M3U URL", "m3uUrl", row + 2, 1, false)
+        addWideAction(362, 520, 380, 56, "plus", "Add Playlist", row + 3, 1)
+    else
+        addInputField(292, 252, 520, "Account Name", "accountName", row + 1, 1, false)
+        addInputField(292, 336, 520, "Server URL", "serverUrl", row + 2, 1, false)
+        addInputField(292, 420, 520, "Username", "username", row + 3, 1, false)
+        addInputField(292, 504, 520, "Password", "password", row + 4, 1, true)
+        addWideAction(362, 608, 380, 56, "link", "Connect Account", row + 5, 1)
+    end if
+
+    drawPhoneLinkPanel(896, 222, 284, 284, row + 3)
+end sub
+
+sub drawEditPlaylistForm(row as Integer)
+    uiScaledLabel(m.canvas, "Update the saved playlist details.", 380, 166, 760, 28, 15, m.colors.textMuted, "center", 0.92)
+
+    if m.showPlaylistTypeButtons then
+        addSmallButton(505, 218, 230, 48, "", "M3U Playlist", row, 1, "m3u")
+        if m.showXtremeControls then addSmallButton(765, 218, 230, 48, "", "Xtreme Account", row, 2, "xtreme")
+    end if
+
+    if m.mode = "m3u" then
+        addInputField(380, 306, 760, "Playlist Title", "playlistTitle", row + 1, 1, false)
+        addInputField(380, 414, 760, "M3U URL", "m3uUrl", row + 2, 1, false)
+        addWideAction(530, 562, 460, 56, "plus", "Save Changes", row + 3, 1)
+    else
+        addInputField(380, 250, 760, "Account Name", "accountName", row + 1, 1, false)
+        addInputField(380, 334, 760, "Server URL", "serverUrl", row + 2, 1, false)
+        addInputField(380, 418, 760, "Username", "username", row + 3, 1, false)
+        addInputField(380, 502, 760, "Password", "password", row + 4, 1, true)
+        addWideAction(530, 602, 460, 56, "link", "Save Changes", row + 5, 1)
+    end if
+end sub
+
+sub drawPhoneLinkPanel(x as Integer, y as Integer, w as Integer, h as Integer, row as Integer)
+    uiRect(m.canvas, x, y, w, h, m.colors.panel, 0.34)
+    uiRectBorder(m.canvas, x, y, w, h, m.colors.whiteLine, 1, 0.38)
+    uiRect(m.canvas, x + 8, y + 8, w - 16, h - 16, m.colors.purpleSoft, 0.20)
+
+    qrSize = 236
+    qrX = x + Int((w - qrSize) / 2)
+    qrY = y + Int((h - qrSize) / 2)
+    drawMockQr(m.canvas, qrX, qrY, qrSize, m.phoneLinkActive)
+
+    if not m.phoneLinkActive then
+        uiRect(m.canvas, qrX, qrY, qrSize, qrSize, m.colors.bg, 0.20)
+        addPhoneLinkAction(x + 39, y + 121, 206, 42, row, 2)
+    end if
+end sub
+
+sub drawMockQr(parent as Object, x as Integer, y as Integer, size as Integer, active as Boolean)
+    bgOpacity = 0.92
+    cellOpacity = 0.76
+    if not active then
+        bgOpacity = 0.34
+        cellOpacity = 0.18
+    end if
+    uiRect(parent, x, y, size, size, "0xF7F9FFFF", bgOpacity)
+    cell = Int(size / 13)
+    dark = m.colors.bg
+    drawQrFinder(parent, x + cell, y + cell, cell, cellOpacity)
+    drawQrFinder(parent, x + (cell * 8), y + cell, cell, cellOpacity)
+    drawQrFinder(parent, x + cell, y + (cell * 8), cell, cellOpacity)
+
+    for r = 0 to 12
+        for c = 0 to 12
+            if ((r * 3 + c * 5 + r * c) MOD 7) = 0 then
+                skipFinder = (r < 5 and c < 5) or (r < 5 and c > 7) or (r > 7 and c < 5)
+                if not skipFinder then uiRect(parent, x + (c * cell), y + (r * cell), cell - 2, cell - 2, dark, cellOpacity)
+            end if
+        end for
+    end for
+    uiRectBorder(parent, x, y, size, size, m.colors.textPurple, 2, cellOpacity)
+end sub
+
+sub drawQrFinder(parent as Object, x as Integer, y as Integer, cell as Integer, opacity as Float)
+    dark = m.colors.bg
+    uiRect(parent, x, y, cell * 4, cell * 4, dark, opacity)
+    uiRect(parent, x + cell, y + cell, cell * 2, cell * 2, "0xF7F9FFFF", opacity)
+    uiRect(parent, x + cell + 4, y + cell + 4, (cell * 2) - 8, (cell * 2) - 8, dark, opacity)
+end sub
+
+sub addPhoneLinkAction(x as Integer, y as Integer, w as Integer, h as Integer, row as Integer, col as Integer)
+    itemIndex = m.focusItems.count()
+    focused = itemIndex = m.focusIndex
+    buttonCanvas = CreateObject("roSGNode", "Group")
+    buttonCanvas.id = "addPlaylistPhoneLinkButton" + itemIndex.toStr()
+    buttonCanvas.translation = [x, y]
+    m.canvas.appendChild(buttonCanvas)
+
+    uiPoster(buttonCanvas, "pkg:/images/ui/add_playlist_tab_base_230x48.png", 0, 0, w, h, 0.82)
+    if focused then
+        focusOpacity = 0.86
+        if m.previousFocusIndex <> itemIndex then focusOpacity = 0.0
+        focusSurface = uiPoster(buttonCanvas, "pkg:/images/ui/add_playlist_tab_focus_230x48.png", 0, 0, w, h, focusOpacity)
+        focusSurface.id = "addPlaylistPhoneLinkFocus" + itemIndex.toStr()
+        if m.previousFocusIndex <> itemIndex then animateAddPlaylistButtonFocus(m.canvas, buttonCanvas, focusSurface, x, y, 0.86)
+    end if
+    textColor = m.colors.textPurple
+    if focused then textColor = m.colors.text
+    uiLabel(buttonCanvas, "Link with phone", 0, 1, w, h, 14, textColor, "center")
+
+    item = { x: x, y: y, w: w, h: h, icon: "link", label: "Link with phone", subtitle: "", iconSize: 15, titleSize: 17, subSize: 10, bg: m.colors.greenSoft, border: m.colors.greenFocus, textColor: m.colors.text, subColor: m.colors.textDim, focusBg: m.colors.greenFocus, focusBorder: m.colors.text, focusTextColor: m.colors.text, row: row, col: col, action: "phoneLink", page: "", mode: "manual", noFocusShift: true }
+    m.focusItems.push(item)
 end sub
 
 sub drawValidationOverlay()
@@ -309,6 +455,9 @@ sub addInputField(x as Integer, y as Integer, w as Integer, label as String, fie
     uiLabel(m.canvas, label, x, y, w, 24, 13, m.colors.textGreen)
     value = m.inputs[fieldKey]
     displayValue = value
+    fieldH = 48
+    useCompactField = w = 520
+    if useCompactField then fieldH = 42
     textColor = m.colors.text
     borderColor = m.colors.panel
     focusBorder = m.colors.purpleLine
@@ -320,7 +469,7 @@ sub addInputField(x as Integer, y as Integer, w as Integer, label as String, fie
         focusBorder = "0xFFB2A8FF"
     end if
     item = {
-        x: x, y: y + 30, w: w, h: 48,
+        x: x, y: y + 30, w: w, h: fieldH,
         icon: "", label: displayValue, subtitle: "",
         iconSize: 0, titleSize: 16, subSize: 10,
         bg: m.colors.panel, border: borderColor, textColor: textColor,
@@ -329,30 +478,67 @@ sub addInputField(x as Integer, y as Integer, w as Integer, label as String, fie
         fieldKey: fieldKey, fieldLabel: label, page: "", mode: "row",
         labelX: 24, labelW: w - 48, labelAlign: "left", noFocusShift: true
     }
+    if useCompactField then
+        item.bg = m.colors.panel
+        item.border = m.colors.panel
+        item.focusBg = m.colors.panel
+        item.focusBorder = m.colors.purpleLine
+        item.artUri = "pkg:/images/ui/add_playlist_input_520x42_base.png"
+        item.artFocusUri = "pkg:/images/ui/add_playlist_input_520x42_focus.png"
+        if m.errorField = fieldKey and m.errorMessage <> "" then
+            item.artUri = "pkg:/images/ui/add_playlist_input_520x42_error.png"
+            item.artFocusUri = "pkg:/images/ui/add_playlist_input_520x42_error.png"
+        end if
+    end if
     m.focusItems.push(item)
 end sub
 
 sub addSmallButton(x as Integer, y as Integer, w as Integer, h as Integer, icon as String, label as String, row as Integer, col as Integer, action as String)
     itemIndex = m.focusItems.count()
     focused = itemIndex = m.focusIndex
+    selected = action = m.mode
     textColor = m.colors.textPurple
+    opacity = 0.54
+    if selected then
+        textColor = m.colors.text
+        opacity = 0.78
+    end if
     if focused then
         textColor = m.colors.text
+        opacity = 0.86
     end if
 
     buttonCanvas = CreateObject("roSGNode", "Group")
     buttonCanvas.id = "addPlaylistModeButton" + itemIndex.toStr()
     buttonCanvas.translation = [x, y]
     m.canvas.appendChild(buttonCanvas)
-    uiPoster(buttonCanvas, "pkg:/images/ui/add_playlist_tab_base_230x48.png", 0, 0, w, h, 0.38)
-    if focused then
-        focusOpacity = 0.70
-        if m.previousFocusIndex <> itemIndex then focusOpacity = 0.0
-        focusSurface = uiPoster(buttonCanvas, "pkg:/images/ui/add_playlist_tab_focus_230x48.png", 0, 0, w, h, focusOpacity)
-        focusSurface.id = "addPlaylistModeButtonFocus" + itemIndex.toStr()
-        if m.previousFocusIndex <> itemIndex then animateAddPlaylistButtonFocus(m.canvas, buttonCanvas, focusSurface, x, y, 0.70)
+
+    if h <= 34 then
+        baseUri = "pkg:/images/ui/feedback_category_156x34_base.png"
+        if selected then baseUri = "pkg:/images/ui/feedback_category_156x34_selected.png"
+        uiPoster(buttonCanvas, baseUri, 0, 0, w, h, opacity)
+        if focused then
+            focusOpacity = 0.86
+            if m.previousFocusIndex <> itemIndex then focusOpacity = 0.0
+            focusSurface = uiPoster(buttonCanvas, "pkg:/images/ui/feedback_category_156x34_focus.png", 0, 0, w, h, focusOpacity)
+            focusSurface.id = "addPlaylistModeButtonFocus" + itemIndex.toStr()
+            if m.previousFocusIndex <> itemIndex then animateAddPlaylistButtonFocus(m.canvas, buttonCanvas, focusSurface, x, y, 0.86)
+        end if
+        uiScaledLabel(buttonCanvas, label, 8, 0, w - 16, h, 12, textColor, "center", 0.70)
+    else
+        uiPoster(buttonCanvas, "pkg:/images/ui/add_playlist_tab_base_230x48.png", 0, 0, w, h, 0.38)
+        if selected and not focused then
+            uiPoster(buttonCanvas, "pkg:/images/ui/add_playlist_tab_focus_230x48.png", 0, 0, w, h, 0.48)
+        end if
+        if focused then
+            focusOpacity = 0.70
+            if m.previousFocusIndex <> itemIndex then focusOpacity = 0.0
+            focusSurface = uiPoster(buttonCanvas, "pkg:/images/ui/add_playlist_tab_focus_230x48.png", 0, 0, w, h, focusOpacity)
+            focusSurface.id = "addPlaylistModeButtonFocus" + itemIndex.toStr()
+            if m.previousFocusIndex <> itemIndex then animateAddPlaylistButtonFocus(m.canvas, buttonCanvas, focusSurface, x, y, 0.70)
+        end if
+        uiLabel(buttonCanvas, label, 0, 1, w, h, 15, textColor, "center")
     end if
-    uiLabel(buttonCanvas, label, 0, 1, w, h, 15, textColor, "center")
 
     item = { x: x, y: y, w: w, h: h, icon: icon, label: label, subtitle: "", iconSize: 14, titleSize: 15, subSize: 10, bg: m.colors.bg, border: m.colors.whiteLine, textColor: m.colors.text, subColor: m.colors.textDim, focusBg: m.colors.purpleSoft, focusBorder: m.colors.purpleLine, focusTextColor: m.colors.text, row: row, col: col, action: action, page: "", mode: "manual", noFocusShift: true }
     m.focusItems.push(item)
@@ -366,11 +552,17 @@ sub addWideAction(x as Integer, y as Integer, w as Integer, h as Integer, icon a
     buttonCanvas.id = "addPlaylistSubmitButton" + itemIndex.toStr()
     buttonCanvas.translation = [x, y]
     m.canvas.appendChild(buttonCanvas)
-    uiPoster(buttonCanvas, "pkg:/images/ui/add_playlist_submit_base_460x56.png", 0, 0, w, h, 0.80)
+    baseUri = "pkg:/images/ui/add_playlist_submit_base_460x56.png"
+    focusUri = "pkg:/images/ui/add_playlist_submit_focus_460x56.png"
+    if w = 380 and h = 56 then
+        baseUri = "pkg:/images/ui/add_playlist_submit_380x56_base.png"
+        focusUri = "pkg:/images/ui/add_playlist_submit_380x56_focus.png"
+    end if
+    uiPoster(buttonCanvas, baseUri, 0, 0, w, h, 0.80)
     if focused then
         focusOpacity = 0.82
         if m.previousFocusIndex <> itemIndex then focusOpacity = 0.0
-        focusSurface = uiPoster(buttonCanvas, "pkg:/images/ui/add_playlist_submit_focus_460x56.png", 0, 0, w, h, focusOpacity)
+        focusSurface = uiPoster(buttonCanvas, focusUri, 0, 0, w, h, focusOpacity)
         focusSurface.id = "addPlaylistSubmitButtonFocus" + itemIndex.toStr()
         if m.previousFocusIndex <> itemIndex then animateAddPlaylistButtonFocus(m.canvas, buttonCanvas, focusSurface, x, y, 0.82)
     end if

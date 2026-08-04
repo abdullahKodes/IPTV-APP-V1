@@ -586,6 +586,9 @@ sub drawPlaylistCard(p as Object, x as Integer, y as Integer, w as Integer, h as
     drawStatusPill(p, cardCanvas, 18, 18, cardFocused)
     uiLabel(cardCanvas, playlistStoreText(p, "title", "Playlist"), 18, 82, w - 36, 28, 14, titleColor)
     uiScaledLabel(cardCanvas, playlistTypeLabel(p), 18, 112, w - 36, 18, 8, m.colors.textDim, "left", 0.72)
+    metaColor = m.colors.textDim
+    if playlistStoreText(p, "meta") = "Import failed" then metaColor = "0xFFB2A8FF"
+    uiScaledLabel(cardCanvas, playlistStoreText(p, "meta"), 18, 130, w - 36, 18, 8, metaColor, "left", 0.70)
     if cardFocused then uiAnimateCardFocus(m.canvas, cardCanvas, x, y)
 
     playlistTitle = playlistStoreText(p, "title", "Playlist")

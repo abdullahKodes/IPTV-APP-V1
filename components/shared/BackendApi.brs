@@ -51,6 +51,25 @@ function backendApiCreatePlaylistRequest(name as String, sourceUrl as String) as
         body: {
             name: name,
             source_url: sourceUrl,
+            source_type: "m3u",
+            auto_refresh: true
+        }
+    }
+end function
+
+function backendApiCreateXtremePlaylistRequest(name as String, serverUrl as String, username as String, password as String) as Object
+    return {
+        method: "POST",
+        path: "/api/v1/playlists",
+        body: {
+            name: name,
+            source_type: "xtream",
+            xtream: {
+                server_url: serverUrl,
+                username: username,
+                password: password,
+                output: "ts"
+            },
             auto_refresh: true
         }
     }
@@ -207,6 +226,13 @@ function backendApiResponsePlaylist(response as Dynamic) as Dynamic
     if data = invalid then return invalid
     if not data.doesExist("playlist") then return invalid
     return data.playlist
+end function
+
+function backendApiResponseImportJob(response as Dynamic) as Dynamic
+    data = backendApiResponseData(response)
+    if data = invalid then return invalid
+    if not data.doesExist("import_job") then return invalid
+    return data.import_job
 end function
 
 function backendApiChannelData(response as Dynamic) as Dynamic

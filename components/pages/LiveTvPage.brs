@@ -32,7 +32,7 @@ sub init()
     m.activePlaylistId = playlistStoreText(m.activePlaylist, "id", playlistStoreDemoId())
     m.activePlaylistTitle = playlistStoreText(m.activePlaylist, "title", "Demo Playlist")
     contentProfile = playlistStoreEffectiveContentProfile(m.activePlaylist)
-    if playlistStoreBool(m.activePlaylist, "backendManaged", false) and contentProfile <> "backend_live" then
+    if playlistStoreBool(m.activePlaylist, "backendManaged", false) and contentProfile <> "backend_live" and contentProfile <> "backend_xtream" then
         m.channels = []
         if contentProfile = "backend_movies" then
             m.backendMessage = "This is a movies playlist. Open Movies."
@@ -66,7 +66,11 @@ sub startBackendLiveLoad()
     m.backendLoading = true
     m.backendMessage = ""
     task.observeField("response", "onBackendLiveLoaded")
-    task.request = backendApiSyncChannelsRequest(backendId, 1000)
+    if playlistStoreEffectiveContentProfile(m.activePlaylist) = "backend_xtream" then
+        task.request = backendApiSyncChannelsRequest(backendId, 1000, "live")
+    else
+        task.request = backendApiSyncChannelsRequest(backendId, 1000)
+    end if
     m.backendTask = task
     task.control = "RUN"
 end sub

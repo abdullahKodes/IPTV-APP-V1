@@ -25,7 +25,7 @@ sub init()
     m.activePlaylistId = playlistStoreText(m.activePlaylist, "id", playlistStoreDemoId())
     m.activePlaylistTitle = playlistStoreText(m.activePlaylist, "title", "Demo Playlist")
     contentProfile = playlistStoreEffectiveContentProfile(m.activePlaylist)
-    if playlistStoreBool(m.activePlaylist, "backendManaged", false) and contentProfile <> "backend_movies" then
+    if playlistStoreBool(m.activePlaylist, "backendManaged", false) and contentProfile <> "backend_movies" and contentProfile <> "backend_xtream" then
         m.movies = []
         if contentProfile = "backend_series" then
             m.backendMessage = "This is a series playlist. Open Series."
