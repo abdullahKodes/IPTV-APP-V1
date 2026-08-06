@@ -279,9 +279,7 @@ function routePlaylistFocus(dx as Integer, dy as Integer) as Boolean
     if (dy < 0 or dy > 0) and action = "playlist" then
         currentVisible = 0
         if current.doesExist("visibleIndex") then currentVisible = current.visibleIndex
-        nextVisible = currentVisible
-        if dy < 0 then nextVisible = currentVisible - 3
-        if dy > 0 then nextVisible = currentVisible + 3
+        nextVisible = playlistVerticalTarget(currentVisible, dy, visible.count())
         if nextVisible >= 0 and nextVisible < visible.count() then
             normalizePlaylistWindowForIndex(nextVisible, visible.count())
             target = findPlaylistCardVisibleFocus(nextVisible)
@@ -407,16 +405,35 @@ sub normalizePlaylistWindow(visibleCount as Integer)
         m.playlistWindowStart = 0
         return
     end if
+    m.playlistWindowStart = playlistRowStart(m.playlistWindowStart)
     if m.playlistWindowStart < 0 then m.playlistWindowStart = 0
-    maxStart = visibleCount - m.playlistWindowSize
+    totalRows = Int((visibleCount + 2) / 3)
+    maxStart = (totalRows - 2) * 3
+    if maxStart < 0 then maxStart = 0
     if m.playlistWindowStart > maxStart then m.playlistWindowStart = maxStart
 end sub
 
 sub normalizePlaylistWindowForIndex(visibleIndex as Integer, visibleCount as Integer)
-    if visibleIndex < m.playlistWindowStart then m.playlistWindowStart = visibleIndex
-    if visibleIndex >= m.playlistWindowStart + m.playlistWindowSize then m.playlistWindowStart = visibleIndex - m.playlistWindowSize + 1
+    targetRowStart = playlistRowStart(visibleIndex)
+    if visibleIndex < m.playlistWindowStart then m.playlistWindowStart = targetRowStart
+    if visibleIndex >= m.playlistWindowStart + m.playlistWindowSize then m.playlistWindowStart = targetRowStart - 3
     normalizePlaylistWindow(visibleCount)
 end sub
+
+function playlistRowStart(visibleIndex as Integer) as Integer
+    if visibleIndex < 0 then return 0
+    return Int(visibleIndex / 3) * 3
+end function
+
+function playlistVerticalTarget(currentVisible as Integer, direction as Integer, visibleCount as Integer) as Integer
+    currentCol = currentVisible mod 3
+    targetRowStart = playlistRowStart(currentVisible) + (direction * 3)
+    if targetRowStart < 0 then return -1
+    if targetRowStart >= visibleCount then return -1
+    targetVisible = targetRowStart + currentCol
+    if targetVisible >= visibleCount then targetVisible = visibleCount - 1
+    return targetVisible
+end function
 
 sub drawPageBackdrop()
     uiPosterZoom(m.canvas, "pkg:/images/playlists/my_playlists_background_v3.jpg", 0, 0, 1280, 720, 0.56)
@@ -586,9 +603,6 @@ sub drawPlaylistCard(p as Object, x as Integer, y as Integer, w as Integer, h as
     drawStatusPill(p, cardCanvas, 18, 18, cardFocused)
     uiLabel(cardCanvas, playlistStoreText(p, "title", "Playlist"), 18, 82, w - 36, 28, 14, titleColor)
     uiScaledLabel(cardCanvas, playlistTypeLabel(p), 18, 112, w - 36, 18, 8, m.colors.textDim, "left", 0.72)
-    metaColor = m.colors.textDim
-    if playlistStoreText(p, "meta") = "Import failed" then metaColor = "0xFFB2A8FF"
-    uiScaledLabel(cardCanvas, playlistStoreText(p, "meta"), 18, 130, w - 36, 18, 8, metaColor, "left", 0.70)
     if cardFocused then uiAnimateCardFocus(m.canvas, cardCanvas, x, y)
 
     playlistTitle = playlistStoreText(p, "title", "Playlist")
@@ -684,14 +698,14 @@ sub drawPlaylistScrollbar(totalCount as Integer)
     trackX = 1200
     trackY = 206
     trackH = 374
-    uiVerticalPill(m.canvas, trackX, trackY, 3, trackH, "0xFFFFFF18", "pkg:/images/ui/scroll_cap_4_whiteLine.png", 0.42)
+    uiVerticalPill(m.canvas, trackX, trackY, 3, trackH, "0xFFFFFF18", "pkg:/images/ui/scroll_cap_4_whiteLine.png", 0.10)
     maxStart = totalCount - m.playlistWindowSize
     thumbH = Int(trackH * m.playlistWindowSize / totalCount)
     if thumbH < 64 then thumbH = 64
     thumbTravel = trackH - thumbH
     thumbY = trackY
     if maxStart > 0 then thumbY = trackY + Int(thumbTravel * m.playlistWindowStart / maxStart)
-    uiVerticalPill(m.canvas, trackX - 1, thumbY, 5, thumbH, m.colors.greenFocus, "pkg:/images/ui/scroll_cap_6_greenFocus.png", 0.86)
+    uiVerticalPill(m.canvas, trackX - 1, thumbY, 5, thumbH, m.colors.greenFocus, "pkg:/images/ui/scroll_cap_6_greenFocus.png", 0.24)
 end sub
 
 sub openManageDialog(playlistId as String, playlistTitle as String, isProtected as Boolean)

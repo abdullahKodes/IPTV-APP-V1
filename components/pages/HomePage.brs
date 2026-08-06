@@ -2,7 +2,7 @@ sub init()
     m.colors = appColors()
     m.canvas = m.top.findNode("homeCanvas")
     m.focusItems = []
-    m.focusIndex = 5
+    m.focusIndex = 4
     render()
 end sub
 

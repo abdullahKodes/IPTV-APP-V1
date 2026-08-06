@@ -262,6 +262,21 @@ sub uiBadge(parent as Object, x as Integer, y as Integer, w as Integer, label as
     uiLabel(parent, label, x, y - 1, w, 26, 13, fg, "center")
 end sub
 
+sub uiEmptyShelf(parent as Object, colors as Object, icon as String, title as String)
+    x = 334
+    y = 228
+    uiPoster(parent, "pkg:/images/ui/empty_state_panel_680x236.png", x, y, 680, 260, 1.0)
+    uiPoster(parent, "pkg:/images/ui/empty_state_art_360x132.png", x + 197, y + 20, 286, 105, 0.86)
+    uiScaledLabel(parent, title, x + 70, y + 130, 540, 34, 16, colors.text, "center", 0.86)
+
+    for i = 0 to 2
+        slotX = x + 94 + i * 174
+        uiPoster(parent, "pkg:/images/ui/rr_150x40_panel_whiteLine.png", slotX, y + 178, 150, 40, 0.22)
+        uiRect(parent, slotX + 18, y + 194, 86, 5, colors.whiteLine, 0.34)
+        uiRect(parent, slotX + 18, y + 205, 54, 4, colors.whiteLine, 0.20)
+    end for
+end sub
+
 function uiPosterCard(parent as Object, x as Integer, y as Integer, w as Integer, h as Integer, color as String, text as String, textColor as String) as Object
     g = CreateObject("roSGNode", "Group")
     g.translation = [x, y]

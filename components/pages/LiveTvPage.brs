@@ -278,17 +278,13 @@ sub render()
 
     if visible.count() = 0 then
         emptyTitle = "No live channels in " + m.activePlaylistTitle
-        emptySubtitle = "Choose another category or switch playlists."
         if m.backendLoading then
             emptyTitle = ""
-            emptySubtitle = ""
         else if m.backendMessage <> "" then
             emptyTitle = m.backendMessage
-            emptySubtitle = "Switch playlist or add this playlist again."
         end if
         if not m.backendLoading then
-            uiLabel(m.canvas, emptyTitle, 244, 332, 860, 28, 15, m.colors.textDim, "center")
-            uiLabel(m.canvas, emptySubtitle, 244, 366, 860, 24, 11, m.colors.textMuted, "center")
+            uiEmptyShelf(m.canvas, m.colors, "tv", emptyTitle)
         else
             uiContentLoader(m.canvas, m.colors, "Loading Live TV")
         end if

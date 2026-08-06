@@ -2,17 +2,18 @@ sub init()
     m.colors = appColors()
     m.canvas = m.top.findNode("favoritesCanvas")
     m.focusItems = []
-    m.focusIndex = 7
+    m.focusIndex = 4
     m.searchQuery = ""
     m.searchEditing = false
     m.searchKeyboardIndex = 0
     m.searchKeyboardUpper = true
+    m.searchReturnNavRow = 4
     m.searchKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "CASE", "SPACE", "DEL", "CLEAR", "DONE"]
     m.selectedSection = 0
     m.selectedIndexes = [0, 0, 0]
     m.windowStarts = [0, 0, 0]
     m.windowSize = 6
-    m.focusArea = "cards"
+    m.focusArea = "nav"
     m.playbackMessage = ""
     m.backendPlaybackTask = invalid
     m.backendPlaybackChannel = invalid
@@ -107,12 +108,31 @@ function routeFavoritesFocus(dx as Integer, dy as Integer) as Boolean
             if cardIndex < 0 then cardIndex = firstFavoriteFocusInSection(1)
             if cardIndex < 0 then cardIndex = firstFavoriteFocusInSection(2)
             if cardIndex >= 0 then m.focusArea = "cards" : m.focusIndex = cardIndex : return true
+            navRow = m.searchReturnNavRow
+            if navRow = invalid then navRow = 4
+            targetRow = navRow + 1
+            navIndex = findFavoriteFocusByRowCol(targetRow, 0)
+            if navIndex < 0 then navIndex = findFavoriteFocusByRowCol(navRow, 0)
+            if navIndex >= 0 then m.focusArea = "nav" : m.focusIndex = navIndex : return true
             navIndex = findFavoriteFocusByRowCol(4, 0)
             if navIndex >= 0 then m.focusArea = "nav" : m.focusIndex = navIndex : return true
         end if
-        if dy < 0 and totalFavoriteCount() = 0 then return true
+        if dy < 0 and totalFavoriteCount() = 0 then
+            navRow = m.searchReturnNavRow
+            if navRow = invalid then navRow = 4
+            targetRow = navRow - 1
+            if targetRow < 0 then targetRow = navRow
+            navIndex = findFavoriteFocusByRowCol(targetRow, 0)
+            if navIndex < 0 then navIndex = findFavoriteFocusByRowCol(navRow, 0)
+            if navIndex < 0 then navIndex = findFavoriteFocusByRowCol(4, 0)
+            if navIndex >= 0 then m.focusArea = "nav" : m.focusIndex = navIndex : return true
+            return true
+        end if
         if dx < 0 then
-            navIndex = findFavoriteFocusByRowCol(4, 0)
+            navRow = m.searchReturnNavRow
+            if navRow = invalid then navRow = 4
+            navIndex = findFavoriteFocusByRowCol(navRow, 0)
+            if navIndex < 0 then navIndex = findFavoriteFocusByRowCol(4, 0)
             if navIndex >= 0 then m.focusArea = "nav" : m.focusIndex = navIndex : return true
         end if
     end if
@@ -125,7 +145,7 @@ function routeFavoritesFocus(dx as Integer, dy as Integer) as Boolean
         end if
         if dx > 0 then
             searchIndex = findFavoriteFocusAction("search")
-            if searchIndex >= 0 then m.focusArea = "search" : m.focusIndex = searchIndex : return true
+            if searchIndex >= 0 then m.searchReturnNavRow = current.row : m.focusArea = "search" : m.focusIndex = searchIndex : return true
         end if
     end if
 
@@ -534,11 +554,9 @@ end sub
 sub drawEmptyStateIfNeeded()
     if filteredFavorites("movie").count() + filteredFavorites("series").count() + filteredFavorites("live").count() > 0 then return
     if m.searchQuery <> "" then
-        uiLabel(m.canvas, "No favorites match this search", 244, 332, 860, 28, 15, m.colors.textDim, "center")
-        uiLabel(m.canvas, "Clear search to show your saved movies, series, and live channels.", 244, 366, 860, 24, 11, m.colors.textMuted, "center")
+        uiEmptyShelf(m.canvas, m.colors, "search", "No favorites match this search")
     else
-        uiLabel(m.canvas, "No favorites yet", 244, 332, 860, 28, 15, m.colors.textDim, "center")
-        uiLabel(m.canvas, "Save movies, series, or live channels and they will appear here.", 244, 366, 860, 24, 11, m.colors.textMuted, "center")
+        uiEmptyShelf(m.canvas, m.colors, "heart", "No favorites yet")
     end if
 end sub
 
