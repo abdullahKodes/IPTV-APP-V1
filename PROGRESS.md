@@ -1,6 +1,6 @@
 # IPTV App Progress
 
-Last updated: 2026-07-28
+Last updated: 2026-08-12
 
 Read this file before starting a new session. Update it only after a meaningful milestone is completed, such as finishing a screen, fixing a major workflow, committing/pushing, or changing project structure. Do not update it for every tiny visual tweak.
 
@@ -19,7 +19,8 @@ Read this file before starting a new session. Update it only after a meaningful 
 
 ## Current Design Progress
 
-- Movies and Series now use dedicated aesthetic fallback backdrops when provider hero/backdrop artwork is missing, and overlay a larger selected poster on the fallback background on both list and detail pages.
+- Movies and Series now use a shared optimized `movies_series_fallback_backdrop_v6.jpg` media-wall fallback when provider hero/backdrop artwork is missing, with a straight right-side poster screen designed for dynamic artwork.
+- Poster-only Movies/Series items now embed the selected poster into that screen area on both list and detail pages, drawn before the page scrims with larger fill-style scaling and subtle backing/glass shadows so it reads as part of the media wall instead of a floating overlay.
 - Experimental v3 fallback backdrops add center/right Movies/Series word art, move fallback poster anchors farther right, enlarge them again, and add a poster-only demo Series item for fallback review.
 - Experimental v4 fallback backdrops align Movies/Series typography to the same bold block style, add more subtle left-side texture, enlarge/lower fallback poster anchors, and soften their drop shadows.
 - Movies/Series fallback backdrops were converted from large PNGs to optimized JPGs so focus changes load the fallback background immediately instead of appearing late on Roku.

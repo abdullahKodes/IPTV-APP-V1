@@ -253,13 +253,13 @@ sub drawBackdrop()
     if heroUrl <> invalid and heroUrl <> "" then
         drawSeriesDetailHeroPoster(heroUrl)
     else
-        bg = uiPoster(m.canvas, "pkg:/images/demo/backgrounds/series_fallback_backdrop_v4.jpg", 0, 0, 1280, 720, 0.74)
+        bg = uiPoster(m.canvas, "pkg:/images/demo/backgrounds/movies_series_fallback_backdrop_v6.jpg", 0, 0, 1280, 720, 0.74)
         bg.loadDisplayMode = "scaleToFill"
+        posterUrl = m.top.detailPosterUrl
+        if posterUrl <> invalid and posterUrl <> "" then drawSeriesPosterAnchor(posterUrl)
         uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.52)
         uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.12)
         drawSeriesDetailSmokeBlend()
-        posterUrl = m.top.detailPosterUrl
-        if posterUrl <> invalid and posterUrl <> "" then drawSeriesPosterAnchor(posterUrl)
     end if
 end sub
 
@@ -268,14 +268,16 @@ sub drawTopBar()
 end sub
 
 sub drawSeriesPosterAnchor(posterUrl as String)
-    x = 838
-    y = 76
-    w = 368
-    h = 552
-    uiRect(m.canvas, x + 22, y + 26, w, h, "0x000000FF", 0.14)
-    poster = uiPoster(m.canvas, posterUrl, x, y, w, h, 0.38)
-    poster.loadDisplayMode = "scaleToFit"
-    uiRectBorder(m.canvas, x, y, w, h, "0xFFFFFF30", 1, 0.42)
+    x = 1052
+    y = 40
+    w = 226
+    h = 404
+    uiRect(m.canvas, x - 10, y - 4, w + 20, h + 16, "0x000000FF", 0.16)
+    uiRect(m.canvas, x - 3, y + 5, w + 9, h + 2, "0x000000FF", 0.10)
+    poster = uiPoster(m.canvas, posterUrl, x, y, w, h, 0.78)
+    poster.loadDisplayMode = "scaleToZoom"
+    uiRect(m.canvas, x, y, w, h, "0xFFFFFF18", 0.035)
+    uiRect(m.canvas, x - 2, y - 2, w + 4, h + 4, "0x000000FF", 0.035)
 end sub
 
 sub drawSeriesDetailHeroPoster(posterUrl as String)

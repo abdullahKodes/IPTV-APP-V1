@@ -660,6 +660,8 @@ function uiButton(parent as Object, item as Object, focused as Boolean) as Objec
             titleY = 3
             titleH = 28
         end if
+        if item.doesExist("titleY") then titleY = item.titleY
+        if item.doesExist("titleH") then titleH = item.titleH
         uiLabel(g, item.label, labelX, titleY, labelW, titleH, item.titleSize, textColor, labelAlign)
         if item.subtitle <> invalid and item.subtitle <> "" then
             uiLabel(g, item.subtitle, labelX, 28, labelW, 24, item.subSize, item.subColor, labelAlign)

@@ -89,8 +89,8 @@ function backendApiDeletePlaylistRequest(backendPlaylistId as String) as Object
     }
 end function
 
-function backendApiSyncChannelsRequest(backendPlaylistId as String, limit = 1000 as Integer, contentType = "" as String) as Object
-    path = "/api/v1/playlists/" + backendPlaylistId + "/channels/sync?cursor=0&limit=" + limit.toStr()
+function backendApiSyncChannelsRequest(backendPlaylistId as String, limit = 1000 as Integer, contentType = "" as String, cursor = 0 as Integer) as Object
+    path = "/api/v1/playlists/" + backendPlaylistId + "/channels/sync?cursor=" + cursor.toStr() + "&limit=" + limit.toStr()
     if contentType <> "" then path += "&content_type=" + contentType
     return {
         method: "GET",
@@ -219,6 +219,38 @@ function backendApiResponseItems(response as Dynamic) as Object
     if items = invalid then return []
     if Type(items) <> "roArray" then return []
     return items
+end function
+
+function backendApiResponsePagination(response as Dynamic) as Dynamic
+    if response = invalid then return invalid
+    if not response.doesExist("body") then return invalid
+    body = response.body
+    if body = invalid then return invalid
+    if body.doesExist("meta") and body.meta <> invalid then return body.meta
+    data = backendApiResponseData(response)
+    if data <> invalid then
+        if data.doesExist("meta") and data.meta <> invalid then return data.meta
+        return data
+    end if
+    return invalid
+end function
+
+function backendApiResponseNextCursor(response as Dynamic) as Integer
+    meta = backendApiResponsePagination(response)
+    if meta = invalid then return -1
+    nextCursor = backendApiInt(meta, "next_cursor", -1)
+    if nextCursor >= 0 then return nextCursor
+    nextCursor = backendApiInt(meta, "nextCursor", -1)
+    if nextCursor >= 0 then return nextCursor
+    nextCursor = backendApiInt(meta, "cursor_next", -1)
+    if nextCursor >= 0 then return nextCursor
+    return backendApiInt(meta, "next", -1)
+end function
+
+function backendApiFirstItemId(items as Object) as String
+    if items = invalid then return ""
+    if items.count() = 0 then return ""
+    return backendApiText(items[0], "id")
 end function
 
 function backendApiResponsePlaylist(response as Dynamic) as Dynamic
@@ -392,6 +424,21 @@ function backendApiBool(item as Dynamic, key as String, fallback as Boolean) as 
     if item = invalid then return fallback
     if not item.doesExist(key) then return fallback
     return item[key] = true
+end function
+
+function backendApiInt(item as Dynamic, key as String, fallback as Integer) as Integer
+    if item = invalid then return fallback
+    if not item.doesExist(key) then return fallback
+    value = item[key]
+    if value = invalid then return fallback
+    valueType = Type(value)
+    if valueType = "Integer" or valueType = "roInt" or valueType = "LongInteger" or valueType = "roLongInteger" then return Int(value)
+    if valueType = "Float" or valueType = "roFloat" or valueType = "Double" or valueType = "roDouble" then return Int(value)
+    if valueType = "String" or valueType = "roString" then
+        if value = "" then return fallback
+        return Int(Val(value))
+    end if
+    return fallback
 end function
 
 function backendApiInitials(text as String) as String

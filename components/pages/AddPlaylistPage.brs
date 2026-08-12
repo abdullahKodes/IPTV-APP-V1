@@ -458,6 +458,8 @@ sub addInputField(x as Integer, y as Integer, w as Integer, label as String, fie
     fieldH = 48
     useCompactField = w = 520
     if useCompactField then fieldH = 42
+    textH = 32
+    textY = Int((fieldH - textH) / 2)
     textColor = m.colors.text
     borderColor = m.colors.panel
     focusBorder = m.colors.purpleLine
@@ -476,7 +478,8 @@ sub addInputField(x as Integer, y as Integer, w as Integer, label as String, fie
         subColor: m.colors.textDim, focusBg: m.colors.panel, focusBorder: focusBorder,
         focusTextColor: textColor, row: row, col: col, action: "field",
         fieldKey: fieldKey, fieldLabel: label, page: "", mode: "row",
-        labelX: 24, labelW: w - 48, labelAlign: "left", noFocusShift: true
+        labelX: 24, labelW: w - 48, labelAlign: "left",
+        titleY: textY, titleH: textH, noFocusShift: true
     }
     if useCompactField then
         item.bg = m.colors.panel

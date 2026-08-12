@@ -149,6 +149,9 @@ function backendApiTaskCompactResponseBody(parsed as Dynamic, path as String) as
         return backendApiTaskSanitizeJson(parsed)
     end if
 
+    meta = backendApiTaskValue(parsed, "meta")
+    if meta <> invalid then clean.meta = backendApiTaskSanitizeJson(meta)
+
     cleanData = {}
     items = backendApiTaskValue(data, "items")
     if items <> invalid and backendApiTaskIsArray(items) then
@@ -167,6 +170,19 @@ function backendApiTaskCompactResponseBody(parsed as Dynamic, path as String) as
 
     channel = backendApiTaskValue(data, "channel")
     if channel <> invalid then cleanData.channel = backendApiTaskCompactChannel(channel)
+
+    backendApiTaskCopyIfExists(cleanData, data, "meta")
+    backendApiTaskCopyIfExists(cleanData, data, "cursor")
+    backendApiTaskCopyIfExists(cleanData, data, "next_cursor")
+    backendApiTaskCopyIfExists(cleanData, data, "nextCursor")
+    backendApiTaskCopyIfExists(cleanData, data, "cursor_next")
+    backendApiTaskCopyIfExists(cleanData, data, "next")
+    backendApiTaskCopyIfExists(cleanData, data, "limit")
+    backendApiTaskCopyIfExists(cleanData, data, "has_more")
+    backendApiTaskCopyIfExists(cleanData, data, "hasMore")
+    backendApiTaskCopyIfExists(cleanData, data, "total")
+    backendApiTaskCopyIfExists(cleanData, data, "total_count")
+    backendApiTaskCopyIfExists(cleanData, data, "count")
 
     if cleanData.Count() = 0 then cleanData = backendApiTaskSanitizeJson(data)
     clean.data = cleanData
@@ -243,6 +259,13 @@ sub backendApiTaskCopy(target as Object, source as Dynamic, key as String)
     else
         target[key] = backendApiTaskSanitizeJson(value)
     end if
+end sub
+
+sub backendApiTaskCopyIfExists(target as Object, source as Dynamic, key as String)
+    if target = invalid or source = invalid then return
+    if not backendApiTaskIsAssoc(source) then return
+    if not source.doesExist(key) then return
+    target[key] = backendApiTaskSanitizeJson(source[key])
 end sub
 
 function backendApiTaskIsAssoc(value as Dynamic) as Boolean

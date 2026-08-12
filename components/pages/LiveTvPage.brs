@@ -25,6 +25,12 @@ sub init()
     m.backendMessage = ""
     m.backendTask = invalid
     m.backendRepairAttempted = false
+    m.backendPageLimit = 1000
+    m.backendPageCount = 0
+    m.backendCursor = 0
+    m.backendLastPageFirstId = ""
+    m.backendHasMore = false
+    m.backendNextCursor = -1
     m.backendPlaybackTask = invalid
     m.backendPlaybackChannel = invalid
     m.searchKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "CASE", "SPACE", "DEL", "CLEAR", "DONE"]
@@ -32,7 +38,7 @@ sub init()
     m.activePlaylistId = playlistStoreText(m.activePlaylist, "id", playlistStoreDemoId())
     m.activePlaylistTitle = playlistStoreText(m.activePlaylist, "title", "Demo Playlist")
     contentProfile = playlistStoreEffectiveContentProfile(m.activePlaylist)
-    if playlistStoreBool(m.activePlaylist, "backendManaged", false) and contentProfile <> "backend_live" and contentProfile <> "backend_xtream" then
+    if playlistStoreBool(m.activePlaylist, "backendManaged", false) and not playlistStoreBackendPageAllowed(m.activePlaylist, "live") then
         m.channels = []
         if contentProfile = "backend_movies" then
             m.backendMessage = "This is a movies playlist. Open Movies."
@@ -52,7 +58,8 @@ sub init()
     render()
 end sub
 
-sub startBackendLiveLoad()
+sub startBackendLiveLoad(cursor = 0 as Integer)
+    if cursor > 0 and m.backendTask <> invalid then return
     backendId = playlistStoreText(m.activePlaylist, "backendPlaylistId")
     if backendId = "" then
         m.backendMessage = "This playlist needs to be added again."
@@ -63,13 +70,21 @@ sub startBackendLiveLoad()
         m.backendMessage = "Playlist service is unavailable."
         return
     end if
-    m.backendLoading = true
+    if cursor = 0 then
+        m.channels = []
+        m.backendPageCount = 0
+        m.backendLastPageFirstId = ""
+        m.backendHasMore = false
+        m.backendNextCursor = -1
+    end if
+    m.backendCursor = cursor
+    m.backendLoading = m.channels.count() = 0
     m.backendMessage = ""
     task.observeField("response", "onBackendLiveLoaded")
     if playlistStoreEffectiveContentProfile(m.activePlaylist) = "backend_xtream" then
-        task.request = backendApiSyncChannelsRequest(backendId, 1000, "live")
+        task.request = backendApiSyncChannelsRequest(backendId, m.backendPageLimit, "live", cursor)
     else
-        task.request = backendApiSyncChannelsRequest(backendId, 1000)
+        task.request = backendApiSyncChannelsRequest(backendId, m.backendPageLimit, "", cursor)
     end if
     m.backendTask = task
     task.control = "RUN"
@@ -116,26 +131,56 @@ sub onBackendLiveLoaded()
     if m.backendTask = invalid then return
     response = m.backendTask.response
     m.backendTask = invalid
-    m.backendLoading = false
     if backendApiResponseOk(response) then
         items = backendApiResponseItems(response)
-        m.channels = backendApiMapSyncItems(items, m.activePlaylistId, "live")
+        pageFirstId = backendApiFirstItemId(items)
+        duplicatePage = m.backendCursor > 0 and pageFirstId <> "" and pageFirstId = m.backendLastPageFirstId
+        if not duplicatePage then
+            mapped = backendApiMapSyncItems(items, m.activePlaylistId, "live")
+            for each item in mapped
+                m.channels.push(item)
+            end for
+            if pageFirstId <> "" then m.backendLastPageFirstId = pageFirstId
+        end if
+        m.backendPageCount += 1
+        nextCursor = backendApiResponseNextCursor(response)
+        if nextCursor < 0 and items.count() >= m.backendPageLimit then nextCursor = m.backendCursor + items.count()
+        m.backendHasMore = not duplicatePage and nextCursor > m.backendCursor and items.count() >= m.backendPageLimit
+        m.backendNextCursor = -1
+        if m.backendHasMore then m.backendNextCursor = nextCursor
+        m.backendLoading = false
         m.categories = liveCategoriesFromChannels(m.channels)
         if m.channels.count() > 0 then
             m.backendMessage = ""
         else
             m.backendMessage = "No live channels found in this playlist."
         end if
-        m.selectedChannelIndex = 0
-        m.channelWindowStart = 0
+        if m.backendCursor = 0 then
+            m.selectedChannelIndex = 0
+            m.channelWindowStart = 0
+        else
+            normalizeChannelWindow(filteredChannels().count())
+        end if
     else
         if backendApiResponseStatusCode(response) = 404 and not m.backendRepairAttempted then
             startBackendLiveRepair()
             return
         end if
+        m.backendLoading = false
         m.backendMessage = backendApiUserMessage(response, "Live channels could not be loaded.")
     end if
     render()
+end sub
+
+sub maybeLoadMoreLiveChannels(visibleCount as Integer)
+    if not m.backendHasMore then return
+    if m.backendTask <> invalid then return
+    if m.searchQuery <> "" then return
+    if m.categoryIndex <> 0 then return
+    if visibleCount <= 0 then return
+    threshold = visibleCount - (m.channelWindowSize * 2)
+    if threshold < 0 then threshold = 0
+    if m.selectedChannelIndex >= threshold then startBackendLiveLoad(m.backendNextCursor)
 end sub
 
 sub refreshClock()
@@ -260,7 +305,7 @@ sub render()
     visible = filteredChannels()
     hasChannels = visible.count() > 0
     if hasChannels then
-        liveBackground = uiPoster(m.canvas, "pkg:/images/live/live_tv_background_v6_art.jpg", 0, 0, 1280, 720, 0.44)
+        liveBackground = uiPoster(m.canvas, "pkg:/images/live/live_tv_background_v7_art.jpg", 0, 0, 1280, 720, 0.44)
         liveBackground.loadDisplayMode = "scaleToFill"
         uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.42)
         uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.16)
@@ -493,9 +538,13 @@ sub drawChannelCard(channel as Object, channelIndex as Integer, visibleIndex as 
     cardCanvas.translation = [x, y]
     m.canvas.appendChild(cardCanvas)
 
-    uiRect(cardCanvas, 0, 0, cardW, cardH, bg, opacity)
     posterUrl = liveCardPosterUrl(channel)
     backgroundUrl = liveCardBackgroundUrl(channel)
+    logoUrl = liveLogoArtUrl(channel)
+    hasArtwork = posterUrl <> "" or backgroundUrl <> "" or logoUrl <> ""
+
+    uiRect(cardCanvas, 0, 0, cardW, cardH, bg, opacity)
+    drawChannelFallbackSurface(cardCanvas, channel, focused, cardW, cardH, not hasArtwork)
     if posterUrl <> "" then
         poster = uiPoster(cardCanvas, posterUrl, 0, 0, cardW, cardH, 1.0)
         poster.loadDisplayMode = "scaleToZoom"
@@ -503,26 +552,15 @@ sub drawChannelCard(channel as Object, channelIndex as Integer, visibleIndex as 
         if backgroundUrl <> "" then
             background = uiPoster(cardCanvas, backgroundUrl, 0, 0, cardW, cardH, 1.0)
             background.loadDisplayMode = "scaleToZoom"
-            logoUrl = liveLogoArtUrl(channel)
             if logoUrl <> "" then
                 logo = uiPoster(cardCanvas, logoUrl, 34, 45, 96, 58, 1.0)
                 logo.loadDisplayMode = "scaleToFit"
             end if
-        else
-            logoBg = m.colors.panel
-            if focused then logoBg = m.colors.greenSoft
-            brandColor2 = liveText(channel, "brandColor2", m.colors.purpleActive)
-            uiRect(cardCanvas, 0, 0, cardW, cardH, logoBg, 0.62)
-            uiRect(cardCanvas, 0, 0, cardW, cardH, brandColor2, 0.50)
         end if
         if backgroundUrl = "" then
-            logoUrl = liveLogoArtUrl(channel)
             if logoUrl <> "" then
                 logo = uiPoster(cardCanvas, logoUrl, 27, 43, 110, 66, 1.0)
                 logo.loadDisplayMode = "scaleToFit"
-            else
-                uiRoundRect(cardCanvas, 47, 40, 70, 70, m.colors.purpleSoft, m.colors.whiteLine, 0.84)
-                uiScaledLabel(cardCanvas, liveBrandText(channel), 53, 61, 58, 26, 16, m.colors.text, "center", 0.86)
             end if
         end if
     end if
@@ -552,6 +590,17 @@ sub drawChannelCard(channel as Object, channelIndex as Integer, visibleIndex as 
         focusBg: m.colors.greenSoft, focusBorder: m.colors.greenFocus, focusTextColor: m.colors.text,
         row: row, col: col, page: "", action: "channel", channelIndex: channelIndex, visibleIndex: visibleIndex, mode: "manual"
     })
+end sub
+
+sub drawChannelFallbackSurface(parent as Object, channel as Object, focused as Boolean, cardW as Integer, cardH as Integer, showInitials as Boolean)
+    logoBg = m.colors.panel
+    if focused then logoBg = m.colors.greenSoft
+    brandColor2 = liveText(channel, "brandColor2", m.colors.purpleActive)
+    uiRect(parent, 0, 0, cardW, cardH, logoBg, 0.62)
+    uiRect(parent, 0, 0, cardW, cardH, brandColor2, 0.50)
+    if not showInitials then return
+    uiRoundRect(parent, 47, 40, 70, 70, m.colors.purpleSoft, m.colors.whiteLine, 0.84)
+    uiScaledLabel(parent, liveBrandText(channel), 53, 61, 58, 26, 16, m.colors.text, "center", 0.86)
 end sub
 
 sub drawChannelFavoriteBadge(parent as Object, channel as Object, focused as Boolean, cardW as Integer)
@@ -620,17 +669,24 @@ function routeLiveFocus(dx as Integer, dy as Integer) as Boolean
     if current.doesExist("action") then action = current.action
 
     if current.col = 0 and dx > 0 then
-        m.focusArea = "categories"
-        m.focusedCategoryIndex = m.categoryIndex
-        normalizeCategoryWindow()
+        if m.categories.count() > 0 and m.channels.count() > 0 then
+            m.focusArea = "categories"
+            m.focusedCategoryIndex = m.categoryIndex
+            normalizeCategoryWindow()
+        else
+            searchIndex = findFocusAction("search")
+            if searchIndex >= 0 then m.focusArea = "normal" : m.focusIndex = searchIndex
+        end if
         return true
     end if
 
     if action = "search" then
         if dy > 0 then
-            m.focusArea = "categories"
-            m.focusedCategoryIndex = m.categoryIndex
-            normalizeCategoryWindow()
+            if m.categories.count() > 0 and m.channels.count() > 0 then
+                m.focusArea = "categories"
+                m.focusedCategoryIndex = m.categoryIndex
+                normalizeCategoryWindow()
+            end if
             return true
         end if
         if dx < 0 then
@@ -693,8 +749,10 @@ function routeLiveFocus(dx as Integer, dy as Integer) as Boolean
             m.selectedChannelIndex = nextChannel
             m.focusArea = "channels"
             normalizeChannelWindow(visible.count())
+            maybeLoadMoreLiveChannels(visible.count())
             return true
         end if
+        maybeLoadMoreLiveChannels(visible.count())
         return true
     end if
     return false

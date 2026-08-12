@@ -501,6 +501,34 @@ function playlistStoreEffectiveContentProfile(item as Object) as String
     return stored
 end function
 
+function playlistStoreBackendPageAllowed(item as Object, pageKind as String) as Boolean
+    if not playlistStoreBool(item, "backendManaged", false) then return true
+    if playlistStoreText(item, "sourceType") = "xtream" or playlistStoreText(item, "type") = "Xtreme" then return true
+
+    singleProfile = playlistStoreBackendSingleSectionProfile(item)
+    if singleProfile = "" then return true
+    if singleProfile = "backend_live" then return pageKind = "live"
+    if singleProfile = "backend_movies" then return pageKind = "movies"
+    if singleProfile = "backend_series" then return pageKind = "series"
+    return true
+end function
+
+function playlistStoreBackendSingleSectionProfile(item as Object) as String
+    text = playlistStoreNormalizeMatchText(playlistStoreText(item, "title") + " " + playlistStoreText(item, "backendName") + " " + playlistStoreText(item, "sourceUrl"))
+    hasSeries = Instr(1, text, "series") > 0
+    hasMovies = Instr(1, text, "movies") > 0 or Instr(1, text, "movie") > 0
+    hasLive = Instr(1, text, "live") > 0
+
+    matches = 0
+    if hasSeries then matches += 1
+    if hasMovies then matches += 1
+    if hasLive then matches += 1
+    if matches <> 1 then return ""
+    if hasSeries then return "backend_series"
+    if hasMovies then return "backend_movies"
+    return "backend_live"
+end function
+
 function playlistStoreBackendStatusLabel(status as String, lastImportStatus = "" as String) as String
     if playlistStoreIsBackendImportFailed(lastImportStatus) then return "Offline"
     if playlistStoreIsBackendImportPending(lastImportStatus) then return "Refreshing"
