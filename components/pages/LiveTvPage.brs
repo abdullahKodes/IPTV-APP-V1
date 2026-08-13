@@ -10,6 +10,8 @@ sub init()
     m.categoryWindowSize = 8
     m.selectedChannelIndex = 0
     m.channelWindowStart = 0
+    m.liveFastFocusNodes = {}
+    m.liveFavoriteHintNode = invalid
     m.channelColumns = 5
     m.channelRows = 2
     m.channelWindowSize = m.channelColumns * m.channelRows
@@ -18,6 +20,9 @@ sub init()
     m.searchReturnPending = false
     m.categoryResultsActive = false
     m.searchPreviousCategoryIndex = 0
+    m.filteredChannelsCache = invalid
+    m.filteredChannelsKey = ""
+    m.liveFavoriteKeys = {}
     m.favoriteMessage = ""
     m.searchKeyboardIndex = 0
     m.searchKeyboardUpper = true
@@ -31,12 +36,14 @@ sub init()
     m.backendLastPageFirstId = ""
     m.backendHasMore = false
     m.backendNextCursor = -1
+    m.backendTotalCount = -1
     m.backendPlaybackTask = invalid
     m.backendPlaybackChannel = invalid
     m.searchKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "CASE", "SPACE", "DEL", "CLEAR", "DONE"]
     m.activePlaylist = playlistStoreActive()
     m.activePlaylistId = playlistStoreText(m.activePlaylist, "id", playlistStoreDemoId())
     m.activePlaylistTitle = playlistStoreText(m.activePlaylist, "title", "Demo Playlist")
+    refreshLiveFavoriteKeys()
     contentProfile = playlistStoreEffectiveContentProfile(m.activePlaylist)
     if playlistStoreBool(m.activePlaylist, "backendManaged", false) and not playlistStoreBackendPageAllowed(m.activePlaylist, "live") then
         m.channels = []
@@ -76,6 +83,7 @@ sub startBackendLiveLoad(cursor = 0 as Integer)
         m.backendLastPageFirstId = ""
         m.backendHasMore = false
         m.backendNextCursor = -1
+        m.backendTotalCount = -1
     end if
     m.backendCursor = cursor
     m.backendLoading = m.channels.count() = 0
@@ -143,6 +151,8 @@ sub onBackendLiveLoaded()
             if pageFirstId <> "" then m.backendLastPageFirstId = pageFirstId
         end if
         m.backendPageCount += 1
+        totalCount = backendApiResponseTotalCount(response)
+        if totalCount >= 0 then m.backendTotalCount = totalCount
         nextCursor = backendApiResponseNextCursor(response)
         if nextCursor < 0 and items.count() >= m.backendPageLimit then nextCursor = m.backendCursor + items.count()
         m.backendHasMore = not duplicatePage and nextCursor > m.backendCursor and items.count() >= m.backendPageLimit
@@ -204,7 +214,12 @@ function handleKey(key as String) as Boolean
 end function
 
 sub move(dx as Integer, dy as Integer)
-    if routeLiveFocus(dx, dy) then render() : return
+    fastFocus = { handled: false, render: true }
+    if routeLiveFocus(dx, dy, fastFocus) then
+        if fastFocus.handled and not fastFocus.render then return
+        render()
+        return
+    end if
     m.focusIndex = uiMoveFocus(m.focusItems, m.focusIndex, dx, dy)
     syncLiveFocus()
     render()
@@ -301,6 +316,8 @@ end sub
 sub render()
     uiClear(m.canvas)
     m.focusItems = []
+    m.liveFastFocusNodes = {}
+    m.liveFavoriteHintNode = invalid
     uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg)
     visible = filteredChannels()
     hasChannels = visible.count() > 0
@@ -338,7 +355,7 @@ sub render()
         sectionTitle = "LIVE TV"
         if m.categoryIndex > 0 and m.categoryIndex < m.categories.count() then sectionTitle = UCase(m.categories[m.categoryIndex])
         uiLabel(m.canvas, sectionTitle, 244, 160, 520, 32, 18, m.colors.text)
-        uiLabel(m.canvas, visible.count().toStr() + " channels", 926, 156, 188, 24, 11, m.colors.textDim, "right")
+        uiLabel(m.canvas, liveChannelCountText(visible.count()), 926, 156, 188, 24, 11, m.colors.textDim, "right")
         drawLiveFavoriteHint(visible)
         drawChannelGrid(visible)
         drawChannelScrollbar(visible.count())
@@ -421,6 +438,19 @@ sub addLiveProfileItem()
         row: 6, col: 0, page: "ProfilePage", mode: "manual", noFocusShift: true
     })
 end sub
+
+function liveChannelCountText(visibleCount as Integer) as String
+    count = visibleCount
+    suffix = ""
+    if m.searchQuery = "" and m.categoryIndex = 0 then
+        if m.backendTotalCount >= 0 then
+            count = m.backendTotalCount
+        else if m.backendHasMore then
+            suffix = "+"
+        end if
+    end if
+    return count.toStr() + suffix + " channels"
+end function
 
 sub drawSearchBox()
     itemIndex = m.focusItems.count()
@@ -523,11 +553,6 @@ sub drawChannelCard(channel as Object, channelIndex as Integer, visibleIndex as 
     bg = m.colors.panel
     border = "0xFFFFFF18"
     opacity = 0.42
-    if focused then
-        bg = m.colors.greenSoft
-        border = m.colors.greenFocus
-        opacity = 0.66
-    end if
 
     cardW = 164
     cardH = 208
@@ -543,8 +568,8 @@ sub drawChannelCard(channel as Object, channelIndex as Integer, visibleIndex as 
     logoUrl = liveLogoArtUrl(channel)
     hasArtwork = posterUrl <> "" or backgroundUrl <> "" or logoUrl <> ""
 
-    uiRect(cardCanvas, 0, 0, cardW, cardH, bg, opacity)
-    drawChannelFallbackSurface(cardCanvas, channel, focused, cardW, cardH, not hasArtwork)
+    baseNode = uiRect(cardCanvas, 0, 0, cardW, cardH, bg, opacity)
+    drawChannelFallbackSurface(cardCanvas, channel, false, cardW, cardH, not hasArtwork)
     if posterUrl <> "" then
         poster = uiPoster(cardCanvas, posterUrl, 0, 0, cardW, cardH, 1.0)
         poster.loadDisplayMode = "scaleToZoom"
@@ -567,7 +592,7 @@ sub drawChannelCard(channel as Object, channelIndex as Integer, visibleIndex as 
     if liveFlag(channel, "live") then
         uiPoster(cardCanvas, "pkg:/images/ui/live_badge.png", 8, 8, 52, 19, 1.0)
     end if
-    drawChannelFavoriteBadge(cardCanvas, channel, focused, cardW)
+    drawChannelFavoriteBadge(cardCanvas, channel, false, cardW)
 
     channelName = liveText(channel, "name", liveText(channel, "title", "Untitled channel"))
     uiRect(cardCanvas, 0, artH, cardW, textH, "0x000000FF", 0.34)
@@ -576,10 +601,31 @@ sub drawChannelCard(channel as Object, channelIndex as Integer, visibleIndex as 
     channelNumber = liveText(channel, "channelNumber")
     if channelNumber <> "" then meta = "CH " + channelNumber + "  /  " + meta
     uiScaledLabel(cardCanvas, meta, 10, artH + 33, cardW - 20, 18, 8, m.colors.textDim, "center", 0.66)
-    uiCardFocusTint(cardCanvas, 0, 0, cardW, cardH, focused)
-    borderWidth = 1
-    if focused then borderWidth = 2
-    uiRectBorder(cardCanvas, 0, 0, cardW, cardH, border, borderWidth, 1.0)
+    focusTint = uiRect(cardCanvas, 1, 1, cardW - 2, cardH - 2, "0x1EE0CAFF", 0.0)
+    topBorder = uiRect(cardCanvas, 0, 0, cardW, 2, m.colors.greenFocus, 0.0)
+    bottomBorder = uiRect(cardCanvas, 0, cardH - 2, cardW, 2, m.colors.greenFocus, 0.0)
+    leftBorder = uiRect(cardCanvas, 0, 0, 2, cardH, m.colors.greenFocus, 0.0)
+    rightBorder = uiRect(cardCanvas, cardW - 2, 0, 2, cardH, m.colors.greenFocus, 0.0)
+    normalTop = uiRect(cardCanvas, 0, 0, cardW, 1, border, 1.0)
+    normalBottom = uiRect(cardCanvas, 0, cardH - 1, cardW, 1, border, 1.0)
+    normalLeft = uiRect(cardCanvas, 0, 0, 1, cardH, border, 1.0)
+    normalRight = uiRect(cardCanvas, cardW - 1, 0, 1, cardH, border, 1.0)
+    m.liveFastFocusNodes[visibleIndex.toStr()] = {
+        card: cardCanvas,
+        base: baseNode,
+        tint: focusTint,
+        top: topBorder,
+        bottom: bottomBorder,
+        left: leftBorder,
+        right: rightBorder,
+        normalTop: normalTop,
+        normalBottom: normalBottom,
+        normalLeft: normalLeft,
+        normalRight: normalRight,
+        x: x,
+        y: y
+    }
+    setLiveChannelCardFocus(visibleIndex, focused)
     if focused then animateLiveCardFocus(cardCanvas, x, y)
 
     m.focusItems.push({
@@ -591,6 +637,57 @@ sub drawChannelCard(channel as Object, channelIndex as Integer, visibleIndex as 
         row: row, col: col, page: "", action: "channel", channelIndex: channelIndex, visibleIndex: visibleIndex, mode: "manual"
     })
 end sub
+
+sub setLiveChannelCardFocus(visibleIndex as Integer, focused as Boolean)
+    key = visibleIndex.toStr()
+    if not m.liveFastFocusNodes.doesExist(key) then return
+    nodes = m.liveFastFocusNodes[key]
+    if nodes.card <> invalid and not focused then
+        nodes.card.scale = [1.0, 1.0]
+        nodes.card.translation = [nodes.x, nodes.y]
+    end if
+    if nodes.base <> invalid then
+        nodes.base.color = m.colors.panel
+        nodes.base.opacity = 0.42
+        if focused then
+            nodes.base.color = m.colors.greenSoft
+            nodes.base.opacity = 0.66
+        end if
+    end if
+    focusOpacity = 0.0
+    normalOpacity = 1.0
+    if focused then
+        focusOpacity = 1.0
+        normalOpacity = 0.0
+    end if
+    if nodes.tint <> invalid then nodes.tint.opacity = 0.08 * focusOpacity
+    if nodes.top <> invalid then nodes.top.opacity = focusOpacity
+    if nodes.bottom <> invalid then nodes.bottom.opacity = focusOpacity
+    if nodes.left <> invalid then nodes.left.opacity = focusOpacity
+    if nodes.right <> invalid then nodes.right.opacity = focusOpacity
+    if nodes.normalTop <> invalid then nodes.normalTop.opacity = normalOpacity
+    if nodes.normalBottom <> invalid then nodes.normalBottom.opacity = normalOpacity
+    if nodes.normalLeft <> invalid then nodes.normalLeft.opacity = normalOpacity
+    if nodes.normalRight <> invalid then nodes.normalRight.opacity = normalOpacity
+end sub
+
+sub applyLiveChannelFastFocus(previousIndex as Integer, nextIndex as Integer)
+    setLiveChannelCardFocus(previousIndex, false)
+    setLiveChannelCardFocus(nextIndex, true)
+    focusIndex = findLiveChannelFocusByVisibleIndex(nextIndex)
+    if focusIndex >= 0 then m.focusIndex = focusIndex
+    updateLiveFavoriteHintFast()
+end sub
+
+function findLiveChannelFocusByVisibleIndex(visibleIndex as Integer) as Integer
+    for i = 0 to m.focusItems.count() - 1
+        item = m.focusItems[i]
+        if item.doesExist("action") and item.action = "channel" then
+            if item.doesExist("visibleIndex") and item.visibleIndex = visibleIndex then return i
+        end if
+    end for
+    return -1
+end function
 
 sub drawChannelFallbackSurface(parent as Object, channel as Object, focused as Boolean, cardW as Integer, cardH as Integer, showInitials as Boolean)
     logoBg = m.colors.panel
@@ -604,7 +701,7 @@ sub drawChannelFallbackSurface(parent as Object, channel as Object, focused as B
 end sub
 
 sub drawChannelFavoriteBadge(parent as Object, channel as Object, focused as Boolean, cardW as Integer)
-    if not favoriteStoreIsFavorite("live", liveFavoriteItem(channel), m.activePlaylistId) then return
+    if not liveChannelIsFavorite(channel) then return
     badgeBg = m.colors.bg2
     badgeBorder = m.colors.whiteLine
     if focused then
@@ -619,11 +716,20 @@ sub drawLiveFavoriteHint(visible as Object)
     if visible.count() <= 0 then return
     text = "Press * to favorite"
     selected = selectedVisibleChannel()
-    if selected <> invalid and favoriteStoreIsFavorite("live", liveFavoriteItem(selected), m.activePlaylistId) then
+    if selected <> invalid and liveChannelIsFavorite(selected) then
         text = "Press * to remove favorite"
     end if
     if m.favoriteMessage <> "" then text = m.favoriteMessage
-    uiScaledLabel(m.canvas, text, 776, 190, 338, 18, 10, m.colors.textMuted, "right", 0.68)
+    m.liveFavoriteHintNode = uiScaledLabel(m.canvas, text, 776, 190, 338, 18, 10, m.colors.textMuted, "right", 0.68)
+end sub
+
+sub updateLiveFavoriteHintFast()
+    if m.liveFavoriteHintNode = invalid then return
+    selected = selectedVisibleChannel()
+    text = "Press * to favorite"
+    if selected <> invalid and liveChannelIsFavorite(selected) then text = "Press * to remove favorite"
+    if m.favoriteMessage <> "" then text = m.favoriteMessage
+    m.liveFavoriteHintNode.text = text
 end sub
 
 sub animateLiveCardFocus(cardCanvas as Object, x as Integer, y as Integer)
@@ -661,7 +767,7 @@ sub drawChannelScrollbar(total as Integer)
     uiVerticalPill(m.canvas, x - 1, thumbY, 6, thumbH, m.colors.greenFocus, "pkg:/images/ui/scroll_cap_6_greenFocus.png", 0.24)
 end sub
 
-function routeLiveFocus(dx as Integer, dy as Integer) as Boolean
+function routeLiveFocus(dx as Integer, dy as Integer, fastFocus = invalid as Dynamic) as Boolean
     if m.focusItems.count() = 0 then return false
     if m.focusIndex < 0 or m.focusIndex >= m.focusItems.count() then m.focusIndex = 0
     current = m.focusItems[m.focusIndex]
@@ -746,10 +852,17 @@ function routeLiveFocus(dx as Integer, dy as Integer) as Boolean
             return true
         end if
         if nextChannel >= 0 and nextChannel < visible.count() then
+            previousIndex = m.selectedChannelIndex
+            previousWindowStart = m.channelWindowStart
             m.selectedChannelIndex = nextChannel
             m.focusArea = "channels"
             normalizeChannelWindow(visible.count())
             maybeLoadMoreLiveChannels(visible.count())
+            if fastFocus <> invalid and m.backendTask = invalid and previousWindowStart = m.channelWindowStart then
+                applyLiveChannelFastFocus(previousIndex, m.selectedChannelIndex)
+                fastFocus.handled = true
+                fastFocus.render = false
+            end if
             return true
         end if
         maybeLoadMoreLiveChannels(visible.count())
@@ -767,6 +880,7 @@ sub toggleSelectedChannelFavorite()
     selected = selectedVisibleChannel()
     if selected = invalid then return
     saved = favoriteStoreToggle("live", liveFavoriteItem(selected), m.activePlaylistId)
+    refreshLiveFavoriteKeys()
     if saved then
         m.favoriteMessage = "Press * to remove favorite"
     else
@@ -774,6 +888,30 @@ sub toggleSelectedChannelFavorite()
     end if
     render()
 end sub
+
+sub refreshLiveFavoriteKeys()
+    m.liveFavoriteKeys = {}
+    items = favoriteStoreList(m.activePlaylistId)
+    for each item in items
+        if favoriteStoreText(item, "favoriteKind") = "live" then
+            key = favoriteStoreText(item, "favoriteKey")
+            if key = "" then key = favoriteStoreItemKey(item, "live")
+            if key <> "" then m.liveFavoriteKeys[key] = true
+        end if
+    end for
+end sub
+
+function liveChannelIsFavorite(channel as Object) as Boolean
+    if channel = invalid then return false
+    key = liveFavoriteKeyForChannel(channel)
+    return key <> "" and m.liveFavoriteKeys.doesExist(key)
+end function
+
+function liveFavoriteKeyForChannel(channel as Object) as String
+    itemId = liveText(channel, "id", liveText(channel, "name", liveText(channel, "title", "")))
+    if itemId = "" then return ""
+    return "live:" + itemId
+end function
 
 function selectedVisibleChannel() as Dynamic
     visible = filteredChannels()
@@ -888,19 +1026,33 @@ sub normalizeChannelWindow(total as Integer)
 end sub
 
 function filteredChannels() as Object
+    cacheKey = liveFilteredChannelsKey()
+    if m.filteredChannelsCache <> invalid and m.filteredChannelsKey = cacheKey then return m.filteredChannelsCache
     result = []
     selectedCategory = "All"
     if m.categoryIndex >= 0 and m.categoryIndex < m.categories.count() then selectedCategory = m.categories[m.categoryIndex]
     query = LCase(m.searchQuery)
-    for i = 0 to m.channels.count() - 1
-        channel = m.channels[i]
-        categories = liveChannelCategories(channel)
-        searchable = LCase(liveText(channel, "name") + " " + liveText(channel, "title") + " " + liveChannelCategorySearchText(categories) + " " + liveText(channel, "channelNumber"))
-        categoryMatches = query <> "" or selectedCategory = "All" or liveChannelHasCategory(categories, selectedCategory)
-        searchMatches = query = "" or Instr(1, searchable, query) > 0
-        if categoryMatches and searchMatches then result.push({ channel: channel, index: i })
-    end for
+    if selectedCategory = "All" and query = "" then
+        for i = 0 to m.channels.count() - 1
+            result.push({ channel: m.channels[i], index: i })
+        end for
+    else
+        for i = 0 to m.channels.count() - 1
+            channel = m.channels[i]
+            categories = liveChannelCategories(channel)
+            searchable = LCase(liveText(channel, "name") + " " + liveText(channel, "title") + " " + liveChannelCategorySearchText(categories) + " " + liveText(channel, "channelNumber"))
+            categoryMatches = query <> "" or selectedCategory = "All" or liveChannelHasCategory(categories, selectedCategory)
+            searchMatches = query = "" or Instr(1, searchable, query) > 0
+            if categoryMatches and searchMatches then result.push({ channel: channel, index: i })
+        end for
+    end if
+    m.filteredChannelsKey = cacheKey
+    m.filteredChannelsCache = result
     return result
+end function
+
+function liveFilteredChannelsKey() as String
+    return m.channels.count().toStr() + "|" + m.categoryIndex.toStr() + "|" + m.searchQuery + "|" + m.categories.count().toStr()
 end function
 
 function liveText(item as Dynamic, key as String, fallback = "" as String) as String

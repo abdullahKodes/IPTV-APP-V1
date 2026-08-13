@@ -734,15 +734,21 @@ function favoritePosterUrl(item as Dynamic) as String
 end function
 
 function favoriteBackgroundArtworkUrl(item as Dynamic) as String
-    if favItemText(item, "favoriteKind") = "live" then return "pkg:/images/live/live_tv_background_v6_art.jpg"
+    kind = favItemText(item, "favoriteKind")
+    if kind = "live" then return "pkg:/images/live/live_tv_background_v7_art.jpg"
     heroUrl = favItemText(item, "heroUrl")
     if heroUrl <> "" then return heroUrl
     backdropUrl = favItemText(item, "backdropUrl")
-    if backdropUrl = "" then return ""
+    if backdropUrl = "" then return favoriteMediaFallbackBackgroundUrl(kind)
     lowerUrl = LCase(backdropUrl)
-    if Instr(1, lowerUrl, "/movie_backdrops/") > 0 then return ""
-    if Instr(1, lowerUrl, "/series_backdrops/") > 0 then return ""
+    if Instr(1, lowerUrl, "/movie_backdrops/") > 0 then return favoriteMediaFallbackBackgroundUrl(kind)
+    if Instr(1, lowerUrl, "/series_backdrops/") > 0 then return favoriteMediaFallbackBackgroundUrl(kind)
     return backdropUrl
+end function
+
+function favoriteMediaFallbackBackgroundUrl(kind as String) as String
+    if kind = "movie" or kind = "series" then return "pkg:/images/demo/backgrounds/movies_series_fallback_backdrop_v6.jpg"
+    return ""
 end function
 
 function favoriteDescription(item as Object, kind as String) as String

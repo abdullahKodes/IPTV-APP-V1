@@ -26,6 +26,9 @@ sub init()
     m.backendPageCount = 0
     m.backendCursor = 0
     m.backendLastPageFirstId = ""
+    m.backendHasMore = false
+    m.backendNextCursor = -1
+    m.backendTotalCount = -1
     m.searchKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "CASE", "SPACE", "DEL", "CLEAR", "DONE"]
     m.activePlaylist = playlistStoreActive()
     m.activePlaylistId = playlistStoreText(m.activePlaylist, "id", playlistStoreDemoId())
@@ -57,6 +60,7 @@ sub init()
 end sub
 
 sub startBackendSeriesLoad(cursor = 0 as Integer)
+    if cursor > 0 and m.backendTask <> invalid then return
     backendId = playlistStoreText(m.activePlaylist, "backendPlaylistId")
     if backendId = "" then
         m.backendMessage = "This playlist needs to be added again."
@@ -71,9 +75,12 @@ sub startBackendSeriesLoad(cursor = 0 as Integer)
         m.series = []
         m.backendPageCount = 0
         m.backendLastPageFirstId = ""
+        m.backendHasMore = false
+        m.backendNextCursor = -1
+        m.backendTotalCount = -1
     end if
     m.backendCursor = cursor
-    m.backendLoading = true
+    m.backendLoading = m.series.count() = 0
     m.backendMessage = ""
     task.observeField("response", "onBackendSeriesLoaded")
     task.request = backendApiSyncChannelsRequest(backendId, m.backendPageLimit, "series", cursor)
@@ -134,12 +141,13 @@ sub onBackendSeriesLoaded()
             if pageFirstId <> "" then m.backendLastPageFirstId = pageFirstId
         end if
         m.backendPageCount += 1
+        totalCount = backendApiResponseTotalCount(response)
+        if totalCount >= 0 then m.backendTotalCount = totalCount
         nextCursor = backendApiResponseNextCursor(response)
         if nextCursor < 0 and items.count() >= m.backendPageLimit then nextCursor = m.backendCursor + items.count()
-        if not duplicatePage and nextCursor > m.backendCursor and m.backendPageCount < 50 then
-            startBackendSeriesLoad(nextCursor)
-            return
-        end if
+        m.backendHasMore = not duplicatePage and nextCursor > m.backendCursor and items.count() >= m.backendPageLimit
+        m.backendNextCursor = -1
+        if m.backendHasMore then m.backendNextCursor = nextCursor
         m.backendLoading = false
         applySeriesProgress()
         m.categories = seriesCategoriesFromCatalog(m.series)
@@ -148,7 +156,11 @@ sub onBackendSeriesLoaded()
         else
             m.backendMessage = "No series found in this playlist."
         end if
-        resetSeriesWindow()
+        if m.backendCursor = 0 then
+            resetSeriesWindow()
+        else
+            normalizeSeriesWindow(filteredSeries().count())
+        end if
     else
         if backendApiResponseStatusCode(response) = 404 and not m.backendRepairAttempted then
             startBackendSeriesRepair()
@@ -158,6 +170,15 @@ sub onBackendSeriesLoaded()
         m.backendMessage = backendApiUserMessage(response, "Series could not be loaded.")
     end if
     render()
+end sub
+
+sub maybeLoadMoreSeries(visibleCount as Integer)
+    if not m.backendHasMore then return
+    if m.backendTask <> invalid then return
+    if visibleCount <= 0 then return
+    threshold = visibleCount - (m.seriesWindowSize * 2)
+    if threshold < 0 then threshold = 0
+    if m.selectedSeriesIndex >= threshold then startBackendSeriesLoad(m.backendNextCursor)
 end sub
 
 sub refreshClock()
@@ -289,7 +310,7 @@ sub render()
 
     sectionLabel = "POPULAR SERIES"
     if m.selectedGenre <> "All" then sectionLabel = m.selectedGenre + " series"
-    countText = visible.count().toStr() + " titles"
+    countText = seriesCountText(visible.count())
     uiLabel(m.canvas, sectionLabel, 244, 376, 250, 26, 13, m.colors.text)
     uiLabel(m.canvas, countText, 824, 376, 190, 26, 12, m.colors.textDim, "right")
     endIndex = m.seriesWindowStart + m.seriesWindowSize - 1
@@ -305,6 +326,19 @@ sub render()
     uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
     if m.searchEditing then drawSearchKeyboardOverlay()
 end sub
+
+function seriesCountText(visibleCount as Integer) as String
+    count = visibleCount
+    suffix = ""
+    if not seriesSearchResultsActive() and m.selectedGenre = "All" then
+        if m.backendTotalCount >= 0 then
+            count = m.backendTotalCount
+        else if m.backendHasMore then
+            suffix = "+"
+        end if
+    end if
+    return count.toStr() + suffix + " titles"
+end function
 
 sub drawSeriesSearchResults(visible as Object)
     heading = "SEARCHED SERIES"
@@ -1134,6 +1168,7 @@ function routeSeriesFocus(dx as Integer, dy as Integer) as Boolean
             m.selectedSeriesIndex -= 1
             m.focusArea = "series"
             normalizeSeriesWindow(visible.count())
+            maybeLoadMoreSeries(visible.count())
             return true
         end if
         if dx < 0 then
@@ -1146,8 +1181,10 @@ function routeSeriesFocus(dx as Integer, dy as Integer) as Boolean
             m.selectedSeriesIndex += 1
             m.focusArea = "series"
             normalizeSeriesWindow(visible.count())
+            maybeLoadMoreSeries(visible.count())
             return true
         end if
+        maybeLoadMoreSeries(visible.count())
         if dx > 0 then return true
         if dy < 0 then
             col = current.col

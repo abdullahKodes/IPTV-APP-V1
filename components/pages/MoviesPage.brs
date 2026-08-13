@@ -24,6 +24,9 @@ sub init()
     m.backendPageCount = 0
     m.backendCursor = 0
     m.backendLastPageFirstId = ""
+    m.backendHasMore = false
+    m.backendNextCursor = -1
+    m.backendTotalCount = -1
     m.searchKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "A", "S", "D", "F", "G", "H", "J", "K", "L", ".", "Z", "X", "C", "V", "B", "N", "M", "/", ":", "-", "_", "@", "CASE", "SPACE", "DEL", "CLEAR", "DONE"]
     m.activePlaylist = playlistStoreActive()
     m.activePlaylistId = playlistStoreText(m.activePlaylist, "id", playlistStoreDemoId())
@@ -55,6 +58,7 @@ sub init()
 end sub
 
 sub startBackendMoviesLoad(cursor = 0 as Integer)
+    if cursor > 0 and m.backendTask <> invalid then return
     backendId = playlistStoreText(m.activePlaylist, "backendPlaylistId")
     if backendId = "" then
         m.backendMessage = "This playlist needs to be added again."
@@ -69,9 +73,12 @@ sub startBackendMoviesLoad(cursor = 0 as Integer)
         m.movies = []
         m.backendPageCount = 0
         m.backendLastPageFirstId = ""
+        m.backendHasMore = false
+        m.backendNextCursor = -1
+        m.backendTotalCount = -1
     end if
     m.backendCursor = cursor
-    m.backendLoading = true
+    m.backendLoading = m.movies.count() = 0
     m.backendMessage = ""
     task.observeField("response", "onBackendMoviesLoaded")
     task.request = backendApiSyncChannelsRequest(backendId, m.backendPageLimit, "movie", cursor)
@@ -132,12 +139,13 @@ sub onBackendMoviesLoaded()
             if pageFirstId <> "" then m.backendLastPageFirstId = pageFirstId
         end if
         m.backendPageCount += 1
+        totalCount = backendApiResponseTotalCount(response)
+        if totalCount >= 0 then m.backendTotalCount = totalCount
         nextCursor = backendApiResponseNextCursor(response)
         if nextCursor < 0 and items.count() >= m.backendPageLimit then nextCursor = m.backendCursor + items.count()
-        if not duplicatePage and nextCursor > m.backendCursor and m.backendPageCount < 50 then
-            startBackendMoviesLoad(nextCursor)
-            return
-        end if
+        m.backendHasMore = not duplicatePage and nextCursor > m.backendCursor and items.count() >= m.backendPageLimit
+        m.backendNextCursor = -1
+        if m.backendHasMore then m.backendNextCursor = nextCursor
         m.backendLoading = false
         m.featuredMovieIndex = selectFeaturedMovieIndex(m.movies)
         m.categories = movieCategoriesFromCatalog(m.movies)
@@ -146,7 +154,11 @@ sub onBackendMoviesLoaded()
         else
             m.backendMessage = "No movies found in this playlist."
         end if
-        resetMovieWindow()
+        if m.backendCursor = 0 then
+            resetMovieWindow()
+        else
+            normalizeMovieWindow(filteredMovies().count())
+        end if
     else
         if backendApiResponseStatusCode(response) = 404 and not m.backendRepairAttempted then
             startBackendMoviesRepair()
@@ -156,6 +168,15 @@ sub onBackendMoviesLoaded()
         m.backendMessage = backendApiUserMessage(response, "Movies could not be loaded.")
     end if
     render()
+end sub
+
+sub maybeLoadMoreMovies(visibleCount as Integer)
+    if not m.backendHasMore then return
+    if m.backendTask <> invalid then return
+    if visibleCount <= 0 then return
+    threshold = visibleCount - (m.movieWindowSize * 2)
+    if threshold < 0 then threshold = 0
+    if m.selectedMovieIndex >= threshold then startBackendMoviesLoad(m.backendNextCursor)
 end sub
 
 sub refreshClock()
@@ -273,7 +294,7 @@ sub render()
 
     sectionLabel = "ALL MOVIES"
     if m.selectedGenre <> "All" then sectionLabel = m.selectedGenre + " movies"
-    countText = visible.count().toStr() + " titles"
+    countText = movieCountText(visible.count())
     uiLabel(m.canvas, sectionLabel, 244, 404, 250, 26, 13, m.colors.text)
     uiLabel(m.canvas, countText, 824, 404, 190, 26, 12, m.colors.textDim, "right")
     endIndex = m.movieWindowStart + m.movieWindowSize - 1
@@ -290,6 +311,19 @@ sub render()
     uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
     if m.searchEditing then drawSearchKeyboardOverlay()
 end sub
+
+function movieCountText(visibleCount as Integer) as String
+    count = visibleCount
+    suffix = ""
+    if not movieSearchResultsActive() and m.selectedGenre = "All" then
+        if m.backendTotalCount >= 0 then
+            count = m.backendTotalCount
+        else if m.backendHasMore then
+            suffix = "+"
+        end if
+    end if
+    return count.toStr() + suffix + " titles"
+end function
 
 sub drawMovieSearchResults(visible as Object)
     heading = "SEARCHED MOVIES"
@@ -1108,6 +1142,7 @@ function routeMoviesFocus(dx as Integer, dy as Integer) as Boolean
             m.selectedMovieIndex -= 1
             m.focusArea = "movies"
             normalizeMovieWindow(visible.count())
+            maybeLoadMoreMovies(visible.count())
             return true
         end if
         if dx < 0 then
@@ -1120,8 +1155,10 @@ function routeMoviesFocus(dx as Integer, dy as Integer) as Boolean
             m.selectedMovieIndex += 1
             m.focusArea = "movies"
             normalizeMovieWindow(visible.count())
+            maybeLoadMoreMovies(visible.count())
             return true
         end if
+        maybeLoadMoreMovies(visible.count())
         if dx > 0 then return true
         if dy < 0 then
             m.focusArea = "featured"

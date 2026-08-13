@@ -241,6 +241,7 @@ function backendApiTaskCompactChannel(item as Dynamic) as Object
     backendApiTaskCopy(clean, item, "logo_url")
     backendApiTaskCopy(clean, item, "group_title")
     backendApiTaskCopy(clean, item, "content_type")
+    backendApiTaskCopy(clean, item, "media_type")
     backendApiTaskCopy(clean, item, "stream_host")
     backendApiTaskCopy(clean, item, "stream_url")
     backendApiTaskCopy(clean, item, "is_active")

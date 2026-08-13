@@ -1,6 +1,6 @@
 # IPTV App Progress
 
-Last updated: 2026-08-12
+Last updated: 2026-08-13
 
 Read this file before starting a new session. Update it only after a meaningful milestone is completed, such as finishing a screen, fixing a major workflow, committing/pushing, or changing project structure. Do not update it for every tiny visual tweak.
 
@@ -16,6 +16,15 @@ Read this file before starting a new session. Update it only after a meaningful 
   - `npm.cmd run build`
 - Installable zip path:
   `C:\Users\M Abdullah\Documents\GitHub\IPTV-APP-V1\build\roku-iptv-app.zip`
+
+## 2026-08-13 Backend Playlist Pagination And Counts
+
+- Backend-managed playlists now load Live TV, Movies, and Series as separate page-specific data instead of dumping one playlist section into every page. Movies and Series request typed sync rows, Xtream Live TV requests live rows, and generic M3U Live TV keeps broad sync compatibility while client-side mapping filters obvious movie/series/live rows by `content_type`, `media_type`, and safe source hints.
+- Live TV, Movies, and Series now use cursor pagination for large playlists: the first page renders quickly, additional pages append only when browsing near the end, and duplicate-page guards prevent repeated backend pages from inflating the lists.
+- Header counts are now separated from loaded rows. When backend sync metadata includes `total_count`, `total`, `total_items`, `active_channel_count`, or `channel_count`, the page displays that exact total while still loading content in pages; if the backend does not expose an exact total yet, the UI shows a loaded count with `+` while more pages exist.
+- Live TV scroll responsiveness was improved for large playlists by caching filtered channel results and skipping category parsing on the common All-channels/no-search path, so Down/Up focus movement no longer rebuilds the full channel list on every press.
+- Validation: `npm.cmd run check` passes and creates `build\roku-iptv-app.zip`.
+- Roku tests still needed: verify a large mixed playlist on device, confirm Live TV/Movie/Series totals match backend extraction totals, scroll near page boundaries to confirm load-more behavior stays smooth, and play sample items from each section.
 
 ## Current Design Progress
 

@@ -247,6 +247,22 @@ function backendApiResponseNextCursor(response as Dynamic) as Integer
     return backendApiInt(meta, "next", -1)
 end function
 
+function backendApiResponseTotalCount(response as Dynamic) as Integer
+    meta = backendApiResponsePagination(response)
+    if meta = invalid then return -1
+    total = backendApiInt(meta, "total_count", -1)
+    if total >= 0 then return total
+    total = backendApiInt(meta, "total", -1)
+    if total >= 0 then return total
+    total = backendApiInt(meta, "total_items", -1)
+    if total >= 0 then return total
+    total = backendApiInt(meta, "totalItems", -1)
+    if total >= 0 then return total
+    total = backendApiInt(meta, "active_channel_count", -1)
+    if total >= 0 then return total
+    return backendApiInt(meta, "channel_count", -1)
+end function
+
 function backendApiFirstItemId(items as Object) as String
     if items = invalid then return ""
     if items.count() = 0 then return ""
@@ -294,17 +310,72 @@ function backendApiMapSyncItems(items as Dynamic, playlistId as String, kind as 
     index = 0
     for each item in items
         if item <> invalid and not backendApiBool(item, "deleted", false) then
-            index += 1
+            itemKind = backendApiItemKind(item)
             if kind = "movies" then
-                out.push(backendApiMapMovieItem(item, playlistId, index))
+                if itemKind = "movie" or itemKind = "unknown" then
+                    index += 1
+                    out.push(backendApiMapMovieItem(item, playlistId, index))
+                end if
             else if kind = "series" then
-                out.push(backendApiMapSeriesItem(item, playlistId, index))
+                if itemKind = "series" or itemKind = "unknown" then
+                    index += 1
+                    out.push(backendApiMapSeriesItem(item, playlistId, index))
+                end if
             else
-                out.push(backendApiMapLiveItem(item, playlistId, index))
+                if itemKind = "live" or itemKind = "unknown" then
+                    index += 1
+                    out.push(backendApiMapLiveItem(item, playlistId, index))
+                end if
             end if
         end if
     end for
     return out
+end function
+
+function backendApiItemKind(item as Object) as String
+    contentType = LCase(backendApiText(item, "content_type"))
+    mediaType = LCase(backendApiText(item, "media_type"))
+    typeText = contentType
+    if typeText = "" or typeText = "unknown" then typeText = mediaType
+    if typeText = "movie" or typeText = "movies" or typeText = "vod" or typeText = "video" then return "movie"
+    if typeText = "series" or typeText = "show" or typeText = "tv_series" then return "series"
+    if typeText = "live" or typeText = "livetv" or typeText = "live_tv" or typeText = "channel" then return "live"
+
+    text = LCase(backendApiText(item, "name") + " " + backendApiText(item, "group_title") + " " + backendApiText(item, "stream_url") + " " + backendApiText(item, "stream_host"))
+    if backendApiLooksSeries(text) then return "series"
+    if backendApiLooksMovie(text) then return "movie"
+    if backendApiLooksLive(text) then return "live"
+    return "unknown"
+end function
+
+function backendApiLooksMovie(text as String) as Boolean
+    if Instr(1, text, "movie") > 0 then return true
+    if Instr(1, text, "movies") > 0 then return true
+    if Instr(1, text, "vod") > 0 then return true
+    if Instr(1, text, "/film") > 0 then return true
+    if Instr(1, text, "/movies/") > 0 then return true
+    if Instr(1, text, "/movie/") > 0 then return true
+    if Instr(1, text, "/vod/") > 0 then return true
+    return false
+end function
+
+function backendApiLooksSeries(text as String) as Boolean
+    if Instr(1, text, "series") > 0 then return true
+    if Instr(1, text, "season") > 0 then return true
+    if Instr(1, text, "episode") > 0 then return true
+    if Instr(1, text, "/series/") > 0 then return true
+    if Instr(1, text, "/show/") > 0 then return true
+    if Instr(1, text, " s01") > 0 or Instr(1, text, ".s01") > 0 or Instr(1, text, "-s01") > 0 then return true
+    return false
+end function
+
+function backendApiLooksLive(text as String) as Boolean
+    if Instr(1, text, "live") > 0 then return true
+    if Instr(1, text, "news") > 0 then return true
+    if Instr(1, text, "sports") > 0 then return true
+    if Instr(1, text, "channel") > 0 then return true
+    if Instr(1, text, "/live/") > 0 then return true
+    return false
 end function
 
 function backendApiMapLiveItem(item as Object, playlistId as String, index as Integer) as Object
