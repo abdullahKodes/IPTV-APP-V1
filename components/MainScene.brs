@@ -17,6 +17,9 @@ sub init()
     m.parentalGateKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "DEL", "0", "DONE"]
     m.parentalUnlockedToken = ""
     m.subscriptionGateDialog = invalid
+    m.exitConfirmOpen = false
+    m.exitConfirmFocusIndex = 0
+    m.exitConfirmPreviousFocusIndex = -1
     m.top.backgroundColor = m.colors.bg
     m.top.setFocus(true)
 
@@ -159,6 +162,8 @@ sub onPageNavigation()
 end sub
 
 sub completePageNavigation(target as String, currentName as String)
+    if shouldResetPlaylistBrowseHistory(target, currentName) then m.pageStack = []
+
     if m.pageStack.count() > 0 then
         previous = m.pageStack[m.pageStack.count() - 1]
         if previous.name = target and shouldRestorePreviousForTarget(target, currentName) then
@@ -227,6 +232,95 @@ sub onSubscriptionGateButton()
     if selected = 1 then completePageNavigation("ProfilePage", m.currentPageName)
 end sub
 
+sub openExitConfirm()
+    m.exitConfirmOpen = true
+    m.exitConfirmFocusIndex = 0
+    m.exitConfirmPreviousFocusIndex = -1
+    drawExitConfirm()
+end sub
+
+sub closeExitConfirm()
+    m.exitConfirmOpen = false
+    m.exitConfirmFocusIndex = 0
+    m.exitConfirmPreviousFocusIndex = -1
+    if m.parentalGateHost <> invalid then uiClear(m.parentalGateHost)
+end sub
+
+function handleExitConfirmKey(key as String) as Boolean
+    if key = "back" then closeExitConfirm() : return true
+    if key = "left" or key = "right" then
+        m.exitConfirmPreviousFocusIndex = m.exitConfirmFocusIndex
+        m.exitConfirmFocusIndex = 1 - m.exitConfirmFocusIndex
+        drawExitConfirm()
+        return true
+    end if
+    if key = "OK" then
+        if m.exitConfirmFocusIndex = 0 then
+            closeExitConfirm()
+            m.top.appExit = true
+        else
+            closeExitConfirm()
+        end if
+        return true
+    end if
+    return true
+end function
+
+sub drawExitConfirm()
+    if m.parentalGateHost = invalid then return
+    uiClear(m.parentalGateHost)
+    uiRect(m.parentalGateHost, 0, 0, 1280, 720, "0x000000FF", 0.64)
+
+    x = 394
+    y = 238
+    w = 492
+    h = 224
+    uiPoster(m.parentalGateHost, "pkg:/images/ui/exit_confirm_panel_492x224.png", x, y, w, h, 0.98)
+    uiRect(m.parentalGateHost, x + 74, y + 70, w - 148, 1, m.colors.whiteLine, 0.34)
+
+    titleLabel = uiLabel(m.parentalGateHost, "Exit IPTV MAX?", x + 32, y + 22, w - 64, 40, 26, m.colors.text, "center")
+    titleLabel.font.size = 26
+    messageLabel = uiLabel(m.parentalGateHost, "Are you sure you want to exit the app?", x + 56, y + 82, w - 112, 40, 18, m.colors.textMuted, "center")
+    messageLabel.font.size = 18
+
+    drawExitConfirmButton(x + 126, y + 148, 108, "Yes", 0)
+    drawExitConfirmButton(x + 258, y + 148, 108, "No", 1)
+end sub
+
+sub drawExitConfirmButton(x as Integer, y as Integer, w as Integer, label as String, index as Integer)
+    focused = index = m.exitConfirmFocusIndex
+    buttonCanvas = CreateObject("roSGNode", "Group")
+    buttonCanvas.id = "exitConfirmButton" + index.toStr()
+    buttonCanvas.translation = [x, y]
+    m.parentalGateHost.appendChild(buttonCanvas)
+
+    textColor = m.colors.textMuted
+    uiPoster(buttonCanvas, "pkg:/images/ui/feedback_category_108x34_base.png", 0, 0, w, 34, 0.94)
+    if focused then
+        textColor = m.colors.text
+        focusOpacity = 0.82
+        if m.exitConfirmPreviousFocusIndex <> index then focusOpacity = 0.0
+        focusSurface = uiPoster(buttonCanvas, "pkg:/images/ui/feedback_category_108x34_focus.png", 0, 0, w, 34, focusOpacity)
+        focusSurface.id = "exitConfirmFocus" + index.toStr()
+        if m.exitConfirmPreviousFocusIndex <> index then animateExitConfirmButtonFocus(m.parentalGateHost, focusSurface, 0.82)
+    end if
+    uiScaledLabel(buttonCanvas, label, 8, 0, w - 16, 34, 12, textColor, "center", 0.70)
+end sub
+
+sub animateExitConfirmButtonFocus(parent as Object, focusSurface as Object, finalOpacity as Float)
+    animation = CreateObject("roSGNode", "Animation")
+    animation.duration = 0.14
+    animation.easeFunction = "outQuad"
+
+    opacityAnimation = animation.createChild("FloatFieldInterpolator")
+    opacityAnimation.key = [0.0, 1.0]
+    opacityAnimation.keyValue = [0.0, finalOpacity]
+    opacityAnimation.fieldToInterp = focusSurface.id + ".opacity"
+
+    parent.appendChild(animation)
+    animation.control = "start"
+end sub
+
 function shouldRestorePreviousForTarget(target as String, currentName as String) as Boolean
     if currentName = "MovieDetailPage" or currentName = "SeriesDetailPage" or currentName = "PlayerPage" then return true
     if currentName = "AddPlaylistPage" or currentName = "ManagePlaylistsPage" then return true
@@ -251,6 +345,19 @@ function isHistoryPage(pageName as String) as Boolean
     if pageName = "ProfilePage" then return true
     if pageName = "SubscriptionPage" then return true
     if pageName = "FeedbackPage" then return true
+    return false
+end function
+
+function shouldResetPlaylistBrowseHistory(target as String, currentName as String) as Boolean
+    if currentName <> "MyPlaylistsPage" then return false
+    return isPlaylistBrowsePage(target)
+end function
+
+function isPlaylistBrowsePage(pageName as String) as Boolean
+    if pageName = "LiveTvPage" then return true
+    if pageName = "MoviesPage" then return true
+    if pageName = "SeriesPage" then return true
+    if pageName = "FavoritesPage" then return true
     return false
 end function
 
@@ -472,6 +579,7 @@ end function
 
 function onKeyEvent(key as String, press as Boolean) as Boolean
     if not press then return false
+    if m.exitConfirmOpen then return handleExitConfirmKey(key)
     if m.subscriptionGateDialog <> invalid then
         if key = "back" then closeSubscriptionGate() : return true
         return false
@@ -486,9 +594,16 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
             return true
         end if
         if m.currentPage <> invalid and m.currentPageName <> "HomePage" then
-            showPage("HomePage")
+            homeTarget = gatedPageName("HomePage")
+            if homeTarget = m.currentPageName then
+                openExitConfirm()
+                return true
+            end if
+            showPage(homeTarget)
             return true
         end if
+        openExitConfirm()
+        return true
     end if
 
     if m.currentPage <> invalid then

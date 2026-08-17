@@ -4,6 +4,9 @@
     <Group id="pageHost" />
     <Group id="parentalGateHost" />
   </children>
+  <interface>
+    <field id="appExit" type="bool" alwaysNotify="true" value="false" />
+  </interface>
   <script type="text/brightscript" uri="pkg:/components/shared/AppUi.brs" />
   <script type="text/brightscript" uri="pkg:/components/shared/PlaylistStore.brs" />
   <script type="text/brightscript" uri="pkg:/components/shared/OnboardingStore.brs" />
