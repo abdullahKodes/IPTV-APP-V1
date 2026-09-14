@@ -1,5 +1,5 @@
 function backendApiBaseUrl() as String
-    return "https://backend-dev-2e86.up.railway.app"
+    return "https://16-192-92-41.sslip.io"
 end function
 
 function backendApiAuthRegistrySection() as String
@@ -89,13 +89,48 @@ function backendApiDeletePlaylistRequest(backendPlaylistId as String) as Object
     }
 end function
 
-function backendApiSyncChannelsRequest(backendPlaylistId as String, limit = 1000 as Integer, contentType = "" as String, cursor = 0 as Integer) as Object
-    path = "/api/v1/playlists/" + backendPlaylistId + "/channels/sync?cursor=" + cursor.toStr() + "&limit=" + limit.toStr()
+function backendApiSyncChannelsRequest(backendPlaylistId as String, limit = 50 as Integer, contentType = "" as String, cursor = 0 as Integer, group = "" as String, search = "" as String) as Object
+    ' Existing page state uses zero for the initial request; subsequent values are page numbers.
+    page = cursor
+    if page < 1 then page = 1
+    route = "/channels"
+    if page = 1 then route = "/bootstrap"
+    if contentType = "series" then route = "/series"
+    path = "/api/v1/playlists/" + backendPlaylistId + route + "?page=" + page.toStr() + "&page_size=50"
+    if contentType = "series" then contentType = ""
     if contentType <> "" then path += "&content_type=" + contentType
-    return {
-        method: "GET",
-        path: path
-    }
+    if group <> "" and group <> "All" then path += "&group=" + group.Escape()
+    if search <> "" then path += "&search=" + search.Escape()
+    request = { method: "GET", path: path }
+    if route = "/series" and page = 1 and search = "" and (group = "" or group = "All") then request.groupsPath = "/api/v1/playlists/" + backendPlaylistId + "/groups?content_type=series"
+    return request
+end function
+
+function backendApiMovieContentType(contentProfile as String, sourceType as String) as String
+    if LCase(contentProfile) = "backend_movies" and LCase(sourceType) <> "xtream" then return ""
+    return "movie"
+end function
+
+function backendApiGetSeriesRequest(seriesId as String) as Object
+    return { method: "GET", path: "/api/v1/series/" + seriesId }
+end function
+
+function backendApiEpisodesRequest(seriesId as String, seasonNumber as Integer, page = 1 as Integer, playable = false as Boolean) as Object
+    path = "/api/v1/series/" + seriesId + "/episodes?season_number=" + seasonNumber.toStr() + "&page=" + page.toStr() + "&page_size=50"
+    if playable then path += "&include_stream_url=true"
+    return { method: "GET", path: path }
+end function
+
+function backendApiSeriesChannelFallbackRequest(backendPlaylistId as String, page = 1 as Integer, group = "" as String, search = "" as String) as Object
+    if page < 1 then page = 1
+    path = "/api/v1/playlists/" + backendPlaylistId + "/channels?page=" + page.toStr() + "&page_size=50"
+    if group <> "" and group <> "All" then path += "&group=" + group.Escape()
+    if search <> "" then path += "&search=" + search.Escape()
+    return {method: "GET", path: path}
+end function
+
+function backendApiImportJobRequest(jobId as String) as Object
+    return { method: "GET", path: "/api/v1/import-jobs/" + jobId }
 end function
 
 function backendApiGetChannelRequest(channelId as String) as Object
@@ -191,6 +226,8 @@ end function
 function backendApiUserMessage(response as Dynamic, fallback as String) as String
     if response <> invalid and Type(response) = "roAssociativeArray" and response.doesExist("statusCode") then
         statusCode = response.statusCode
+        if statusCode = 401 then return "Account access could not be verified. Please retry or contact support."
+        if statusCode = 404 then return "This saved content is unavailable for your account."
         if statusCode > 0 then return fallback + " (" + statusCode.toStr() + ")"
     end if
     return fallback
@@ -226,9 +263,12 @@ function backendApiResponsePagination(response as Dynamic) as Dynamic
     if not response.doesExist("body") then return invalid
     body = response.body
     if body = invalid then return invalid
-    if body.doesExist("meta") and body.meta <> invalid then return body.meta
+    if body.doesExist("meta") and Type(body.meta) = "roAssociativeArray" then
+        if body.meta.doesExist("pagination") then return body.meta.pagination
+    end if
     data = backendApiResponseData(response)
     if data <> invalid then
+        if data.doesExist("pagination") then return data.pagination
         if data.doesExist("meta") and data.meta <> invalid then return data.meta
         return data
     end if
@@ -238,6 +278,10 @@ end function
 function backendApiResponseNextCursor(response as Dynamic) as Integer
     meta = backendApiResponsePagination(response)
     if meta = invalid then return -1
+    if meta.doesExist("has_next") then
+        if not backendApiBool(meta, "has_next", false) then return -1
+        return backendApiInt(meta, "page", 1) + 1
+    end if
     nextCursor = backendApiInt(meta, "next_cursor", -1)
     if nextCursor >= 0 then return nextCursor
     nextCursor = backendApiInt(meta, "nextCursor", -1)
@@ -278,8 +322,22 @@ end function
 
 function backendApiResponseImportJob(response as Dynamic) as Dynamic
     data = backendApiResponseData(response)
-    if data = invalid then return invalid
+    if data = invalid then
+        if response <> invalid and response.doesExist("body") then
+            body = response.body
+            if body.doesExist("error") and Type(body.error) = "roAssociativeArray" then
+                if body.error.doesExist("details") and Type(body.error.details) = "roAssociativeArray" then
+                    details = body.error.details
+                    if details.doesExist("import_job") then return details.import_job
+                    jobId = backendApiText(details, "import_job_id", backendApiText(details, "job_id"))
+                    if jobId <> "" then return {id: jobId, status: "running"}
+                end if
+            end if
+        end if
+        return invalid
+    end if
     if not data.doesExist("import_job") then return invalid
+    if Type(data.import_job) <> "roAssociativeArray" then return invalid
     return data.import_job
 end function
 
@@ -303,26 +361,26 @@ function backendApiChannelStreamUrl(response as Dynamic) as String
     return backendApiText(item, "streamUrl")
 end function
 
-function backendApiMapSyncItems(items as Dynamic, playlistId as String, kind as String) as Object
+function backendApiMapSyncItems(items as Dynamic, playlistId as String, kind as String, startIndex = 0 as Integer) as Object
     out = []
     if items = invalid then return out
     if Type(items) <> "roArray" then return out
-    index = 0
+    index = startIndex
     for each item in items
         if item <> invalid and not backendApiBool(item, "deleted", false) then
             itemKind = backendApiItemKind(item)
             if kind = "movies" then
-                if itemKind = "movie" or itemKind = "unknown" then
+                if itemKind = "movie" then
                     index += 1
                     out.push(backendApiMapMovieItem(item, playlistId, index))
                 end if
             else if kind = "series" then
-                if itemKind = "series" or itemKind = "unknown" then
+                if itemKind = "series" then
                     index += 1
                     out.push(backendApiMapSeriesItem(item, playlistId, index))
                 end if
             else
-                if itemKind = "live" or itemKind = "unknown" then
+                if itemKind = "live" then
                     index += 1
                     out.push(backendApiMapLiveItem(item, playlistId, index))
                 end if
@@ -356,6 +414,11 @@ function backendApiLooksMovie(text as String) as Boolean
     if Instr(1, text, "/movies/") > 0 then return true
     if Instr(1, text, "/movie/") > 0 then return true
     if Instr(1, text, "/vod/") > 0 then return true
+    if Instr(1, text, ".mp4") > 0 then return true
+    if Instr(1, text, ".mkv") > 0 then return true
+    if Instr(1, text, ".avi") > 0 then return true
+    if Instr(1, text, ".m4v") > 0 then return true
+    if Instr(1, text, ".mov") > 0 then return true
     return false
 end function
 
@@ -408,59 +471,90 @@ end function
 
 function backendApiMapMovieItem(item as Object, playlistId as String, index as Integer) as Object
     name = backendApiText(item, "name", "Movie")
-    group = backendApiGroupLabel(backendApiText(item, "group_title", "Movies"))
-    logoUrl = backendApiText(item, "logo_url")
+    poster = backendApiText(item, "poster_url", backendApiText(item, "logo_url"))
     return {
-        id: backendApiText(item, "id", "backend_movie_" + index.toStr()),
-        backendChannelId: backendApiText(item, "id"),
-        playlistId: playlistId,
-        contentType: backendApiText(item, "content_type"),
-        title: name,
-        year: "",
-        duration: "Live stream",
-        genre: group,
-        rating: "NR",
-        posterUrl: logoUrl,
-        cardUrl: logoUrl,
-        backdropUrl: "",
-        streamUrl: backendApiText(item, "stream_url"),
-        streamHost: backendApiText(item, "stream_host"),
-        streamFormat: "hls",
-        featured: index = 1,
-        featuredPriority: 1000 - index,
-        resumePercent: 0,
-        accent: "purple"
+        id: backendApiText(item, "id"), backendChannelId: backendApiText(item, "id"), playlistId: playlistId,
+        contentType: "movie", title: name, year: backendApiText(item, "release_year"),
+        duration: backendApiDuration(item), genre: backendApiGroupLabel(backendApiText(item, "group_title", "Movies")),
+        rating: backendApiText(item, "rating", "NR"), description: backendApiText(item, "overview"),
+        posterUrl: poster, cardUrl: poster, backdropUrl: backendApiText(item, "backdrop_url"),
+        streamUrl: backendApiText(item, "stream_url"), streamHost: backendApiText(item, "stream_host"),
+        streamFormat: backendApiStreamFormat(backendApiText(item, "stream_url")),
+        featured: index = 1, featuredPriority: 1000 - index, resumePercent: 0, accent: "purple"
     }
 end function
 
+function backendApiMapMovieChannelItems(items as Dynamic, playlistId as String, startIndex = 0 as Integer) as Object
+    out = []
+    if Type(items) <> "roArray" then return out
+    index = startIndex
+    for each item in items
+        if item <> invalid and not backendApiBool(item, "deleted", false) then
+            if backendApiItemKind(item) = "movie" then
+                index += 1
+                out.push(backendApiMapMovieItem(item, playlistId, index))
+            end if
+        end if
+    end for
+    return out
+end function
+
 function backendApiMapSeriesItem(item as Object, playlistId as String, index as Integer) as Object
-    name = backendApiText(item, "name", "Series")
-    group = backendApiGroupLabel(backendApiText(item, "group_title", "Series"))
-    logoUrl = backendApiText(item, "logo_url")
+    poster = backendApiText(item, "cover_url", backendApiText(item, "poster_url", backendApiText(item, "logo_url")))
     return {
-        id: backendApiText(item, "id", "backend_series_" + index.toStr()),
-        backendChannelId: backendApiText(item, "id"),
-        playlistId: playlistId,
-        contentType: backendApiText(item, "content_type"),
-        title: name,
-        year: "",
-        seasons: "Streaming channel",
-        episodeCount: "Live episodes",
-        genre: group,
-        rating: "NR",
-        posterUrl: logoUrl,
-        cardUrl: logoUrl,
-        backdropUrl: "",
-        streamUrl: backendApiText(item, "stream_url"),
-        streamHost: backendApiText(item, "stream_host"),
-        streamFormat: "hls",
-        episodeNames: name,
-        seasonNames: "Playlist",
-        episodeDurations: "Live",
-        activeEpisodeTitle: name,
-        resumePercent: 0,
-        accent: "purple"
+        id: backendApiText(item, "id"), backendSeriesId: backendApiText(item, "id"), playlistId: playlistId,
+        contentType: "series", title: backendApiText(item, "name", "Series"), year: backendApiText(item, "release_date"),
+        seasons: "", episodeCount: "", genre: backendApiGroupLabel(backendApiText(item, "category_title", "Series")),
+        rating: backendApiText(item, "rating", "NR"), description: backendApiText(item, "plot"),
+        posterUrl: poster, cardUrl: poster, backdropUrl: backendApiText(item, "backdrop_url"),
+        streamUrl: "", streamFormat: "", episodeNames: "", seasonNames: "", episodeDurations: "",
+        activeEpisodeTitle: "", resumePercent: 0, accent: "purple"
     }
+end function
+
+function backendApiMapSeriesChannelItems(items as Dynamic, playlistId as String, startIndex = 0 as Integer) as Object
+    out = []
+    if Type(items) <> "roArray" then return out
+    index = startIndex
+    for each item in items
+        if item <> invalid and not backendApiBool(item, "deleted", false) then
+            itemKind = backendApiItemKind(item)
+            if itemKind = "series" then
+                index += 1
+                name = backendApiText(item, "name", "Series episode")
+                poster = backendApiText(item, "poster_url", backendApiText(item, "logo_url"))
+                out.push({
+                    id: backendApiText(item, "id", "backend_series_channel_" + index.toStr()),
+                    backendChannelId: backendApiText(item, "id"), playlistId: playlistId,
+                    contentType: "series", detailMediaType: "series_channel", title: name, year: "",
+                    seasons: "Series", episodeCount: "1 Episode",
+                    genre: backendApiPrimaryGroupLabel(backendApiText(item, "group_title", "Series")),
+                    rating: "", description: backendApiText(item, "overview"),
+                    posterUrl: poster, cardUrl: poster, backdropUrl: backendApiText(item, "backdrop_url", poster),
+                    streamUrl: backendApiText(item, "stream_url"), streamFormat: backendApiStreamFormat(backendApiText(item, "stream_url")),
+                    episodeNames: name, seasonNames: "Season 1", episodeDurations: "",
+                    activeEpisodeTitle: name, resumePercent: 0, featured: index = 1, accent: "purple"
+                })
+            end if
+        end if
+    end for
+    return out
+end function
+
+function backendApiDuration(item as Dynamic) as String
+    seconds = backendApiInt(item, "duration_seconds", 0)
+    if seconds <= 0 then return ""
+    return Int(seconds / 60).toStr() + " min"
+end function
+
+function backendApiStreamFormat(url as String) as String
+    if url = "" then return "hls"
+    path = LCase(url)
+    queryStart = Instr(1, path, "?")
+    if queryStart > 0 then path = Left(path, queryStart - 1)
+    if Right(path, 3) = ".ts" then return "ts"
+    if Right(path, 4) = ".mp4" or Right(path, 4) = ".mkv" or Right(path, 4) = ".m4v" then return "mp4"
+    return "hls"
 end function
 
 function backendApiGroupLabel(groupTitle as String) as String
@@ -478,7 +572,7 @@ function backendApiGroupLabel(groupTitle as String) as String
 end function
 
 function backendApiText(item as Dynamic, key as String, fallback = "" as String) as String
-    if item = invalid then return fallback
+    if Type(item) <> "roAssociativeArray" then return fallback
     value = invalid
     if item.doesExist(key) then value = item[key]
     if value = invalid then return fallback
@@ -521,4 +615,102 @@ function backendApiInitials(text as String) as String
     end for
     if letters = "" then letters = Left(UCase(text), 4)
     return letters
+end function
+
+function backendApiGroupNames(groups as Object) as Object
+    names = ["All"]
+    for each group in groups
+        backendApiAppendGroupName(names, backendApiPrimaryGroupLabel(backendApiText(group, "name")))
+    end for
+    return names
+end function
+
+function backendApiGroupQuery(groups as Object, displayName as String) as String
+    if displayName = "" or displayName = "All" then return "All"
+    needle = LCase(displayName)
+    for each group in groups
+        rawName = backendApiText(group, "name")
+        if LCase(backendApiPrimaryGroupLabel(rawName)) = needle then return rawName
+    end for
+    return displayName
+end function
+
+function backendApiGroupsFromChannelItems(items as Dynamic) as Object
+    groups = []
+    if Type(items) <> "roArray" then return groups
+    for each item in items
+        rawName = backendApiText(item, "group_title")
+        if rawName <> "" then
+            exists = false
+            for each group in groups
+                if LCase(backendApiText(group, "name")) = LCase(rawName) then exists = true
+            end for
+            if not exists then groups.push({name: rawName})
+        end if
+    end for
+    return groups
+end function
+
+function backendApiPrimaryGroupLabel(rawName as String) as String
+    remaining = rawName
+    while remaining <> ""
+        separator = Instr(1, remaining, ";")
+        if separator = 0 then return backendApiTrim(remaining)
+        part = ""
+        if separator > 1 then part = backendApiTrim(Left(remaining, separator - 1))
+        if part <> "" then return part
+        if separator >= remaining.len() then return ""
+        remaining = Mid(remaining, separator + 1)
+    end while
+    return ""
+end function
+
+sub backendApiAppendGroupName(names as Object, value as String)
+    name = backendApiTrim(value)
+    if name = "" then return
+    needle = LCase(name)
+    for each existing in names
+        if LCase(existing) = needle then return
+    end for
+    names.push(name)
+end sub
+
+function backendApiTrim(value as String) as String
+    text = value
+    while text.len() > 0 and (Left(text, 1) = " " or Left(text, 1) = Chr(9))
+        if text.len() = 1 then return ""
+        text = Mid(text, 2)
+    end while
+    while text.len() > 0 and (Right(text, 1) = " " or Right(text, 1) = Chr(9))
+        if text.len() = 1 then return ""
+        text = Left(text, text.len() - 1)
+    end while
+    return text
+end function
+
+' Retain at most three catalog pages. Evicted pages are fetched again when going back.
+function backendApiCatalogWindow(pages as Object, page as Integer, items as Object, nextPage as Integer, selectedId as String) as Object
+    if page < 1 then page = 1
+    updated = []
+    for each cached in pages
+        if cached.page <> page then updated.push(cached)
+    end for
+    updated.push({page: page, items: items, nextPage: nextPage})
+    updated.SortBy("page")
+    if updated.count() > 3 then
+        if updated[0].page = page then
+            updated.Pop()
+        else
+            updated.Shift()
+        end if
+    end if
+    combined = []
+    selectedIndex = 0
+    for each cached in updated
+        for each item in cached.items
+            if backendApiText(item, "id") = selectedId then selectedIndex = combined.count()
+            combined.push(item)
+        end for
+    end for
+    return {pages: updated, items: combined, selectedIndex: selectedIndex, firstPage: updated[0].page, nextPage: updated[updated.count() - 1].nextPage}
 end function

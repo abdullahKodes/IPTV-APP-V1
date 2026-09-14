@@ -6,6 +6,16 @@ sub init()
     m.seasonIndex = 0
     m.episodeIndex = 0
     m.episodeWindowStart = 0
+    m.backendSeries = false
+    m.backendSeriesId = ""
+    m.backendSeasons = []
+    m.backendEpisodes = []
+    m.episodePageStart = 0
+    m.episodeTotal = 0
+    m.episodeNextPage = -1
+    m.seasonWindowStart = 0
+    m.backendMessage = ""
+    m.focusEpisodeAfterLoad = false
     m.detailLoading = false
     m.detailTask = invalid
     render()
@@ -15,6 +25,17 @@ sub refreshClock()
 end sub
 
 sub syncDetail()
+    playlist = playlistStoreGet(detailPlaylistId())
+    m.backendSeries = playlistStoreBool(playlist, "backendManaged", false) and m.top.detailMediaType <> "series_channel"
+    if m.backendSeries then
+        if m.backendSeriesId <> m.top.detailId then
+            m.backendSeriesId = m.top.detailId
+            restoreSeriesProgressSelection()
+            startBackendSeriesDetailLoad()
+        end if
+        render()
+        return
+    end if
     restoreSeriesProgressSelection()
     normalizeSeasonIndex()
     normalizeEpisodeIndex()
@@ -64,6 +85,11 @@ sub selectSeasonEpisodes()
     m.episodeIndex = 0
     m.episodeWindowStart = 0
     m.focusIndex = episodeFocusIndexForColumn(0)
+    if m.backendSeries then
+        m.focusEpisodeAfterLoad = true
+        m.focusIndex = seasonFocusIndexForColumn(m.seasonIndex)
+        startBackendSeasonLoad(1)
+    end if
 end sub
 
 function routeSeriesDetailFocus(dx as Integer, dy as Integer) as Boolean
@@ -71,6 +97,20 @@ function routeSeriesDetailFocus(dx as Integer, dy as Integer) as Boolean
     item = m.focusItems[m.focusIndex]
     if item.doesExist("episodeIndex") then m.episodeIndex = item.episodeIndex
     action = detailText(item, "action")
+    if m.backendSeries and m.detailLoading and action = "episode" then
+        if dx < 0 then m.focusIndex = seasonFocusIndexForColumn(m.seasonIndex)
+        return true
+    end if
+    if m.backendSeries and action = "season" then
+        current = item.seasonIndex
+        target = current + dx
+        if dy <> 0 then target = current + dy * 4
+        if target >= 0 and target < m.backendSeasons.count() and (dx <> 0 or dy > 0 or current >= 4) then
+            m.seasonWindowStart = Int(target / 8) * 8
+            m.focusIndex = seasonFocusIndexForColumn(target)
+            return true
+        end if
+    end if
 
     if dy < 0 then
         if action = "resume" or action = "favorite" then m.focusIndex = 0 : return true
@@ -86,6 +126,7 @@ function routeSeriesDetailFocus(dx as Integer, dy as Integer) as Boolean
         if action = "episode" then
             if m.episodeIndex > 0 then
                 m.episodeIndex = m.episodeIndex - 1
+                ensureBackendEpisodePage()
                 ensureEpisodeWindow()
                 m.focusIndex = episodeFocusIndexForColumn(m.episodeIndex - m.episodeWindowStart)
             else
@@ -111,6 +152,7 @@ function routeSeriesDetailFocus(dx as Integer, dy as Integer) as Boolean
             newEpisode = m.episodeIndex + 1
             if newEpisode < selectedSeasonEpisodeCount() then
                 m.episodeIndex = newEpisode
+                ensureBackendEpisodePage()
                 ensureEpisodeWindow()
                 m.focusIndex = episodeFocusIndexForColumn(m.episodeIndex - m.episodeWindowStart)
             end if
@@ -137,6 +179,10 @@ function routeSeriesDetailFocus(dx as Integer, dy as Integer) as Boolean
 end function
 
 function seasonFocusIndexForColumn(col as Integer) as Integer
+    if m.backendSeries then
+        m.seasonWindowStart = Int(col / 8) * 8
+        col -= m.seasonWindowStart
+    end if
     if col < 0 then col = 0
     maxCol = visibleSeasonCount() - 1
     if col > maxCol then col = maxCol
@@ -151,13 +197,14 @@ function episodeFocusIndexForColumn(col as Integer) as Integer
 end function
 
 sub normalizeSeasonIndex()
-    maxIndex = visibleSeasonCount() - 1
+    maxIndex = detailSeasonCount() - 1
     if maxIndex < 0 then maxIndex = 0
     if m.seasonIndex > maxIndex then m.seasonIndex = maxIndex
     if m.seasonIndex < 0 then m.seasonIndex = 0
 end sub
 
 sub normalizeEpisodeIndex()
+    if m.backendSeries and m.detailLoading then return
     maxIndex = selectedSeasonEpisodeCount() - 1
     if maxIndex < 0 then maxIndex = 0
     if m.episodeIndex > maxIndex then m.episodeIndex = maxIndex
@@ -176,19 +223,39 @@ sub ensureEpisodeWindow()
 end sub
 
 sub goBack()
+    if m.detailTask <> invalid then m.detailTask.control = "STOP"
+    m.detailTask = invalid
+    m.detailLoading = false
     target = m.top.detailReturnPage
     if target = invalid or target = "" then target = "SeriesPage"
     m.top.navigateTo = target
 end sub
 
 sub playDetail()
+    if m.backendSeries then
+        episode = backendSelectedEpisode()
+        if episode = invalid then
+            if m.backendSeasons.count() = 0 then
+                startBackendSeriesDetailLoad()
+            else
+                startBackendSeasonLoad(Int(m.episodeIndex / 50) + 1)
+            end if
+            return
+        end if
+        m.top.detailPlaybackUrl = backendApiText(episode, "stream_url")
+        if m.top.detailPlaybackUrl = "" then
+            startBackendSeasonLoad(Int(m.episodeIndex / 50) + 1, true)
+            return
+        end if
+        m.top.detailPlaybackFormat = backendApiStreamFormat(m.top.detailPlaybackUrl)
+    end if
     url = m.top.detailPlaybackUrl
     if url = invalid or url = "" then
         startBackendSeriesPlaybackLoad()
         return
     end if
     m.top.playbackTitle = detailTitle()
-    m.top.playbackSubtitle = "S" + (m.seasonIndex + 1).toStr() + "-E" + selectedSeasonEpisodeNumber(m.episodeIndex).toStr()
+    m.top.playbackSubtitle = "S" + selectedBackendSeasonNumber().toStr() + "-E" + selectedSeasonEpisodeNumber(m.episodeIndex).toStr()
     m.top.playbackUrl = url
     m.top.playbackFormat = detailPlaybackFormat()
     m.top.playbackPosterUrl = m.top.detailPosterUrl
@@ -242,6 +309,7 @@ sub render()
     drawActions()
     drawSeasonTabs()
     drawEpisodes()
+    if m.backendMessage <> "" then uiLabel(m.canvas, m.backendMessage, 72, 590, 700, 48, 14, m.colors.text)
 end sub
 
 sub drawBackdrop()
@@ -370,6 +438,7 @@ function detailProgressMediaId() as String
 end function
 
 function selectedEpisodeProgressId() as String
+    if m.backendSeries then return backendApiText(backendSelectedEpisode(), "id")
     return "S" + (m.seasonIndex + 1).toStr() + "-E" + selectedSeasonEpisodeNumber(m.episodeIndex).toStr()
 end function
 
@@ -389,18 +458,21 @@ sub drawSeasonTabs()
         row = Int(i / 4)
         x = 72 + col * 148
         y = 456 + row * 46
-        label = "Season " + (i + 1).toStr()
-        if i = 7 and seasonCount > 8 then label = "Season 8+"
+        seasonIndex = i
+        if m.backendSeries then seasonIndex += m.seasonWindowStart
+        label = "Season " + (seasonIndex + 1).toStr()
+        if m.backendSeries then label = seasonNameFromData(seasonIndex)
+        if not m.backendSeries and i = 7 and seasonCount > 8 then label = "Season 8+"
         itemIndex = m.focusItems.count()
         addFocusAction(x, y, 140, 40, "season", 3 + row, i)
-        m.focusItems[itemIndex].seasonIndex = i
+        m.focusItems[itemIndex].seasonIndex = seasonIndex
         focused = itemIndex = m.focusIndex
         textColor = m.colors.textDim
         fill = m.colors.panel
         border = m.colors.whiteLine
         opacity = 0.58
-        selected = i = m.seasonIndex
-        if i = m.seasonIndex then
+        selected = seasonIndex = m.seasonIndex
+        if seasonIndex = m.seasonIndex then
             textColor = m.colors.text
             fill = m.colors.purpleSoft
             border = m.colors.greenFocus
@@ -571,6 +643,7 @@ function detailHeaderMeta() as String
 end function
 
 function detailSeasonLabel() as String
+    if m.backendSeries then return m.backendSeasons.count().toStr() + " Seasons"
     subtitle = detailSubtitle()
     marker = Instr(1, subtitle, " - ")
     if marker > 0 then return Left(subtitle, marker - 1)
@@ -590,6 +663,7 @@ function detailGenreLabel() as String
 end function
 
 function detailEpisodeLabel() as String
+    if m.backendSeries then return m.episodeTotal.toStr() + " Episodes in this season"
     subtitle = detailSubtitle()
     marker = Instr(1, subtitle, " - ")
     if marker > 0 then return Mid(subtitle, marker + 3)
@@ -636,7 +710,7 @@ function seriesDetailBackdropIsComposed(url as String) as Boolean
 end function
 
 function seriesPrimaryActionLabel() as String
-    if m.detailLoading then return "Preparing"
+    if m.detailLoading then return "Watch"
     if progressStorePosition(detailPlaylistId(), "series", detailProgressMediaId(), selectedEpisodeProgressId()) >= 10 then return "Resume"
     return "Watch"
 end function
@@ -648,6 +722,11 @@ function episodeCardTitle(index as Integer) as String
 end function
 
 function episodeTitleFromData(localIndex as Integer) as String
+    if m.backendSeries then
+        episode = backendEpisodeAt(localIndex)
+        if episode = invalid then return "Episode " + (localIndex + 1).toStr()
+        return backendApiText(episode, "title", "Episode " + (localIndex + 1).toStr())
+    end if
     names = m.top.detailEpisodeNames
     if names <> invalid and names <> "" then
         delimiter = "|"
@@ -677,6 +756,11 @@ function selectedSeasonHeading() as String
 end function
 
 function seasonNameFromData(index as Integer) as String
+    if m.backendSeries then
+        if index < 0 or index >= m.backendSeasons.count() then return ""
+        season = m.backendSeasons[index]
+        return backendApiText(season, "name", "Season " + backendApiInt(season, "season_number", index + 1).toStr())
+    end if
     names = m.top.detailSeasonNames
     if names = invalid or names = "" then return ""
     delimiter = "|"
@@ -688,6 +772,7 @@ function seasonNameFromData(index as Integer) as String
 end function
 
 function episodeDurationFromData(localIndex as Integer) as String
+    if m.backendSeries then return backendApiDuration(backendEpisodeAt(localIndex))
     durations = m.top.detailEpisodeDurations
     if durations <> invalid and durations <> "" then
         delimiter = "|"
@@ -718,15 +803,21 @@ function isEpisodeCodeLabel(text as String) as Boolean
 end function
 
 function detailSeasonCount() as Integer
+    if m.backendSeries then return m.backendSeasons.count()
     return numberBeforeWord(detailSubtitle(), "season", 1)
 end function
 
 function detailEpisodeCount() as Integer
+    if m.backendSeries then return m.episodeTotal
     return numberBeforeWord(detailSubtitle(), "episode", 1)
 end function
 
 function visibleSeasonCount() as Integer
     count = detailSeasonCount()
+    if m.backendSeries then
+        count -= m.seasonWindowStart
+        if count <= 0 then return 0
+    end if
     if count > 8 then return 8
     if count < 1 then return 1
     return count
@@ -734,12 +825,14 @@ end function
 
 function visibleEpisodeCount() as Integer
     count = selectedSeasonEpisodeCount()
+    if m.backendSeries and count = 0 then return 0
     if count > 5 then return 5
     if count < 1 then return 1
     return count
 end function
 
 function selectedSeasonEpisodeCount() as Integer
+    if m.backendSeries then return m.episodeTotal
     seasons = detailSeasonCount()
     total = detailEpisodeCount()
     if seasons < 1 then seasons = 1
@@ -754,6 +847,7 @@ function selectedSeasonEpisodeCount() as Integer
 end function
 
 function selectedSeasonEpisodeNumber(localIndex as Integer) as Integer
+    if m.backendSeries then return backendApiInt(backendEpisodeAt(localIndex), "episode_num", localIndex + 1)
     return localIndex + 1
 end function
 
@@ -832,3 +926,121 @@ function trimRightText(text as String) as String
     end while
     return text
 end function
+
+' Backend seasons and episodes are records, never inferred by dividing a total.
+function selectedBackendSeasonNumber() as Integer
+    if m.backendSeries and m.seasonIndex >= 0 and m.seasonIndex < m.backendSeasons.count() then return backendApiInt(m.backendSeasons[m.seasonIndex], "season_number", 0)
+    return m.seasonIndex + 1
+end function
+
+function backendEpisodeAt(index as Integer) as Dynamic
+    offset = index - m.episodePageStart
+    if offset < 0 or offset >= m.backendEpisodes.count() then return invalid
+    return m.backendEpisodes[offset]
+end function
+
+function backendSelectedEpisode() as Dynamic
+    return backendEpisodeAt(m.episodeIndex)
+end function
+
+sub startBackendSeriesDetailLoad()
+    if m.detailLoading then return
+    m.backendMessage = ""
+    m.detailLoading = true
+    task = CreateObject("roSGNode", "BackendApiTask")
+    task.request = backendApiGetSeriesRequest(m.backendSeriesId)
+    task.observeField("response", "onBackendSeriesDetailLoaded")
+    m.detailTask = task
+    task.control = "RUN"
+end sub
+
+sub onBackendSeriesDetailLoaded()
+    if m.detailTask = invalid then return
+    response = m.detailTask.response
+    m.detailTask = invalid
+    m.detailLoading = false
+    if backendApiResponseOk(response) then
+        data = backendApiResponseData(response)
+        if data.doesExist("seasons") and Type(data.seasons) = "roArray" then m.backendSeasons = data.seasons
+        if data.doesExist("series") then
+            series = data.series
+            m.top.detailDescription = backendApiText(series, "plot", m.top.detailDescription)
+            m.top.detailPosterUrl = backendApiText(series, "cover_url", m.top.detailPosterUrl)
+        end if
+        normalizeSeasonIndex()
+        m.seasonWindowStart = Int(m.seasonIndex / 8) * 8
+        if m.backendSeasons.count() > 0 then
+            startBackendSeasonLoad(Int(m.episodeIndex / 50) + 1)
+        else
+            m.backendMessage = "No seasons available. Press Watch to retry."
+        end if
+    else
+        m.backendMessage = backendApiUserMessage(response, "Series could not be loaded. Press Watch to retry.")
+    end if
+    render()
+end sub
+
+sub ensureBackendEpisodePage()
+    if not m.backendSeries or m.detailLoading then return
+    if backendSelectedEpisode() = invalid then startBackendSeasonLoad(Int(m.episodeIndex / 50) + 1)
+end sub
+
+sub startBackendSeasonLoad(page as Integer, playable = false as Boolean)
+    if m.backendSeasons.count() = 0 then return
+    if m.detailTask <> invalid then
+        m.detailTask.unobserveField("response")
+        m.detailTask.control = "STOP"
+    end if
+    m.backendMessage = ""
+    m.detailLoading = true
+    m.requestedEpisodePage = page
+    m.requestedSeasonNumber = selectedBackendSeasonNumber()
+    m.playEpisodeWhenLoaded = playable
+    m.requestedEpisodeId = backendApiText(backendSelectedEpisode(), "id")
+    if page = 1 and not playable then
+        m.backendEpisodes = []
+        m.episodeTotal = 0
+    end if
+    task = CreateObject("roSGNode", "BackendApiTask")
+    task.request = backendApiEpisodesRequest(m.backendSeriesId, m.requestedSeasonNumber, page, playable)
+    task.observeField("response", "onBackendSeasonLoaded")
+    m.detailTask = task
+    task.control = "RUN"
+end sub
+
+sub onBackendSeasonLoaded()
+    if m.detailTask = invalid then return
+    response = m.detailTask.response
+    m.detailTask = invalid
+    m.detailLoading = false
+    if m.requestedSeasonNumber <> selectedBackendSeasonNumber() then return
+    if backendApiResponseOk(response) then
+        m.backendEpisodes = backendApiResponseItems(response)
+        m.episodePageStart = (m.requestedEpisodePage - 1) * 50
+        m.episodeTotal = backendApiResponseTotalCount(response)
+        if m.episodeTotal < 0 then m.episodeTotal = m.episodePageStart + m.backendEpisodes.count()
+        m.episodeNextPage = backendApiResponseNextCursor(response)
+        if m.episodeIndex >= m.episodeTotal then m.episodeIndex = 0
+        if m.episodeTotal > 0 and backendSelectedEpisode() = invalid then
+            startBackendSeasonLoad(Int(m.episodeIndex / 50) + 1)
+            return
+        end if
+        if m.episodeTotal = 0 then m.backendMessage = "No episodes available for this season."
+        if m.playEpisodeWhenLoaded then
+            episode = backendSelectedEpisode()
+            if backendApiText(episode, "id") = m.requestedEpisodeId and backendApiText(episode, "stream_url") <> "" then
+                playDetail()
+                return
+            end if
+            m.backendMessage = "Episode could not be played. Press Watch to retry."
+        end if
+    else
+        m.backendMessage = backendApiUserMessage(response, "Episodes could not be loaded. Select the season to retry.")
+    end if
+    normalizeEpisodeIndex()
+    if m.focusEpisodeAfterLoad and m.episodeTotal > 0 then
+        m.focusIndex = episodeFocusIndexForColumn(m.episodeIndex - m.episodeWindowStart)
+        m.focusEpisodeAfterLoad = false
+    end if
+    render()
+end sub

@@ -263,7 +263,7 @@ sub playLiveFavoriteWithUrl(channel as Object, playbackUrl as String)
     m.top.playbackTitle = favoriteTitle(channel)
     m.top.playbackSubtitle = favItemText(channel, "category", favItemText(channel, "groupTitle", "Live TV")) + " - " + favItemText(channel, "now", "Live stream")
     m.top.playbackUrl = playbackUrl
-    m.top.playbackFormat = mediaPlaybackFormat(channel)
+    m.top.playbackFormat = backendApiStreamFormat(playbackUrl)
     m.top.playbackPosterUrl = favoritePosterUrl(channel)
     if m.top.hasField("playbackPlaylistId") then m.top.playbackPlaylistId = m.activePlaylistId
     if m.top.hasField("playbackMediaId") then m.top.playbackMediaId = favItemText(channel, "id", favoriteTitle(channel))
@@ -808,7 +808,12 @@ function handleSearchKeyboardKey(key as String) as Boolean
     cols = 10
     if key = "back" then closeSearchKeyboard() : return true
     nextIndex = uiKeyboardMoveIndex(m.searchKeys, m.searchKeyboardIndex, key, cols)
-    if nextIndex <> m.searchKeyboardIndex then m.searchKeyboardIndex = nextIndex : render() : return true
+    if nextIndex <> m.searchKeyboardIndex then
+        previousIndex = m.searchKeyboardIndex
+        m.searchKeyboardIndex = nextIndex
+        if not uiUpdateKeyboardFocus(m.searchKeys[previousIndex], m.searchKeys[nextIndex]) then render()
+        return true
+    end if
     if key = "OK" then pressSearchKey() : return true
     return true
 end function

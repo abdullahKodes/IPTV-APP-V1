@@ -1,6 +1,6 @@
 # IPTV App Progress
 
-Last updated: 2026-08-13
+Last updated: 2026-09-14
 
 Read this file before starting a new session. Update it only after a meaningful milestone is completed, such as finishing a screen, fixing a major workflow, committing/pushing, or changing project structure. Do not update it for every tiny visual tweak.
 
@@ -9,13 +9,32 @@ Read this file before starting a new session. Update it only after a meaningful 
 - Roku IPTV app built with SceneGraph, BrightScript, and BrighterScript.
 - Main install/build clone used by GitHub Desktop is usually:
   `C:\Users\M Abdullah\Documents\GitHub\IPTV-APP-V1`
-- Working/scratch folder is:
+- Saved project used for the latest AWS integration and package is:
   `C:\Users\M Abdullah\MY APP\Working\IPTV APP`
 - Standard validation/build commands:
   - `npm.cmd run check`
   - `npm.cmd run build`
-- Installable zip path:
-  `C:\Users\M Abdullah\Documents\GitHub\IPTV-APP-V1\build\roku-iptv-app.zip`
+- Latest verified installable zip path:
+  `C:\Users\M Abdullah\MY APP\Working\IPTV APP\build\roku-iptv-app.zip`
+
+## 2026-09-14 AWS Backend Integration
+
+- Delivered the integration to the saved project at `C:\Users\M Abdullah\MY APP\Working\IPTV APP`; the same changes remain in Codex worktree `84c7`. Files were checked against their starting versions before delivery, with no conflicting or unrelated edits overwritten. Changes remain uncommitted.
+- Replaced the Railway origin with `https://16-192-92-41.sslip.io`. Compared the supplied API guide against the live OpenAPI schema. This temporary hostname will need replacement when the production domain is ready.
+- Live TV/Movies use bootstrap and 50-record channel pages; Series uses the dedicated series endpoint. Pagination follows `has_next`, retains at most three catalog pages, and fetches earlier pages again when browsing back. Search/category filters run on the backend with debouncing and cancellation of obsolete requests. This supersedes the August cursor-sync browsing implementation below.
+- Series details now use actual season records and season-filtered episode pages, including specials, noncontiguous season numbers, and more than eight seasons. Watch requests playable episode URLs on demand; playback/progress uses stable episode IDs instead of treating series as individual channels or dividing flat episodes into guessed seasons.
+- Preserved movie/series artwork and metadata through Task responses, corrected playback format selection, added pending-import polling and running-job conflict handling, and cleared Xtream credentials from submission inputs after completion.
+- Authentication failures retain saved tokens, recovery codes, and identity. Missing playlists are not silently recreated, and unmatched local playlist rows survive migration. No live accounts, playlists, import jobs, or Roku deployments were created during this work.
+- Validation completed: 30 actual BrightScript contract assertions passed in the worktree; the delivered test sources are identical. Final `npm.cmd run check` passed serially in the saved project. Its ZIP was inspected for the AWS endpoint and series integration, with development/test/environment files excluded. Public HTTPS health returned 200 and unauthenticated playlists returned the expected 401 envelope.
+- Focus performance follow-up fixed two client-side regressions: hidden My Playlists pages no longer poll imports or redraw every two seconds while retained in navigation history, and shared focus updates no longer rebuild every button or allocate accumulating animation nodes per remote press. Keyboard focus continues to update only the previous/current key. A 100-move BrightScript test kept a stable node count with no animation-node growth.
+- Startup follow-up removed an invalid SceneGraph-node equality comparison from `uiClear()` that caused a runtime error before the first page rendered and left Roku on the splash screen.
+- Live TV category normalization now also splits semicolon-delimited names returned by the AWS bootstrap/groups response, trims whitespace, and deduplicates labels case-insensitively. Values such as `Outdoor;Sports` and `Public;Sports` now produce the separate `Outdoor`, `Sports`, and `Public` category pills. A Roku runtime follow-up added explicit string bounds for leading, trailing, repeated, and whitespace-only group segments so malformed provider categories are ignored instead of crashing the page.
+- Search crash follow-up made deleting the final character bounds-safe on the Live TV, Movies, and Series keyboards. Backend category/search query values now use string URL escaping directly, avoiding `roUrlTransfer` work on the page thread when a completed search is submitted.
+- Backend category routing now keeps a concise first category label for compound M3U groups while submitting the exact raw group back to AWS, so pills such as `Outdoor` correctly load channels stored under `Outdoor;Sports`. The Series page now falls back once from an empty structured `/series` response to series/episode channel rows for M3U imports; these rows use the existing single-item detail/playback path, while structured series keep the full seasons/episodes API flow.
+- Movies and Series category transitions now retain the current rows and focus model while the debounced backend request runs. Category-result pages show loading instead of a false `No matching` state, and Back preserves the selected category pill through the unfiltered reload instead of falling back to the Movies/Series sidebar button.
+- Single-purpose Movies M3U playlists no longer send the strict `content_type=movie` filter that excluded provider rows imported by AWS as `unknown`. They page through all imported channel rows, but only records explicitly typed as movies or clearly inferred from movie metadata/URL patterns are admitted to Movies. Explicit live/series records and unidentifiable rows are excluded. The same strict page isolation now applies to Series fallback and Live TV mapping; Xtream and mixed playlists retain server-side type filtering.
+- Delivered ZIP: `C:\Users\M Abdullah\MY APP\Working\IPTV APP\build\roku-iptv-app.zip`. The final saved-project `npm.cmd run check` passed after the focus fixes. Integration notes: [AWS backend integration](docs/aws-backend-integration.md).
+- Still unverified: migration of existing Railway users/playlists to AWS, full provider import totals and host-blocking fixes, real provider series metadata, Roku navigation timing, and actual playback. These require an existing authorized identity and Roku testing. Do not reset identity or recreate data merely to bypass authentication failure.
 
 ## 2026-08-13 Backend Playlist Pagination And Counts
 

@@ -18,11 +18,21 @@ sub init()
     m.resumeWindowSize = 2
     m.selectedResumeIndex = 0
     m.focusArea = "normal"
+    m.backendQueryTimer = CreateObject("roSGNode", "Timer")
+    m.backendQueryTimer.duration = 0.35
+    m.backendQueryTimer.repeat = false
+    m.backendQueryTimer.observeField("fire", "reloadBackendQuery")
+    m.backendGroups = []
+    m.backendChannelFallback = false
+    m.backendFallbackAttempted = false
     m.backendLoading = false
+    m.backendQueryPending = false
     m.backendMessage = ""
     m.backendTask = invalid
     m.backendRepairAttempted = false
-    m.backendPageLimit = 1000
+    m.backendPageLimit = 50
+    m.backendPages = []
+    m.backendFirstPage = 1
     m.backendPageCount = 0
     m.backendCursor = 0
     m.backendLastPageFirstId = ""
@@ -60,10 +70,15 @@ sub init()
 end sub
 
 sub startBackendSeriesLoad(cursor = 0 as Integer)
+    if cursor = 0 and m.backendTask <> invalid then
+        m.backendTask.unobserveField("response")
+        m.backendTask.control = "STOP"
+        m.backendTask = invalid
+    end if
     if cursor > 0 and m.backendTask <> invalid then return
     backendId = playlistStoreText(m.activePlaylist, "backendPlaylistId")
     if backendId = "" then
-        m.backendMessage = "This playlist needs to be added again."
+        m.backendMessage = "This saved playlist is unavailable. Check your account."
         return
     end if
     task = CreateObject("roSGNode", "BackendApiTask")
@@ -72,7 +87,8 @@ sub startBackendSeriesLoad(cursor = 0 as Integer)
         return
     end if
     if cursor = 0 then
-        m.series = []
+        m.backendPages = []
+        m.backendFirstPage = 1
         m.backendPageCount = 0
         m.backendLastPageFirstId = ""
         m.backendHasMore = false
@@ -83,74 +99,73 @@ sub startBackendSeriesLoad(cursor = 0 as Integer)
     m.backendLoading = m.series.count() = 0
     m.backendMessage = ""
     task.observeField("response", "onBackendSeriesLoaded")
-    task.request = backendApiSyncChannelsRequest(backendId, m.backendPageLimit, "series", cursor)
-    m.backendTask = task
-    task.control = "RUN"
-end sub
-
-sub startBackendSeriesRepair()
-    if m.backendRepairAttempted then return
-    sourceUrl = playlistStoreText(m.activePlaylist, "sourceUrl")
-    if sourceUrl = "" then return
-    task = CreateObject("roSGNode", "BackendApiTask")
-    if task = invalid then return
-    m.backendRepairAttempted = true
-    m.backendLoading = true
-    m.backendMessage = ""
-    task.observeField("response", "onBackendSeriesRepairCreated")
-    task.request = backendApiCreatePlaylistRequest(m.activePlaylistTitle, sourceUrl)
-    m.backendTask = task
-    task.control = "RUN"
-    render()
-end sub
-
-sub onBackendSeriesRepairCreated()
-    if m.backendTask = invalid then return
-    response = m.backendTask.response
-    m.backendTask = invalid
-    if backendApiResponseOk(response) then
-        savedPlaylist = playlistStoreRepairBackendPlaylist(m.activePlaylistId, backendApiResponsePlaylist(response))
-        if savedPlaylist <> invalid then
-            playlistStoreSetActive(playlistStoreText(savedPlaylist, "id"))
-            m.activePlaylist = savedPlaylist
-            m.activePlaylistId = playlistStoreText(savedPlaylist, "id")
-            m.activePlaylistTitle = playlistStoreText(savedPlaylist, "title", m.activePlaylistTitle)
-            m.backendMessage = ""
-            startBackendSeriesLoad()
-            return
-        end if
+    page = cursor
+    if page < 1 then page = 1
+    if m.backendChannelFallback then
+        task.request = backendApiSeriesChannelFallbackRequest(backendId, page, backendSelectedGroup(), m.searchQuery)
+    else
+        task.request = backendApiSyncChannelsRequest(backendId, m.backendPageLimit, "series", cursor, backendSelectedGroup(), m.searchQuery)
     end if
-    m.backendLoading = false
-    m.backendMessage = backendApiUserMessage(response, "Playlist could not be opened.")
-    render()
+    m.backendTask = task
+    task.control = "RUN"
 end sub
 
 sub onBackendSeriesLoaded()
     if m.backendTask = invalid then return
     response = m.backendTask.response
     m.backendTask = invalid
+    m.backendQueryPending = false
     if backendApiResponseOk(response) then
         items = backendApiResponseItems(response)
         pageFirstId = backendApiFirstItemId(items)
         duplicatePage = m.backendCursor > 0 and pageFirstId <> "" and pageFirstId = m.backendLastPageFirstId
         if not duplicatePage then
-            mapped = backendApiMapSyncItems(items, m.activePlaylistId, "series")
-            for each item in mapped
-                m.series.push(item)
-            end for
+            pageNumber = m.backendCursor
+            if pageNumber < 1 then pageNumber = 1
+            if m.backendChannelFallback then
+                mapped = backendApiMapSeriesChannelItems(items, m.activePlaylistId, (pageNumber - 1) * 50)
+            else
+                mapped = backendApiMapSyncItems(items, m.activePlaylistId, "series", (pageNumber - 1) * 50)
+            end if
+            if mapped.count() = 0 and not m.backendChannelFallback and not m.backendFallbackAttempted and m.backendCursor = 0 and m.searchQuery = "" and backendSelectedGroup() = "All" then
+                m.backendFallbackAttempted = true
+                m.backendChannelFallback = true
+                startBackendSeriesLoad()
+                return
+            end if
+            selectedId = ""
+            if m.selectedSeriesIndex >= 0 and m.selectedSeriesIndex < m.series.count() then selectedId = backendApiText(m.series[m.selectedSeriesIndex], "id")
+            catalog = backendApiCatalogWindow(m.backendPages, m.backendCursor, mapped, backendApiResponseNextCursor(response), selectedId)
+            m.backendPages = catalog.pages
+            m.backendFirstPage = catalog.firstPage
+            delta = catalog.selectedIndex - m.selectedSeriesIndex
+            m.selectedSeriesIndex = catalog.selectedIndex
+            m.seriesWindowStart += delta
+            if m.seriesWindowStart < 0 then m.seriesWindowStart = 0
+            m.series = catalog.items
             if pageFirstId <> "" then m.backendLastPageFirstId = pageFirstId
         end if
         m.backendPageCount += 1
         totalCount = backendApiResponseTotalCount(response)
         if totalCount >= 0 then m.backendTotalCount = totalCount
-        nextCursor = backendApiResponseNextCursor(response)
-        if nextCursor < 0 and items.count() >= m.backendPageLimit then nextCursor = m.backendCursor + items.count()
-        m.backendHasMore = not duplicatePage and nextCursor > m.backendCursor and items.count() >= m.backendPageLimit
+        nextCursor = -1
+        if m.backendPages.count() > 0 then nextCursor = m.backendPages[m.backendPages.count() - 1].nextPage
+        m.backendHasMore = not duplicatePage and nextCursor > 0
         m.backendNextCursor = -1
         if m.backendHasMore then m.backendNextCursor = nextCursor
         m.backendLoading = false
         applySeriesProgress()
-        m.categories = seriesCategoriesFromCatalog(m.series)
+        data = backendApiResponseData(response)
+        if data <> invalid and data.doesExist("groups") and Type(data.groups) = "roArray" and m.searchQuery = "" and backendSelectedGroup() = "All" then m.backendGroups = data.groups
+        if m.backendChannelFallback and m.searchQuery = "" and backendSelectedGroup() = "All" then
+            fallbackGroups = backendApiGroupsFromChannelItems(items)
+            if fallbackGroups.count() > 0 then m.backendGroups = fallbackGroups
+        end if
+        if m.backendGroups.count() > 0 then
+            m.categories = backendApiGroupNames(m.backendGroups)
+        else if m.searchQuery = "" and backendSelectedGroup() = "All" then
+            m.categories = seriesCategoriesFromCatalog(m.series)
+        end if
         if m.series.count() > 0 then
             m.backendMessage = ""
         else
@@ -162,14 +177,11 @@ sub onBackendSeriesLoaded()
             normalizeSeriesWindow(filteredSeries().count())
         end if
     else
-        if backendApiResponseStatusCode(response) = 404 and not m.backendRepairAttempted then
-            startBackendSeriesRepair()
-            return
-        end if
         m.backendLoading = false
         m.backendMessage = backendApiUserMessage(response, "Series could not be loaded.")
     end if
-    render()
+    if m.series.count() = 0 and m.backendHasMore then m.backendMessage = "No matching items on this page. Press OK for more."
+    if not m.searchEditing then render()
 end sub
 
 sub maybeLoadMoreSeries(visibleCount as Integer)
@@ -192,6 +204,16 @@ end sub
 
 function handleKey(key as String) as Boolean
     if m.searchEditing then return handleSearchKeyboardKey(key)
+    if playlistStoreBool(m.activePlaylist, "backendManaged", false) and m.backendTask = invalid then
+        if m.series.count() = 0 and m.backendHasMore and key = "OK" then
+            startBackendSeriesLoad(m.backendNextCursor)
+            return true
+        end if
+        if m.focusArea = "series" and m.selectedSeriesIndex = 0 and key = "left" and m.backendFirstPage > 1 then
+            startBackendSeriesLoad(m.backendFirstPage - 1)
+            return true
+        end if
+    end if
     if key = "back" and (m.searchQuery <> "" or m.searchReturnPending or m.categoryResultsActive) then clearSeriesSearchAndStay() : return true
     if key = "left" then move(-1, 0) : return true
     if key = "right" then move(1, 0) : return true
@@ -235,7 +257,7 @@ sub openSeriesDetail(series as Object)
     m.top.detailEpisodeDurations = seriesText(series, "episodeDurations")
     m.top.detailActiveEpisodeTitle = seriesText(series, "activeEpisodeTitle")
     m.top.detailPlaylistId = m.activePlaylistId
-    m.top.detailMediaType = "series"
+    m.top.detailMediaType = seriesText(series, "detailMediaType", "series")
     m.top.detailReturnPage = "SeriesPage"
     m.top.navigateTo = "SeriesDetailPage"
 end sub
@@ -345,6 +367,10 @@ sub drawSeriesSearchResults(visible as Object)
     if m.categoryResultsActive then heading = m.selectedGenre
     uiLabel(m.canvas, heading, 244, 108, 520, 30, 15, m.colors.text)
     if m.categoryResultsActive then uiLabel(m.canvas, visible.count().toStr() + " titles", 824, 108, 190, 28, 12, m.colors.textDim, "right")
+    if m.backendQueryPending then
+        uiContentLoader(m.canvas, m.colors, "Loading Series")
+        return
+    end if
     if visible.count() = 0 then
         uiLabel(m.canvas, "No matching series found", 244, 270, 770, 30, 16, m.colors.textDim, "center")
         return
@@ -845,7 +871,7 @@ function filteredSeries() as Object
         searchable = LCase(seriesText(s, "title") + " " + seriesText(s, "genre") + " " + seriesText(s, "year") + " " + seriesText(s, "rating") + " " + seriesText(s, "seasons"))
         matchSearch = (query = "") or (Instr(1, searchable, query) > 0)
         matchGenre = query <> "" or (m.selectedGenre = "All") or (Instr(1, LCase(seriesText(s, "genre")), LCase(m.selectedGenre)) > 0)
-        if matchSearch and matchGenre then
+        if playlistStoreBool(m.activePlaylist, "backendManaged", false) or (matchSearch and matchGenre) then
             res.push({ series: s, index: i })
         end if
     end for
@@ -982,9 +1008,16 @@ sub drawSeriesScrollbar(total as Integer, x as Integer, y as Integer, h as Integ
 end sub
 
 sub resetSeriesWindow()
+    restoreCategoryFocus = m.focusArea = "categories"
     m.seriesWindowStart = 0
     m.selectedSeriesIndex = 0
-    m.focusArea = "normal"
+    if m.categoryResultsActive then
+        m.focusArea = "series"
+    else if restoreCategoryFocus then
+        m.focusArea = "categories"
+    else
+        m.focusArea = "normal"
+    end if
 end sub
 
 sub normalizeSeriesWindow(total as Integer)
@@ -1022,6 +1055,7 @@ sub selectSeriesCategory(categoryIndex as Integer, fromSearch = false as Boolean
         m.focusArea = "categories"
     end if
     normalizeSeriesCategoryWindow()
+    scheduleBackendQuery()
     render()
 end sub
 
@@ -1243,6 +1277,7 @@ sub syncSeriesFocus()
 end sub
 
 sub openSearchKeyboard()
+    m.backendQueryTimer.control = "stop"
     m.searchPreviousCategoryIndex = m.categoryIndex
     m.searchReturnPending = false
     m.categoryResultsActive = false
@@ -1255,7 +1290,12 @@ function handleSearchKeyboardKey(key as String) as Boolean
     cols = 10
     if key = "back" then closeSearchKeyboard() : return true
     nextIndex = uiKeyboardMoveIndex(m.searchKeys, m.searchKeyboardIndex, key, cols)
-    if nextIndex <> m.searchKeyboardIndex then m.searchKeyboardIndex = nextIndex : render() : return true
+    if nextIndex <> m.searchKeyboardIndex then
+        previousIndex = m.searchKeyboardIndex
+        m.searchKeyboardIndex = nextIndex
+        if not uiUpdateKeyboardFocus(m.searchKeys[previousIndex], m.searchKeys[nextIndex]) then render()
+        return true
+    end if
     if key = "OK" then pressSearchKey() : return true
     return true
 end function
@@ -1276,7 +1316,11 @@ sub pressSearchKey()
     if selected = "CLEAR" then
         current = ""
     else if selected = "DEL" then
-        if current.len() > 0 then current = current.left(current.len() - 1)
+        if current.len() > 1 then
+            current = current.left(current.len() - 1)
+        else
+            current = ""
+        end if
     else if selected = "SPACE" then
         if current.len() >= 64 then return
         current += " "
@@ -1289,6 +1333,7 @@ sub pressSearchKey()
         current += uiKeyboardInputText(selected, m.searchKeyboardUpper)
     end if
     m.searchQuery = current
+    scheduleBackendQuery()
     m.categoryResultsActive = false
     m.seriesWindowStart = 0
     m.selectedSeriesIndex = 0
@@ -1310,6 +1355,7 @@ end function
 
 sub closeSearchKeyboard()
     m.searchEditing = false
+    scheduleBackendQuery()
     render()
 end sub
 
@@ -1321,6 +1367,7 @@ sub clearSeriesSearchAndStay()
         if m.categoryIndex < 0 or m.categoryIndex >= m.categories.count() then m.categoryIndex = 0
         m.selectedGenre = m.categories[m.categoryIndex]
     end if
+    scheduleBackendQuery()
     m.searchReturnPending = false
     m.categoryResultsActive = false
     m.focusedCategoryIndex = m.categoryIndex
@@ -1359,4 +1406,30 @@ sub drawSearchKeyboardOverlay()
         keyLabel = m.searchKeys[i]
         uiDrawKeyboardKey(m.canvas, keyLabel, uiKeyboardDisplayText(keyLabel, m.searchKeyboardUpper), keyRect.x, keyRect.y, keyRect.w, keyRect.h, i = m.searchKeyboardIndex, m.colors)
     end for
+end sub
+
+function backendSelectedGroup() as String
+    if m.searchQuery <> "" then return "All"
+    if m.categories = invalid or m.categoryIndex = invalid then return "All"
+    if m.categoryIndex < 0 or m.categoryIndex >= m.categories.count() then return "All"
+    return backendApiGroupQuery(m.backendGroups, m.categories[m.categoryIndex])
+end function
+
+sub scheduleBackendQuery()
+    if m.searchEditing then return
+    if not playlistStoreBool(m.activePlaylist, "backendManaged", false) then return
+    m.backendQueryPending = true
+    if m.backendTask <> invalid then
+        m.backendTask.unobserveField("response")
+        m.backendTask.control = "STOP"
+        m.backendTask = invalid
+    end if
+    m.backendHasMore = false
+    m.backendQueryTimer.control = "stop"
+    m.backendQueryTimer.control = "start"
+end sub
+
+sub reloadBackendQuery()
+    if m.searchEditing then return
+    startBackendSeriesLoad()
 end sub

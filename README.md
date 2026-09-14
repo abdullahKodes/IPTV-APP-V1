@@ -36,8 +36,10 @@ This is a Roku SceneGraph IPTV app workspace based on the supplied IPTV Max desi
 
 - Backend playlists keep local Roku card IDs separate from backend playlist IDs.
 - Live TV, Movies, and Series load their relevant page data separately instead of relying on one mixed page payload.
-- Large backend playlists use cursor pagination. The app renders the first page quickly, appends more rows near the end of the list, and avoids loading an entire 20,000-item playlist into memory at once.
-- Page header counts use backend total metadata when available, such as `total_count`, `total`, `total_items`, `active_channel_count`, or `channel_count`. Pagination size such as `1000` is only the loaded page size, not the final displayed total.
+- Backend browsing uses 50-record pages and `meta.pagination.has_next`. At most three catalog pages are retained; earlier pages are fetched again when navigating left from the first retained item. Live/Movie initial pages use bootstrap; Series uses the dedicated series endpoint.
+- Unfiltered page header counts use backend pagination totals. Search and category requests run on the backend with a 350 ms debounce; their UI counts describe retained filtered rows. Page size is not a library total.
 - Reliable Live/Movie/Series separation depends on backend extraction preserving item-level `content_type` or `media_type`. The client also applies fallback classification hints, but backend metadata is the durable source of truth.
 
 Real IPTV provider credentials, stream URLs, payment provider keys, and signing credentials must stay outside source control.
+
+Backend migration details and verification limits: [AWS integration](docs/aws-backend-integration.md).

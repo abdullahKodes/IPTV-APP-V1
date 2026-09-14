@@ -287,7 +287,12 @@ function handleKeyboardKey(key as String) as Boolean
     cols = 10
     if key = "back" then closeKeyboard() : return true
     nextIndex = uiKeyboardMoveIndex(m.keyboardKeys, m.keyboardIndex, key, cols)
-    if nextIndex <> m.keyboardIndex then m.keyboardIndex = nextIndex : render() : return true
+    if nextIndex <> m.keyboardIndex then
+        previousIndex = m.keyboardIndex
+        m.keyboardIndex = nextIndex
+        if not uiUpdateKeyboardFocus(m.keyboardKeys[previousIndex], m.keyboardKeys[nextIndex]) then render()
+        return true
+    end if
     if key = "OK" then pressKeyboardKey() : return true
     return true
 end function

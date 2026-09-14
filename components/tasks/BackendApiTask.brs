@@ -11,7 +11,10 @@ sub runBackendApiRequest()
 
     method = backendApiTaskText(request, "method", "GET")
     path = backendApiTaskText(request, "path", "")
-    url = backendApiBuildUrl(path)
+    if path = "/api/v1/auth/anonymous" and backendApiTaskHasSavedIdentity() then
+        m.top.response = backendApiErrorResponse(401, "Existing account retained. Use account recovery.")
+        return
+    end if
     authRequired = backendApiTaskBool(request, "authRequired", true)
 
     accessToken = ""
@@ -23,74 +26,42 @@ sub runBackendApiRequest()
         end if
     end if
 
-    transfer = CreateObject("roUrlTransfer")
-    port = CreateObject("roMessagePort")
-    transfer.SetUrl(url)
-    transfer.SetMessagePort(port)
-    transfer.SetCertificatesFile("common:/certs/ca-bundle.crt")
-    transfer.InitClientCertificates()
-    transfer.AddHeader("Accept", "application/json")
-    if accessToken <> "" then transfer.AddHeader("Authorization", "Bearer " + accessToken)
+    result = backendApiTaskTransfer(request, accessToken)
+    responseText = result.text
+    statusCode = result.statusCode
 
-    bodyText = ""
-    started = false
-    if method = "POST" then
-        transfer.AddHeader("Content-Type", "application/json")
-        body = invalid
-        if request.doesExist("body") then body = request.body
-        if body <> invalid then bodyText = FormatJson(body)
-        started = transfer.AsyncPostFromString(bodyText)
-    else
-        if method <> "GET" then transfer.SetRequest(method)
-        started = transfer.AsyncGetToString()
-    end if
-
-    if not started then
-        m.top.response = backendApiErrorResponse(0, "Backend request could not be started.")
-        return
-    end if
-
-    msg = wait(8000, port)
-    if msg = invalid then
-        transfer.AsyncCancel()
-        m.top.response = backendApiErrorResponse(0, "Backend request timed out.")
-        return
-    end if
-
-    responseText = ""
-    statusCode = 0
-    if Type(msg) = "roUrlEvent" then
-        responseText = msg.GetString()
-        statusCode = msg.GetResponseCode()
-    else
-        m.top.response = backendApiErrorResponse(0, "Unexpected backend response.")
-        return
-    end if
-
-    if authRequired and statusCode = 401 then backendApiTaskClearAccessToken()
+    ' Keep stored identity on 401; recovery is an explicit user action.
 
     parsed = invalid
     if responseText <> invalid then
         if responseText <> "" then parsed = ParseJson(responseText)
     end if
 
-    ok = statusCode >= 200 and statusCode < 300
-    if parsed <> invalid then
-        if parsed.doesExist("success") then
-            if parsed.success <> true then ok = false
+    ok = backendApiTaskResponseOk(statusCode, parsed)
+
+    if ok and request.doesExist("groupsPath") then
+        groupsResponse = backendApiTaskTransfer({ method: "GET", path: request.groupsPath }, accessToken)
+        groupsBody = ParseJson(groupsResponse.text)
+        if groupsResponse.statusCode = 200 and backendApiTaskIsAssoc(groupsBody) then
+            if backendApiTaskBool(groupsBody, "success", false) then
+                groupsData = backendApiTaskValue(groupsBody, "data")
+                if backendApiTaskIsAssoc(groupsData) then parsed.data.groups = backendApiTaskValue(groupsData, "items")
+            end if
         end if
     end if
-
     responseBody = backendApiTaskCompactResponseBody(parsed, path)
     if responseBody = invalid then responseBody = {}
     responseRaw = ""
-    if not ok and responseText <> invalid then responseRaw = Left(responseText, 500)
+    ' Never copy arbitrary backend bodies (which may contain provider credentials) to UI/logs.
+    requestId = backendApiText(backendApiTaskValue(parsed, "meta"), "request_id")
+    if not ok then print "Backend HTTP "; statusCode; " request_id="; requestId
 
     m.top.response = {
         ok: ok,
         statusCode: statusCode,
         body: responseBody,
         raw: responseRaw,
+        requestId: requestId,
         path: path,
         method: method
     }
@@ -138,7 +109,7 @@ end function
 
 function backendApiTaskCompactResponseBody(parsed as Dynamic, path as String) as Dynamic
     if parsed = invalid then return invalid
-    if not backendApiTaskIsAssoc(parsed) then return backendApiTaskSanitizeJson(parsed)
+    if not backendApiTaskIsAssoc(parsed) then return invalid
 
     clean = {}
     clean.success = backendApiTaskValue(parsed, "success")
@@ -153,6 +124,31 @@ function backendApiTaskCompactResponseBody(parsed as Dynamic, path as String) as
     if meta <> invalid then clean.meta = backendApiTaskSanitizeJson(meta)
 
     cleanData = {}
+    backendApiTaskCopyIfExists(clean, parsed, "error")
+    series = backendApiTaskValue(data, "series")
+    if backendApiTaskIsAssoc(series) then cleanData.series = backendApiTaskCompactChannel(series)
+    seasons = backendApiTaskValue(data, "seasons")
+    if backendApiTaskIsArray(seasons) then
+        cleanSeasons = []
+        for each season in seasons
+            if backendApiTaskIsAssoc(season) then cleanSeasons.push(backendApiTaskCompactChannel(season))
+        end for
+        cleanSeasons.SortBy("season_number")
+        cleanData.seasons = cleanSeasons
+    end if
+    backendApiTaskCopyIfExists(cleanData, data, "groups")
+    backendApiTaskCopyIfExists(cleanData, data, "content_types")
+    channels = backendApiTaskValue(data, "channels")
+    if backendApiTaskIsAssoc(channels) then
+        copiedData = {}
+        for each key in data
+            copiedData[key] = data[key]
+        end for
+        data = copiedData
+        data.items = backendApiTaskValue(channels, "items")
+        data.pagination = backendApiTaskValue(channels, "pagination")
+    end if
+    backendApiTaskCopyIfExists(cleanData, data, "pagination")
     items = backendApiTaskValue(data, "items")
     if items <> invalid and backendApiTaskIsArray(items) then
         cleanItems = []
@@ -192,7 +188,12 @@ end function
 function backendApiTaskCompactItem(item as Dynamic, path as String) as Dynamic
     if item = invalid then return {}
     if not backendApiTaskIsAssoc(item) then return backendApiTaskSanitizeJson(item)
-    if Instr(1, path, "/channels/sync") > 0 then return backendApiTaskCompactChannel(item)
+    if Instr(1, path, "/series") > 0 and Instr(1, path, "/episodes") = 0 then
+        clean = backendApiTaskCompactChannel(item)
+        clean.content_type = "series"
+        return clean
+    end if
+    if Instr(1, path, "/channels") > 0 or Instr(1, path, "/bootstrap") > 0 or Instr(1, path, "/series") > 0 then return backendApiTaskCompactChannel(item)
     return backendApiTaskCompactPlaylist(item)
 end function
 
@@ -236,6 +237,11 @@ function backendApiTaskCompactChannel(item as Dynamic) as Object
     backendApiTaskCopy(clean, item, "id")
     backendApiTaskCopy(clean, item, "playlist_id")
     backendApiTaskCopy(clean, item, "name")
+    for each key in ["title", "category_title", "cover_url", "plot", "genre", "release_date", "release_year", "poster_url", "backdrop_url", "overview", "duration_seconds", "rating", "container_extension", "season_number", "episode_num", "series_id"]
+        backendApiTaskCopy(clean, item, key)
+    end for
+    info = backendApiTaskValue(item, "info")
+    if backendApiTaskIsAssoc(info) then clean.duration_seconds = backendApiInt(info, "duration_secs", 0)
     backendApiTaskCopy(clean, item, "tvg_id")
     backendApiTaskCopy(clean, item, "tvg_name")
     backendApiTaskCopy(clean, item, "logo_url")
@@ -322,6 +328,8 @@ function backendApiTaskAccessToken() as String
     token = section.Read("accessToken")
     if token <> invalid and token <> "" then return token
 
+    ' Only a fresh installation may bootstrap anonymously. Never replace a saved user.
+    if backendApiTaskHasSavedIdentity() then return ""
     response = backendApiTaskRunAuthRequest()
     if response = invalid then return ""
     if not response.doesExist("success") then return ""
@@ -342,12 +350,27 @@ function backendApiTaskAccessToken() as String
     return token
 end function
 
-sub backendApiTaskClearAccessToken()
+function backendApiTaskHasSavedIdentity() as Boolean
     section = CreateObject("roRegistrySection", backendApiAuthRegistrySection())
-    if section = invalid then return
-    if section.Exists("accessToken") then section.Delete("accessToken")
-    section.Flush()
-end sub
+    if section.Exists("recoveryCode") or section.Exists("userId") or section.Exists("accessToken") then return true
+    playlistSection = CreateObject("roRegistrySection", "iptv_max_playlists")
+    savedItems = ParseJson(playlistSection.Read("items"))
+    if backendApiTaskIsArray(savedItems) then
+        for each savedItem in savedItems
+            if backendApiTaskIsAssoc(savedItem) then
+                if backendApiTaskBool(savedItem, "backendManaged", false) then return true
+            end if
+        end for
+    end if
+    return false
+end function
+
+function backendApiTaskResponseOk(statusCode as Integer, parsed as Dynamic) as Boolean
+    if statusCode < 200 or statusCode >= 300 then return false
+    if not backendApiTaskIsAssoc(parsed) then return false
+    if not backendApiTaskBool(parsed, "success", false) then return false
+    return backendApiTaskIsAssoc(backendApiTaskValue(parsed, "data"))
+end function
 
 function backendApiTaskRunAuthRequest() as Dynamic
     transfer = CreateObject("roUrlTransfer")
@@ -372,4 +395,48 @@ function backendApiTaskRunAuthRequest() as Dynamic
     if responseText = invalid then return invalid
     if responseText = "" then return invalid
     return ParseJson(responseText)
+end function
+
+' All waits, JSON parsing and bounded retries execute on this Task's worker thread.
+function backendApiTaskTransfer(request as Object, token as String) as Object
+    method = backendApiTaskText(request, "method", "GET")
+    url = backendApiBuildUrl(backendApiTaskText(request, "path", ""))
+    if Left(LCase(url), 8) <> "https://" then return {statusCode: 0, text: ""}
+    attempts = 1
+    if method = "GET" then attempts = 3
+    result = {statusCode: 0, text: ""}
+    for attempt = 1 to attempts
+        transfer = CreateObject("roUrlTransfer")
+        port = CreateObject("roMessagePort")
+        transfer.SetUrl(url)
+        transfer.SetMessagePort(port)
+        transfer.SetCertificatesFile("common:/certs/ca-bundle.crt")
+        transfer.InitClientCertificates()
+        transfer.AddHeader("Accept", "application/json")
+        if token <> "" then transfer.AddHeader("Authorization", "Bearer " + token)
+        if method = "POST" then
+            transfer.AddHeader("Content-Type", "application/json")
+            bodyText = ""
+            if request.doesExist("body") then bodyText = FormatJson(request.body)
+            started = transfer.AsyncPostFromString(bodyText)
+        else
+            if method <> "GET" then transfer.SetRequest(method)
+            started = transfer.AsyncGetToString()
+        end if
+        msg = invalid
+        if started then msg = wait(45000, port)
+        result = {statusCode: 0, text: ""}
+        if Type(msg) = "roUrlEvent" then
+            result = {statusCode: msg.GetResponseCode(), text: msg.GetString()}
+        else
+            transfer.AsyncCancel()
+        end if
+        code = result.statusCode
+        retryable = code <= 0 or code = 429 or code >= 500
+        if not retryable or attempt = attempts then return result
+        delay = 1000 * (2 ^ (attempt - 1))
+        if code = 429 then delay = 5000 * attempt
+        sleep(Int(delay))
+    end for
+    return result
 end function

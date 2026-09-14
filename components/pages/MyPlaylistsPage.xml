@@ -5,6 +5,7 @@
     <Group id="myPlaylistsCanvas" />
   </children>
   <interface>
+    <field id="pageActive" type="bool" value="true" alwaysNotify="true" />
     <field id="navigateTo" type="string" alwaysNotify="true" />
     <function name="handleKey" />
     <function name="refreshClock" />

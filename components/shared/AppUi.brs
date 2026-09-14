@@ -430,19 +430,10 @@ function uiKeyboardStoredReturnIndex(currentIndex as Integer) as Integer
 end function
 
 sub uiDrawKeyboardKey(parent as Object, keyId as String, displayText as String, x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean, colors as Object)
-    bgUri = "pkg:/images/ui/rr_70x36_panel_whiteLine.png"
-    if focused then bgUri = "pkg:/images/ui/rr_70x36_purpleSoft_greenFocus.png"
-    if w = 92 then
-        bgUri = "pkg:/images/ui/rr_92x36_panel_whiteLine.png"
-        if focused then bgUri = "pkg:/images/ui/rr_92x36_purpleSoft_greenFocus.png"
-    else if w = 112 then
-        bgUri = "pkg:/images/ui/rr_112x36_panel_whiteLine.png"
-        if focused then bgUri = "pkg:/images/ui/rr_112x36_purpleSoft_greenFocus.png"
-    else if w = 150 then
-        bgUri = "pkg:/images/ui/rr_150x40_panel_whiteLine.png"
-        if focused then bgUri = "pkg:/images/ui/rr_150x40_purpleSoft_greenFocus.png"
-    end if
-    uiPoster(parent, bgUri, x, y, w, h, 0.92)
+    bgUri = uiKeyboardKeyBackground(w, focused)
+    background = uiPoster(parent, bgUri, x, y, w, h, 0.92)
+    if not m.doesExist("uiKeyboardKeyNodes") then m.uiKeyboardKeyNodes = {}
+    m.uiKeyboardKeyNodes[keyId] = { node: background, normalUri: uiKeyboardKeyBackground(w, false), focusedUri: uiKeyboardKeyBackground(w, true) }
 
     if keyId = "SPACE" then
         iconW = 58
@@ -462,6 +453,32 @@ sub uiDrawKeyboardKey(parent as Object, keyId as String, displayText as String, 
     if keyId = "CLEAR" or keyId = "DONE" or keyId = "DEL" or keyId = "CASE" then textSize = 11
     uiLabel(parent, label, x, y + 5, w, h - 8, textSize, colors.text, "center")
 end sub
+
+function uiUpdateKeyboardFocus(previousKey as String, nextKey as String) as Boolean
+    if not m.doesExist("uiKeyboardKeyNodes") then return false
+    if not m.uiKeyboardKeyNodes.doesExist(previousKey) or not m.uiKeyboardKeyNodes.doesExist(nextKey) then return false
+    previous = m.uiKeyboardKeyNodes[previousKey]
+    current = m.uiKeyboardKeyNodes[nextKey]
+    previous.node.uri = previous.normalUri
+    current.node.uri = current.focusedUri
+    return true
+end function
+
+function uiKeyboardKeyBackground(w as Integer, focused as Boolean) as String
+    bgUri = "pkg:/images/ui/rr_70x36_panel_whiteLine.png"
+    if focused then bgUri = "pkg:/images/ui/rr_70x36_purpleSoft_greenFocus.png"
+    if w = 92 then
+        bgUri = "pkg:/images/ui/rr_92x36_panel_whiteLine.png"
+        if focused then bgUri = "pkg:/images/ui/rr_92x36_purpleSoft_greenFocus.png"
+    else if w = 112 then
+        bgUri = "pkg:/images/ui/rr_112x36_panel_whiteLine.png"
+        if focused then bgUri = "pkg:/images/ui/rr_112x36_purpleSoft_greenFocus.png"
+    else if w = 150 then
+        bgUri = "pkg:/images/ui/rr_150x40_panel_whiteLine.png"
+        if focused then bgUri = "pkg:/images/ui/rr_150x40_purpleSoft_greenFocus.png"
+    end if
+    return bgUri
+end function
 
 sub uiDrawPinKeyboardKey(parent as Object, keyId as String, displayText as String, x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean, colors as Object)
     if keyId <> "DEL" and keyId <> "DONE" then
@@ -485,50 +502,16 @@ sub uiCardFocusTint(parent as Object, x as Integer, y as Integer, w as Integer, 
 end sub
 
 sub uiAnimateCardFocus(parent as Object, cardCanvas as Object, x as Integer, y as Integer)
-    animation = CreateObject("roSGNode", "Animation")
-    animation.duration = 0.14
-    animation.easeFunction = "outQuad"
-
-    scaleAnimation = animation.createChild("Vector2DFieldInterpolator")
-    scaleAnimation.key = [0.0, 1.0]
-    scaleAnimation.keyValue = [[1.0, 1.0], [1.025, 1.025]]
-    scaleAnimation.fieldToInterp = cardCanvas.id + ".scale"
-
-    positionAnimation = animation.createChild("Vector2DFieldInterpolator")
-    positionAnimation.key = [0.0, 1.0]
-    positionAnimation.keyValue = [[x, y], [x - 2, y - 3]]
-    positionAnimation.fieldToInterp = cardCanvas.id + ".translation"
-
-    parent.appendChild(animation)
-    animation.control = "start"
+    ' Focus artwork already changes immediately. Avoid allocating animation
+    ' nodes on every remote press; retained pages otherwise accumulate them.
 end sub
 
 sub uiAnimatePanelFocus(parent as Object, panelCanvas as Object)
-    animation = CreateObject("roSGNode", "Animation")
-    animation.duration = 0.12
-    animation.easeFunction = "outQuad"
-
-    scaleAnimation = animation.createChild("Vector2DFieldInterpolator")
-    scaleAnimation.key = [0.0, 1.0]
-    scaleAnimation.keyValue = [[1.0, 1.0], [1.015, 1.015]]
-    scaleAnimation.fieldToInterp = panelCanvas.id + ".scale"
-
-    parent.appendChild(animation)
-    animation.control = "start"
+    ' Keep focus changes instant on lower-memory Roku models.
 end sub
 
 sub uiAnimateActionFocus(parent as Object, actionCanvas as Object)
-    animation = CreateObject("roSGNode", "Animation")
-    animation.duration = 0.14
-    animation.easeFunction = "outQuad"
-
-    scaleAnimation = animation.createChild("Vector2DFieldInterpolator")
-    scaleAnimation.key = [0.0, 1.0]
-    scaleAnimation.keyValue = [[1.0, 1.0], [1.02, 1.02]]
-    scaleAnimation.fieldToInterp = actionCanvas.id + ".scale"
-
-    parent.appendChild(animation)
-    animation.control = "start"
+    ' The selected surface supplies focus feedback without node churn.
 end sub
 
 sub uiContentLoader(parent as Object, colors as Object, title as String)
@@ -557,6 +540,9 @@ sub uiContentLoader(parent as Object, colors as Object, title as String)
 end sub
 
 sub uiClear(parent as Object)
+    ' roSGNode values cannot be compared with = on Roku. Every full clear
+    ' invalidates any cached keyboard nodes, so reset the cache directly.
+    m.uiKeyboardKeyNodes = {}
     while parent.getChildCount() > 0
         parent.removeChild(parent.getChild(0))
     end while
@@ -726,8 +712,14 @@ sub uiApplyFocus(parent as Object, focusItems as Object, focusIndex as Integer)
         mode = ""
         if item.doesExist("mode") then mode = item.mode
         if mode <> "manual" then
-            if item.doesExist("node") and item.node <> invalid then parent.removeChild(item.node)
-            item.node = uiButton(parent, item, i = focusIndex)
+            focused = i = focusIndex
+            alreadyCorrect = false
+            if item.doesExist("node") and item.node <> invalid and item.doesExist("uiFocused") then alreadyCorrect = item.uiFocused = focused
+            if not alreadyCorrect then
+                if item.doesExist("node") and item.node <> invalid then parent.removeChild(item.node)
+                item.node = uiButton(parent, item, focused)
+                item.uiFocused = focused
+            end if
         end if
     end for
 end sub

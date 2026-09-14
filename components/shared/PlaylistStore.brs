@@ -311,7 +311,14 @@ function playlistStoreMergeBackendPlaylists(apiItems as Object) as Object
         backendId = playlistStoreText(apiItem, "id")
         if backendId <> "" and existingBackend.doesExist(backendId) then previous = existingBackend[backendId]
         mapped = playlistStoreMapBackendPlaylist(apiItem, previous)
-        if mapped <> invalid then merged.push(mapped)
+        if mapped <> invalid then
+            merged.push(mapped)
+            if existingBackend.doesExist(backendId) then existingBackend.Delete(backendId)
+        end if
+    end for
+    ' Keep unmatched saved rows through hosting migration. Explicit Delete removes them.
+    for each backendId in existingBackend
+        merged.push(existingBackend[backendId])
     end for
 
     playlistStoreSave(merged)
@@ -410,7 +417,7 @@ function playlistStoreMapBackendPlaylist(apiItem as Object, previous = invalid a
     if itemCount = 0 then itemCount = playlistStoreNumber(apiItem, "channel_count")
 
     lastImportStatus = playlistStoreText(apiItem, "last_import_status")
-    if lastImportStatus = "" and importJob <> invalid then lastImportStatus = playlistStoreText(importJob, "status")
+    if importJob <> invalid then lastImportStatus = playlistStoreText(importJob, "status", lastImportStatus)
     if lastImportStatus = "" and previous <> invalid and itemCount = 0 then lastImportStatus = playlistStoreText(previous, "lastImportStatus")
     status = playlistStoreBackendStatusLabel(playlistStoreText(apiItem, "status"), lastImportStatus)
     meta = playlistStoreBackendMeta(itemCount, contentProfile, lastImportStatus)
@@ -562,7 +569,7 @@ end function
 
 function playlistStoreIsBackendImportFailed(status as String) as Boolean
     statusText = playlistStoreNormalizeMatchText(status)
-    return statusText = "failed" or statusText = "error"
+    return statusText = "failed" or statusText = "error" or statusText = "cancelled"
 end function
 
 function playlistStoreInferInputProfile(title as String, sourceUrl as String) as String
@@ -1043,3 +1050,21 @@ function playlistStoreTitleExistsExcept(title as String, excludedId as String) a
     end for
     return false
 end function
+
+sub playlistStoreUpdateImportJob(localId as String, job as Object)
+    items = playlistStoreList()
+    for each item in items
+        if playlistStoreText(item, "id") = localId then
+            item.importJobId = playlistStoreText(job, "id", playlistStoreText(item, "importJobId"))
+            item.lastImportStatus = playlistStoreText(job, "status", playlistStoreText(item, "lastImportStatus"))
+            item.importErrorCode = playlistStoreText(job, "error_code")
+            item.importErrorMessage = playlistStoreText(job, "error_message")
+            item.importRecordsSeen = playlistStoreNumber(job, "records_seen")
+            item.importRecordsInserted = playlistStoreNumber(job, "records_inserted")
+            item.importRecordsFailed = playlistStoreNumber(job, "records_failed")
+            item.status = playlistStoreBackendStatusLabel("ready", item.lastImportStatus)
+            item.meta = playlistStoreBackendMeta(playlistStoreNumber(item, "itemCount"), playlistStoreText(item, "contentProfile"), item.lastImportStatus)
+        end if
+    end for
+    playlistStoreSave(items)
+end sub

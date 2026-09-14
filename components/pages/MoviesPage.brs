@@ -16,11 +16,19 @@ sub init()
     m.selectedMovieIndex = 0
     m.featuredMovieIndex = -1
     m.focusArea = "normal"
+    m.backendQueryTimer = CreateObject("roSGNode", "Timer")
+    m.backendQueryTimer.duration = 0.35
+    m.backendQueryTimer.repeat = false
+    m.backendQueryTimer.observeField("fire", "reloadBackendQuery")
+    m.backendGroups = []
     m.backendLoading = false
+    m.backendQueryPending = false
     m.backendMessage = ""
     m.backendTask = invalid
     m.backendRepairAttempted = false
-    m.backendPageLimit = 1000
+    m.backendPageLimit = 50
+    m.backendPages = []
+    m.backendFirstPage = 1
     m.backendPageCount = 0
     m.backendCursor = 0
     m.backendLastPageFirstId = ""
@@ -31,6 +39,7 @@ sub init()
     m.activePlaylist = playlistStoreActive()
     m.activePlaylistId = playlistStoreText(m.activePlaylist, "id", playlistStoreDemoId())
     m.activePlaylistTitle = playlistStoreText(m.activePlaylist, "title", "Demo Playlist")
+    m.backendMovieContentType = backendApiMovieContentType(playlistStoreEffectiveContentProfile(m.activePlaylist), playlistStoreText(m.activePlaylist, "sourceType"))
     contentProfile = playlistStoreEffectiveContentProfile(m.activePlaylist)
     if playlistStoreBool(m.activePlaylist, "backendManaged", false) and not playlistStoreBackendPageAllowed(m.activePlaylist, "movies") then
         m.movies = []
@@ -58,10 +67,15 @@ sub init()
 end sub
 
 sub startBackendMoviesLoad(cursor = 0 as Integer)
+    if cursor = 0 and m.backendTask <> invalid then
+        m.backendTask.unobserveField("response")
+        m.backendTask.control = "STOP"
+        m.backendTask = invalid
+    end if
     if cursor > 0 and m.backendTask <> invalid then return
     backendId = playlistStoreText(m.activePlaylist, "backendPlaylistId")
     if backendId = "" then
-        m.backendMessage = "This playlist needs to be added again."
+        m.backendMessage = "This saved playlist is unavailable. Check your account."
         return
     end if
     task = CreateObject("roSGNode", "BackendApiTask")
@@ -70,7 +84,8 @@ sub startBackendMoviesLoad(cursor = 0 as Integer)
         return
     end if
     if cursor = 0 then
-        m.movies = []
+        m.backendPages = []
+        m.backendFirstPage = 1
         m.backendPageCount = 0
         m.backendLastPageFirstId = ""
         m.backendHasMore = false
@@ -81,74 +96,57 @@ sub startBackendMoviesLoad(cursor = 0 as Integer)
     m.backendLoading = m.movies.count() = 0
     m.backendMessage = ""
     task.observeField("response", "onBackendMoviesLoaded")
-    task.request = backendApiSyncChannelsRequest(backendId, m.backendPageLimit, "movie", cursor)
+    task.request = backendApiSyncChannelsRequest(backendId, m.backendPageLimit, m.backendMovieContentType, cursor, backendSelectedGroup(), m.searchQuery)
     m.backendTask = task
     task.control = "RUN"
-end sub
-
-sub startBackendMoviesRepair()
-    if m.backendRepairAttempted then return
-    sourceUrl = playlistStoreText(m.activePlaylist, "sourceUrl")
-    if sourceUrl = "" then return
-    task = CreateObject("roSGNode", "BackendApiTask")
-    if task = invalid then return
-    m.backendRepairAttempted = true
-    m.backendLoading = true
-    m.backendMessage = ""
-    task.observeField("response", "onBackendMoviesRepairCreated")
-    task.request = backendApiCreatePlaylistRequest(m.activePlaylistTitle, sourceUrl)
-    m.backendTask = task
-    task.control = "RUN"
-    render()
-end sub
-
-sub onBackendMoviesRepairCreated()
-    if m.backendTask = invalid then return
-    response = m.backendTask.response
-    m.backendTask = invalid
-    if backendApiResponseOk(response) then
-        savedPlaylist = playlistStoreRepairBackendPlaylist(m.activePlaylistId, backendApiResponsePlaylist(response))
-        if savedPlaylist <> invalid then
-            playlistStoreSetActive(playlistStoreText(savedPlaylist, "id"))
-            m.activePlaylist = savedPlaylist
-            m.activePlaylistId = playlistStoreText(savedPlaylist, "id")
-            m.activePlaylistTitle = playlistStoreText(savedPlaylist, "title", m.activePlaylistTitle)
-            m.backendMessage = ""
-            startBackendMoviesLoad()
-            return
-        end if
-    end if
-    m.backendLoading = false
-    m.backendMessage = backendApiUserMessage(response, "Playlist could not be opened.")
-    render()
 end sub
 
 sub onBackendMoviesLoaded()
     if m.backendTask = invalid then return
     response = m.backendTask.response
     m.backendTask = invalid
+    m.backendQueryPending = false
     if backendApiResponseOk(response) then
         items = backendApiResponseItems(response)
         pageFirstId = backendApiFirstItemId(items)
         duplicatePage = m.backendCursor > 0 and pageFirstId <> "" and pageFirstId = m.backendLastPageFirstId
         if not duplicatePage then
-            mapped = backendApiMapSyncItems(items, m.activePlaylistId, "movies")
-            for each item in mapped
-                m.movies.push(item)
-            end for
+            pageNumber = m.backendCursor
+            if pageNumber < 1 then pageNumber = 1
+            if m.backendMovieContentType = "" then
+                mapped = backendApiMapMovieChannelItems(items, m.activePlaylistId, (pageNumber - 1) * 50)
+            else
+                mapped = backendApiMapSyncItems(items, m.activePlaylistId, "movies", (pageNumber - 1) * 50)
+            end if
+            selectedId = ""
+            if m.selectedMovieIndex >= 0 and m.selectedMovieIndex < m.movies.count() then selectedId = backendApiText(m.movies[m.selectedMovieIndex], "id")
+            catalog = backendApiCatalogWindow(m.backendPages, m.backendCursor, mapped, backendApiResponseNextCursor(response), selectedId)
+            m.backendPages = catalog.pages
+            m.backendFirstPage = catalog.firstPage
+            delta = catalog.selectedIndex - m.selectedMovieIndex
+            m.selectedMovieIndex = catalog.selectedIndex
+            m.movieWindowStart += delta
+            if m.movieWindowStart < 0 then m.movieWindowStart = 0
+            m.movies = catalog.items
             if pageFirstId <> "" then m.backendLastPageFirstId = pageFirstId
         end if
         m.backendPageCount += 1
         totalCount = backendApiResponseTotalCount(response)
         if totalCount >= 0 then m.backendTotalCount = totalCount
-        nextCursor = backendApiResponseNextCursor(response)
-        if nextCursor < 0 and items.count() >= m.backendPageLimit then nextCursor = m.backendCursor + items.count()
-        m.backendHasMore = not duplicatePage and nextCursor > m.backendCursor and items.count() >= m.backendPageLimit
+        nextCursor = -1
+        if m.backendPages.count() > 0 then nextCursor = m.backendPages[m.backendPages.count() - 1].nextPage
+        m.backendHasMore = not duplicatePage and nextCursor > 0
         m.backendNextCursor = -1
         if m.backendHasMore then m.backendNextCursor = nextCursor
         m.backendLoading = false
         m.featuredMovieIndex = selectFeaturedMovieIndex(m.movies)
-        m.categories = movieCategoriesFromCatalog(m.movies)
+        data = backendApiResponseData(response)
+        if data <> invalid and data.doesExist("groups") and Type(data.groups) = "roArray" and m.searchQuery = "" and backendSelectedGroup() = "All" then m.backendGroups = data.groups
+        if m.backendGroups.count() > 0 then
+            m.categories = backendApiGroupNames(m.backendGroups)
+        else if m.searchQuery = "" and backendSelectedGroup() = "All" then
+            m.categories = movieCategoriesFromCatalog(m.movies)
+        end if
         if m.movies.count() > 0 then
             m.backendMessage = ""
         else
@@ -160,14 +158,11 @@ sub onBackendMoviesLoaded()
             normalizeMovieWindow(filteredMovies().count())
         end if
     else
-        if backendApiResponseStatusCode(response) = 404 and not m.backendRepairAttempted then
-            startBackendMoviesRepair()
-            return
-        end if
         m.backendLoading = false
         m.backendMessage = backendApiUserMessage(response, "Movies could not be loaded.")
     end if
-    render()
+    if m.movies.count() = 0 and m.backendHasMore then m.backendMessage = "No matching items on this page. Press OK for more."
+    if not m.searchEditing then render()
 end sub
 
 sub maybeLoadMoreMovies(visibleCount as Integer)
@@ -185,6 +180,16 @@ end sub
 
 function handleKey(key as String) as Boolean
     if m.searchEditing then return handleSearchKeyboardKey(key)
+    if playlistStoreBool(m.activePlaylist, "backendManaged", false) and m.backendTask = invalid then
+        if m.movies.count() = 0 and m.backendHasMore and key = "OK" then
+            startBackendMoviesLoad(m.backendNextCursor)
+            return true
+        end if
+        if m.focusArea = "movies" and m.selectedMovieIndex = 0 and key = "left" and m.backendFirstPage > 1 then
+            startBackendMoviesLoad(m.backendFirstPage - 1)
+            return true
+        end if
+    end if
     if key = "back" and (m.searchQuery <> "" or m.searchReturnPending or m.categoryResultsActive) then clearMovieSearchAndStay() : return true
     if key = "left" then move(-1, 0) : return true
     if key = "right" then move(1, 0) : return true
@@ -330,6 +335,10 @@ sub drawMovieSearchResults(visible as Object)
     if m.categoryResultsActive then heading = m.selectedGenre
     uiLabel(m.canvas, heading, 244, 108, 520, 30, 15, m.colors.text)
     if m.categoryResultsActive then uiLabel(m.canvas, visible.count().toStr() + " titles", 824, 108, 190, 28, 12, m.colors.textDim, "right")
+    if m.backendQueryPending then
+        uiContentLoader(m.canvas, m.colors, "Loading Movies")
+        return
+    end if
     if visible.count() = 0 then
         uiLabel(m.canvas, "No matching movies found", 244, 270, 770, 30, 16, m.colors.textDim, "center")
         return
@@ -918,7 +927,7 @@ function filteredMovies() as Object
         searchable = LCase(movieText(movie, "title") + " " + movieText(movie, "genre") + " " + movieText(movie, "year") + " " + movieText(movie, "rating"))
         matchSearch = (query = "") or (Instr(1, searchable, query) > 0)
         matchGenre = query <> "" or (m.selectedGenre = "All") or (Instr(1, LCase(movieText(movie, "genre")), LCase(m.selectedGenre)) > 0)
-        if matchSearch and matchGenre then
+        if playlistStoreBool(m.activePlaylist, "backendManaged", false) or (matchSearch and matchGenre) then
             res.push({ movie: movie, index: i })
         end if
     end for
@@ -963,9 +972,16 @@ function movieCategoryPillWidth(label as String) as Integer
 end function
 
 sub resetMovieWindow()
+    restoreCategoryFocus = m.focusArea = "categories"
     m.movieWindowStart = 0
     m.selectedMovieIndex = 0
-    m.focusArea = "normal"
+    if m.categoryResultsActive then
+        m.focusArea = "movies"
+    else if restoreCategoryFocus then
+        m.focusArea = "categories"
+    else
+        m.focusArea = "normal"
+    end if
 end sub
 
 sub normalizeMovieWindow(total as Integer)
@@ -1003,6 +1019,7 @@ sub selectMovieCategory(categoryIndex as Integer, fromSearch = false as Boolean)
         m.focusArea = "categories"
     end if
     normalizeMovieCategoryWindow()
+    scheduleBackendQuery()
     render()
 end sub
 
@@ -1226,6 +1243,7 @@ sub syncMovieFocus()
 end sub
 
 sub openSearchKeyboard()
+    m.backendQueryTimer.control = "stop"
     m.searchPreviousCategoryIndex = m.categoryIndex
     m.searchReturnPending = false
     m.categoryResultsActive = false
@@ -1238,7 +1256,12 @@ function handleSearchKeyboardKey(key as String) as Boolean
     cols = 10
     if key = "back" then closeSearchKeyboard() : return true
     nextIndex = uiKeyboardMoveIndex(m.searchKeys, m.searchKeyboardIndex, key, cols)
-    if nextIndex <> m.searchKeyboardIndex then m.searchKeyboardIndex = nextIndex : render() : return true
+    if nextIndex <> m.searchKeyboardIndex then
+        previousIndex = m.searchKeyboardIndex
+        m.searchKeyboardIndex = nextIndex
+        if not uiUpdateKeyboardFocus(m.searchKeys[previousIndex], m.searchKeys[nextIndex]) then render()
+        return true
+    end if
     if key = "OK" then pressSearchKey() : return true
     return true
 end function
@@ -1259,7 +1282,11 @@ sub pressSearchKey()
     if selected = "CLEAR" then
         current = ""
     else if selected = "DEL" then
-        if current.len() > 0 then current = current.left(current.len() - 1)
+        if current.len() > 1 then
+            current = current.left(current.len() - 1)
+        else
+            current = ""
+        end if
     else if selected = "SPACE" then
         if current.len() >= 64 then return
         current += " "
@@ -1272,6 +1299,7 @@ sub pressSearchKey()
         current += uiKeyboardInputText(selected, m.searchKeyboardUpper)
     end if
     m.searchQuery = current
+    scheduleBackendQuery()
     m.categoryResultsActive = false
     m.movieWindowStart = 0
     m.selectedMovieIndex = 0
@@ -1293,6 +1321,7 @@ end function
 
 sub closeSearchKeyboard()
     m.searchEditing = false
+    scheduleBackendQuery()
     render()
 end sub
 
@@ -1304,6 +1333,7 @@ sub clearMovieSearchAndStay()
         if m.categoryIndex < 0 or m.categoryIndex >= m.categories.count() then m.categoryIndex = 0
         m.selectedGenre = m.categories[m.categoryIndex]
     end if
+    scheduleBackendQuery()
     m.searchReturnPending = false
     m.categoryResultsActive = false
     m.focusedCategoryIndex = m.categoryIndex
@@ -1340,4 +1370,30 @@ sub drawSearchKeyboardOverlay()
         keyLabel = m.searchKeys[i]
         uiDrawKeyboardKey(m.canvas, keyLabel, uiKeyboardDisplayText(keyLabel, m.searchKeyboardUpper), keyRect.x, keyRect.y, keyRect.w, keyRect.h, i = m.searchKeyboardIndex, m.colors)
     end for
+end sub
+
+function backendSelectedGroup() as String
+    if m.searchQuery <> "" then return "All"
+    if m.categories = invalid or m.categoryIndex = invalid then return "All"
+    if m.categoryIndex < 0 or m.categoryIndex >= m.categories.count() then return "All"
+    return backendApiGroupQuery(m.backendGroups, m.categories[m.categoryIndex])
+end function
+
+sub scheduleBackendQuery()
+    if m.searchEditing then return
+    if not playlistStoreBool(m.activePlaylist, "backendManaged", false) then return
+    m.backendQueryPending = true
+    if m.backendTask <> invalid then
+        m.backendTask.unobserveField("response")
+        m.backendTask.control = "STOP"
+        m.backendTask = invalid
+    end if
+    m.backendHasMore = false
+    m.backendQueryTimer.control = "stop"
+    m.backendQueryTimer.control = "start"
+end sub
+
+sub reloadBackendQuery()
+    if m.searchEditing then return
+    startBackendMoviesLoad()
 end sub

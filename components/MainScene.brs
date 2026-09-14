@@ -41,9 +41,11 @@ end sub
 sub showPage(componentName as String)
     componentName = gatedPageName(componentName)
     clearParentalUnlockForPage(componentName)
+    if m.currentPage <> invalid and m.currentPage.hasField("pageActive") then m.currentPage.pageActive = false
     uiClear(m.pageHost)
     m.currentPageName = componentName
     m.currentPage = CreateObject("roSGNode", componentName)
+    if m.currentPage.hasField("pageActive") then m.currentPage.pageActive = true
     m.currentPage.observeField("navigateTo", "onPageNavigation")
     if componentName = "PlayerPage" and m.pendingPlayback <> invalid then
         m.currentPage.playbackTitle = m.pendingPlayback.title
@@ -91,9 +93,11 @@ end sub
 sub restorePage(history as Object)
     if history = invalid or history.page = invalid then return
     clearParentalUnlockForPage(history.name)
+    if m.currentPage <> invalid and m.currentPage.hasField("pageActive") then m.currentPage.pageActive = false
     uiClear(m.pageHost)
     m.currentPageName = history.name
     m.currentPage = history.page
+    if m.currentPage.hasField("pageActive") then m.currentPage.pageActive = true
     if m.currentPage.hasField("navigateTo") then m.currentPage.navigateTo = ""
     m.pageHost.appendChild(m.currentPage)
     m.currentPage.setFocus(true)

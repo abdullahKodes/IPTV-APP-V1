@@ -5,6 +5,9 @@ sub init()
     m.focusIndex = 0
     m.detailLoading = false
     m.detailTask = invalid
+    m.playWhenReady = false
+    m.loadedDetailId = ""
+    m.detailMessage = ""
     render()
 end sub
 
@@ -12,6 +15,8 @@ sub refreshClock()
 end sub
 
 sub syncDetail()
+    playlist = playlistStoreGet(detailPlaylistId())
+    if playlistStoreBool(playlist, "backendManaged", false) and m.loadedDetailId <> m.top.detailId then startBackendMoviePlaybackLoad()
     render()
 end sub
 
@@ -41,12 +46,20 @@ sub activate()
 end sub
 
 sub goBack()
+    if m.detailTask <> invalid then
+        m.detailTask.unobserveField("response")
+        m.detailTask.control = "STOP"
+    end if
+    m.detailTask = invalid
+    m.detailLoading = false
+    m.playWhenReady = false
     target = m.top.detailReturnPage
     if target = invalid or target = "" then target = "MoviesPage"
     m.top.navigateTo = target
 end sub
 
 sub playDetail()
+    m.playWhenReady = true
     url = m.top.detailPlaybackUrl
     if url = invalid or url = "" then
         startBackendMoviePlaybackLoad()
@@ -75,6 +88,7 @@ sub startBackendMoviePlaybackLoad()
     task = CreateObject("roSGNode", "BackendApiTask")
     if task = invalid then return
     m.detailLoading = true
+    m.detailMessage = ""
     m.detailTask = task
     task.observeField("response", "onBackendMoviePlaybackLoaded")
     task.request = backendApiGetChannelRequest(backendChannelId)
@@ -89,9 +103,25 @@ sub onBackendMoviePlaybackLoaded()
     m.detailLoading = false
     playbackUrl = backendApiChannelStreamUrl(response)
     if backendApiResponseOk(response) and playbackUrl <> "" then
+        m.loadedDetailId = m.top.detailId
+        channel = backendApiChannelData(response)
+        m.top.detailDescription = backendApiText(channel, "overview", m.top.detailDescription)
+        m.top.detailPosterUrl = backendApiText(channel, "poster_url", m.top.detailPosterUrl)
+        m.top.detailBackdropUrl = backendApiText(channel, "backdrop_url", m.top.detailBackdropUrl)
+        year = backendApiText(channel, "release_year")
+        duration = backendApiDuration(channel)
+        if year <> "" or duration <> "" then m.top.detailSubtitle = year + " - " + duration
+        rating = backendApiText(channel, "rating")
+        if rating <> "" then m.top.detailMeta = backendApiText(channel, "group_title", "Movie") + " - " + rating
         m.top.detailPlaybackUrl = playbackUrl
-        playDetail()
+        m.top.detailPlaybackFormat = backendApiStreamFormat(playbackUrl)
+        if m.playWhenReady then
+            playDetail()
+        else
+            render()
+        end if
     else
+        m.detailMessage = backendApiUserMessage(response, "Movie could not be loaded. Press Watch to retry.")
         render()
     end if
 end sub
@@ -103,6 +133,7 @@ sub render()
     drawTopBar()
     drawHeroCopy()
     drawActions()
+    if m.detailMessage <> "" then uiLabel(m.canvas, m.detailMessage, 72, 590, 800, 48, 14, m.colors.text)
 end sub
 
 sub drawBackdrop()
@@ -225,7 +256,7 @@ function detailProgressMediaId() as String
 end function
 
 function moviePrimaryActionLabel() as String
-    if m.detailLoading then return "Preparing"
+    if m.detailLoading then return "Watch"
     if progressStorePosition(detailPlaylistId(), "movie", detailProgressMediaId()) >= 10 then return "Resume"
     return "Play Now"
 end function

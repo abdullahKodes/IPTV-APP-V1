@@ -264,6 +264,11 @@ sub beginRecoveryCodeSetup()
         return
     end if
 
+    authSection = CreateObject("roRegistrySection", backendApiAuthRegistrySection())
+    if authSection.Exists("accessToken") or authSection.Exists("userId") then
+        showBillingError("Recovery Code Unavailable", "Restore your saved account. Your existing identity has been retained.")
+        return
+    end if
     task = CreateObject("roSGNode", "BackendApiTask")
     if task = invalid then
         showBillingError("Recovery Code Unavailable", "Account service is unavailable.")

@@ -16,6 +16,13 @@ sub init()
     m.manageProtected = false
     m.feedbackMessage = ""
     m.feedbackSuccess = true
+    m.importPollTask = invalid
+    m.importPollIndex = 0
+    m.importPollTimer = CreateObject("roSGNode", "Timer")
+    m.importPollTimer.duration = 8
+    m.importPollTimer.repeat = false
+    m.importPollTimer.observeField("fire", "pollNextBackendImport")
+    m.top.observeField("pageActive", "onPlaylistPageActiveChanged")
     m.backendLoading = false
     m.backendLoaded = false
     m.backendTask = invalid
@@ -83,12 +90,13 @@ sub onBackendPlaylistsLoaded()
         end if
     else
         m.feedbackSuccess = false
-        m.feedbackMessage = "Saved playlists could not be loaded."
+        m.feedbackMessage = backendApiUserMessage(response, "Saved playlists could not be loaded.")
     end if
 
     m.backendTask = invalid
+    if m.top.pageActive then m.importPollTimer.control = "start"
     normalizePlaylistFocus(filteredPlaylists().count())
-    render()
+    if m.top.pageActive then render()
 end sub
 
 sub refreshClock()
@@ -96,6 +104,15 @@ sub refreshClock()
         now = uiNowStrings()
         m.clock.text = now.time
         m.date.text = now.date
+    end if
+    if m.top.pageActive and m.importPollTask = invalid then m.importPollTimer.control = "start"
+end sub
+
+sub onPlaylistPageActiveChanged()
+    if m.top.pageActive then
+        if m.importPollTask = invalid then m.importPollTimer.control = "start"
+    else
+        m.importPollTimer.control = "stop"
     end if
 end sub
 
@@ -911,7 +928,9 @@ sub onBackendPlaylistAction()
     m.backendActionPlaylistId = ""
     m.refreshingId = ""
 
-    if not backendApiResponseOk(response) then
+    importJob = backendApiResponseImportJob(response)
+    importConflict = action = "refresh" and backendApiResponseStatusCode(response) = 409 and importJob <> invalid
+    if not backendApiResponseOk(response) and not importConflict then
         m.feedbackSuccess = false
         if action = "delete" then
             m.feedbackMessage = playlistTitle + " could not be deleted."
@@ -933,6 +952,8 @@ sub onBackendPlaylistAction()
         end if
     else
         playlistStoreMarkBackendImporting(playlistId)
+        if importJob <> invalid then playlistStoreUpdateImportJob(playlistId, importJob)
+        m.importPollTimer.control = "start"
         m.playlists = playlistStoreList()
         m.feedbackSuccess = true
         m.feedbackMessage = "Refresh requested."
@@ -1030,7 +1051,12 @@ function handleSearchKeyboardKey(key as String) as Boolean
     cols = 10
     if key = "back" then closeSearchKeyboard() : return true
     nextIndex = uiKeyboardMoveIndex(m.searchKeys, m.searchKeyboardIndex, key, cols)
-    if nextIndex <> m.searchKeyboardIndex then m.searchKeyboardIndex = nextIndex : render() : return true
+    if nextIndex <> m.searchKeyboardIndex then
+        previousIndex = m.searchKeyboardIndex
+        m.searchKeyboardIndex = nextIndex
+        if not uiUpdateKeyboardFocus(m.searchKeys[previousIndex], m.searchKeys[nextIndex]) then render()
+        return true
+    end if
     if key = "OK" then pressSearchKey() : return true
     return true
 end function
@@ -1085,4 +1111,57 @@ sub drawSearchKeyboardOverlay()
         keyLabel = m.searchKeys[i]
         uiDrawKeyboardKey(m.canvas, keyLabel, uiKeyboardDisplayText(keyLabel, m.searchKeyboardUpper), keyRect.x, keyRect.y, keyRect.w, keyRect.h, i = m.searchKeyboardIndex, m.colors)
     end for
+end sub
+
+sub pollNextBackendImport()
+    if not m.top.pageActive then return
+    if m.importPollTask <> invalid then return
+    items = playlistStoreList()
+    if items.count() = 0 then return
+    for offset = 0 to items.count() - 1
+        index = (m.importPollIndex + offset) mod items.count()
+        playlist = items[index]
+        if playlistStoreBool(playlist, "backendManaged", false) and playlistStoreIsBackendImportPending(playlistStoreText(playlist, "lastImportStatus")) then
+            m.importPollIndex = (index + 1) mod items.count()
+            m.importPollPlaylistId = playlistStoreText(playlist, "id")
+            jobId = playlistStoreText(playlist, "importJobId")
+            task = CreateObject("roSGNode", "BackendApiTask")
+            if jobId <> "" then
+                task.request = backendApiImportJobRequest(jobId)
+            else
+                task.request = backendApiSyncChannelsRequest(playlistStoreText(playlist, "backendPlaylistId"))
+            end if
+            task.observeField("response", "onBackendImportPolled")
+            m.importPollTask = task
+            task.control = "RUN"
+            return
+        end if
+    end for
+end sub
+
+sub onBackendImportPolled()
+    if m.importPollTask = invalid then return
+    response = m.importPollTask.response
+    m.importPollTask = invalid
+    if not backendApiResponseOk(response) then
+        m.feedbackSuccess = false
+        m.feedbackMessage = backendApiUserMessage(response, "Import status unavailable. Use Refresh to retry.")
+        if m.top.pageActive then render()
+        return
+    end if
+    job = backendApiResponseImportJob(response)
+    if job = invalid then return
+    playlistStoreUpdateImportJob(m.importPollPlaylistId, job)
+    m.playlists = playlistStoreList()
+    status = backendApiText(job, "status")
+    if status = "failed" or status = "cancelled" then
+        m.feedbackSuccess = false
+        m.feedbackMessage = backendApiText(job, "error_message", "Import did not complete.") + " Use Refresh to retry."
+    else if status = "completed" then
+        startBackendPlaylistLoad()
+    end if
+    if m.top.pageActive then
+        m.importPollTimer.control = "start"
+        render()
+    end if
 end sub
