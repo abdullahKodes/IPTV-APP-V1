@@ -87,11 +87,18 @@ end sub
 
 function uiPoster(parent as Object, uri as String, x as Integer, y as Integer, w as Integer, h as Integer, opacity = 1.0 as Float) as Object
     node = CreateObject("roSGNode", "Poster")
-    node.uri = uri
     node.translation = [x, y]
     node.width = w
     node.height = h
     node.opacity = opacity
+    if uiPosterIsRemoteUri(uri) then
+        ' Roku must receive load bounds before uri or it decodes provider art
+        ' at its original size, which can exhaust texture memory.
+        node.loadWidth = w
+        node.loadHeight = h
+        node.loadDisplayMode = "limitSize"
+    end if
+    node.uri = uri
     parent.appendChild(node)
     return node
 end function
@@ -102,10 +109,49 @@ function uiPosterZoom(parent as Object, uri as String, x as Integer, y as Intege
     node.width = w
     node.height = h
     node.opacity = opacity
+    if uiPosterIsRemoteUri(uri) then
+        node.loadWidth = w
+        node.loadHeight = h
+    end if
     node.loadDisplayMode = "scaleToZoom"
     node.uri = uri
     parent.appendChild(node)
     return node
+end function
+function uiPosterFit(parent as Object, uri as String, x as Integer, y as Integer, w as Integer, h as Integer, opacity = 1.0 as Float) as Object
+    node = CreateObject("roSGNode", "Poster")
+    node.translation = [x, y]
+    node.width = w
+    node.height = h
+    node.opacity = opacity
+    if uiPosterIsRemoteUri(uri) then
+        node.loadWidth = w
+        node.loadHeight = h
+    end if
+    node.loadDisplayMode = "scaleToFit"
+    node.uri = uri
+    parent.appendChild(node)
+    return node
+end function
+function uiPosterFill(parent as Object, uri as String, x as Integer, y as Integer, w as Integer, h as Integer, opacity = 1.0 as Float) as Object
+    node = CreateObject("roSGNode", "Poster")
+    node.translation = [x, y]
+    node.width = w
+    node.height = h
+    node.opacity = opacity
+    if uiPosterIsRemoteUri(uri) then
+        node.loadWidth = w
+        node.loadHeight = h
+    end if
+    node.loadDisplayMode = "scaleToFill"
+    node.uri = uri
+    parent.appendChild(node)
+    return node
+end function
+
+function uiPosterIsRemoteUri(uri as String) as Boolean
+    lowerUri = LCase(uri)
+    return Left(lowerUri, 8) = "https://" or Left(lowerUri, 7) = "http://"
 end function
 
 function uiColorKey(color as String) as String
@@ -452,6 +498,12 @@ sub uiDrawKeyboardKey(parent as Object, keyId as String, displayText as String, 
     textSize = 12
     if keyId = "CLEAR" or keyId = "DONE" or keyId = "DEL" or keyId = "CASE" then textSize = 11
     uiLabel(parent, label, x, y + 5, w, h - 8, textSize, colors.text, "center")
+end sub
+
+sub uiPageStartupFailure(parent as Object, message as String)
+    uiClear(parent)
+    uiRect(parent, 0, 0, 1280, 720, "0x090D16FF")
+    uiLabel(parent, message, 250, 320, 780, 48, 18, "0xFFFFFFFF", "center")
 end sub
 
 function uiUpdateKeyboardFocus(previousKey as String, nextKey as String) as Boolean

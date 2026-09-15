@@ -41,6 +41,7 @@
     <function name="handleKey" />
     <function name="refreshClock" />
     <function name="refreshProgress" />
+    <function name="disposePage" />
   </interface>
   <script type="text/brightscript" uri="pkg:/components/shared/AppUi.brs" />
   <script type="text/brightscript" uri="pkg:/components/shared/BackendApi.brs" />
@@ -48,5 +49,6 @@
   <script type="text/brightscript" uri="pkg:/components/shared/MediaData.brs" />
   <script type="text/brightscript" uri="pkg:/components/shared/FavoriteStore.brs" />
   <script type="text/brightscript" uri="pkg:/components/shared/ProgressStore.brs" />
+  <script type="text/brightscript" uri="pkg:/components/shared/MediaArtwork.brs" />
   <script type="text/brightscript" uri="pkg:/components/pages/SeriesPage.brs" />
 </component>

@@ -91,7 +91,12 @@ sub showPage(componentName as String)
 end sub
 
 sub restorePage(history as Object)
-    if history = invalid or history.page = invalid then return
+    if history = invalid or not history.doesExist("name") then return
+    if not history.doesExist("page") or history.page = invalid then
+        disposePageForRoute(m.currentPageName, m.currentPage)
+        showPage(history.name)
+        return
+    end if
     clearParentalUnlockForPage(history.name)
     if m.currentPage <> invalid and m.currentPage.hasField("pageActive") then m.currentPage.pageActive = false
     uiClear(m.pageHost)
@@ -178,11 +183,20 @@ sub completePageNavigation(target as String, currentName as String)
     end if
 
     if shouldPreservePageForTarget(target, currentName) then
-        m.pageStack.push({ name: currentName, page: m.currentPage })
+        historyEntry = navigationHistoryEntry(currentName, m.currentPage, target)
+        if historyEntry.page = invalid then disposePageForRoute(currentName, m.currentPage)
+        m.pageStack.push(historyEntry)
+        m.pageStack = navigationTrimHistory(m.pageStack, 8)
     else
+        disposePageForRoute(currentName, m.currentPage)
         m.pageStack = []
     end if
     showPage(target)
+end sub
+
+sub disposePageForRoute(pageName as String, page as Dynamic)
+    if page = invalid then return
+    if pageName = "LiveTvPage" or pageName = "MoviesPage" or pageName = "SeriesPage" then page.callFunc("disposePage")
 end sub
 
 function initialPageForEntitlement() as String
@@ -603,6 +617,7 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
                 openExitConfirm()
                 return true
             end if
+            disposePageForRoute(m.currentPageName, m.currentPage)
             showPage(homeTarget)
             return true
         end if

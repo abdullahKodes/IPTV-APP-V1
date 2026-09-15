@@ -14,5 +14,6 @@
   <script type="text/brightscript" uri="pkg:/components/shared/ParentalControlStore.brs" />
   <script type="text/brightscript" uri="pkg:/components/shared/MediaData.brs" />
   <script type="text/brightscript" uri="pkg:/components/shared/FavoriteStore.brs" />
+  <script type="text/brightscript" uri="pkg:/components/shared/NavigationHistory.brs" />
   <script type="text/brightscript" uri="pkg:/components/MainScene.brs" />
 </component>

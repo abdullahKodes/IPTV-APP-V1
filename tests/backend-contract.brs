@@ -4,6 +4,16 @@ sub main()
     check(not backendApiTaskResponseOk(200, {data: {}}), "success flag required")
     check(not backendApiTaskResponseOk(200, {success: true, data: []}), "invalid data shape rejected")
     check(not backendApiTaskResponseOk(401, {success: true, data: {}}), "HTTP failure overrides success flag")
+    livePage = {kind: "live"}
+    historyEntry = navigationHistoryEntry("LiveTvPage", livePage, "SeriesPage")
+    check(historyEntry.page = invalid, "Live TV to Series history does not retain the Live TV node")
+    historyEntry = navigationHistoryEntry("MoviesPage", {kind: "movies"}, "SeriesPage")
+    check(historyEntry.page = invalid, "catalog-to-catalog history stays lightweight")
+    historyEntry = navigationHistoryEntry("SeriesPage", {kind: "series"}, "SeriesDetailPage")
+    check(historyEntry.page <> invalid, "Series detail retains its immediate source page for Back")
+    history = [{name: "1"}, {name: "2"}, {name: "3"}]
+    history = navigationTrimHistory(history, 2)
+    check(history.count() = 2 and history[0].name = "2" and history[1].name = "3", "route history is capped without losing the newest routes")
     request = backendApiSyncChannelsRequest("playlist", 1000, "movie")
     check(request.path = "/api/v1/playlists/playlist/bootstrap?page=1&page_size=50&content_type=movie", "movie bootstrap and bounded page size")
     check(backendApiMovieContentType("backend_movies", "m3u") = "", "single-purpose Movies M3U includes unknown imported rows")
@@ -17,16 +27,25 @@ sub main()
     request = backendApiEpisodesRequest("show", 0, 2, true)
     check(Instr(1, request.path, "season_number=0&page=2&page_size=50&include_stream_url=true") > 0, "specials and playable episode page")
 
-    fixture = {success: true, data: {channels: {items: [{id: "movie", content_type: "movie", poster_url: "poster", overview: "Plot", duration_seconds: 3600}], pagination: {page: 1, page_size: 50, total: 51, has_next: true}}, groups: [{name: "Drama"}], content_types: [{content_type: "movie", count: 51}]}, meta: {request_id: "fixture"}}
+    fixture = {success: true, data: {channels: {items: [{id: "movie", content_type: "movie", poster_url: "https://provider.invalid/poster.jpg", overview: "Plot", duration_seconds: 3600}], pagination: {page: 1, page_size: 50, total: 51, has_next: true}}, groups: [{name: "Drama"}], content_types: [{content_type: "movie", count: 51}]}, meta: {request_id: "fixture"}}
     body = backendApiTaskCompactResponseBody(fixture, "/playlists/p/bootstrap")
     response = {ok: true, body: body}
     check(backendApiResponseItems(response).count() = 1, "bootstrap nested items survive task compaction")
     check(backendApiResponseNextCursor(response) = 2, "bootstrap nested pagination")
     check(backendApiResponseTotalCount(response) = 51, "bootstrap exact totals")
     movie = backendApiMapMovieItem(body.data.items[0], "p", 1)
-    check(movie.posterUrl = "poster" and movie.description = "Plot" and movie.duration = "60 min", "movie metadata survives worker mapping")
+    check(movie.posterUrl = "https://provider.invalid/poster.jpg" and movie.heroUrl = "" and movie.artworkRole = "poster" and movie.cardDisplayMode = "fit" and movie.description = "Plot" and movie.duration = "60 min", "backend movie poster remains right-side artwork when no backdrop is supplied")
+    logoMovie = backendApiMapMovieItem({id: "logo-movie", name: "Logo Movie", content_type: "movie", logo_url: "https://provider.invalid/logo.png"}, "p", 2)
+    check(logoMovie.posterUrl = "https://provider.invalid/logo.png" and logoMovie.heroUrl = "" and logoMovie.artworkRole = "logo" and logoMovie.cardDisplayMode = "fit", "logo-only movie keeps its logo on the card without promoting it to hero artwork")
+    artworkFixture = {success: true, data: {items: [{id: "art", poster_url: "https://provider.invalid/poster.jpg", backdrop_url: "https://provider.invalid/backdrop.jpg", hero_url: "https://provider.invalid/hero.jpg", background_url: "https://provider.invalid/background.jpg", fanart_url: "https://provider.invalid/fanart.jpg"}]}}
+    artworkBody = backendApiTaskCompactResponseBody(artworkFixture, "/playlists/p/channels")
+    artworkMovie = backendApiMapMovieItem(artworkBody.data.items[0], "p", 1)
+    check(artworkMovie.heroUrl = "https://provider.invalid/hero.jpg" and artworkMovie.backdropUrl = "https://provider.invalid/hero.jpg", "explicit backend hero aliases survive the task and take priority")
+
     m3uMovies = backendApiMapMovieChannelItems([{id: "provider-movie", name: "Provider Movie", content_type: "unknown", group_title: "Family", stream_url: "https://provider.invalid/video/42.mp4"}], "p")
     check(m3uMovies.count() = 1 and m3uMovies[0].title = "Provider Movie", "unknown M3U row with a movie URL is inferred as movie")
+    assumedMovies = backendApiMapMovieChannelItems([{id: "opaque-a", name: "Feature A", content_type: "unknown", stream_url: "https://provider.invalid/watch/opaque-a"}, {id: "opaque-b", name: "Feature B", stream_url: "https://provider.invalid/watch/opaque-b"}, {id: "live", name: "Live Sports", content_type: "live"}, {id: "series", name: "Show S01E01", content_type: "series"}], "p", 0, true)
+    check(assumedMovies.count() = 3 and assumedMovies[0].title = "Feature A" and assumedMovies[1].title = "Feature B" and assumedMovies[2].title = "Live Sports", "single-purpose Movies M3U treats generic channel rows as movies but rejects explicit Series rows")
     m3uMovies = backendApiMapMovieChannelItems([{id: "live", name: "Live Sports", content_type: "live", stream_url: "https://provider.invalid/live/42.m3u8"}, {id: "unknown", name: "Unclassified Item", content_type: "unknown"}], "p")
     check(m3uMovies.count() = 0, "live and unidentifiable rows never leak into Movies")
     check(backendApiMapSyncItems([{id: "unknown", content_type: "unknown"}], "p", "live").count() = 0, "unidentifiable rows never leak into Live TV")
@@ -35,6 +54,19 @@ sub main()
     hostileMovies = backendApiMapMovieChannelItems(hostileBody.data.items, "p")
     check(hostileBody.data.items.count() = 2 and hostileMovies.count() = 2, "malformed provider rows are discarded at the task boundary")
     check(hostileMovies[0].streamFormat = "hls" and hostileMovies[1].streamFormat = "mp4", "short and normal stream URLs map without substring failure")
+    oversizedRows = []
+    for i = 1 to 75
+        oversizedRows.push({id: i.toStr(), name: "Series " + i.toStr(), content_type: "series", nested_provider_data: {unsafe: [1, 2, 3]}})
+    end for
+    boundedBody = backendApiTaskCompactResponseBody({success: true, data: {items: oversizedRows}}, "/playlists/p/series")
+    check(boundedBody.data.items.count() = 50, "task boundary enforces the requested catalogue page limit")
+    check(not boundedBody.data.items[0].doesExist("nested_provider_data"), "catalogue rows cross SceneGraph as bounded scalar fields only")
+    manyGroups = []
+    for i = 1 to 250
+        manyGroups.push({name: "Group " + i.toStr(), nested: {unsafe: true}})
+    end for
+    boundedGroupsBody = backendApiTaskCompactResponseBody({success: true, data: {items: [], groups: manyGroups}}, "/playlists/p/bootstrap")
+    check(boundedGroupsBody.data.groups.count() = 200 and not boundedGroupsBody.data.groups[0].doesExist("nested"), "group metadata is bounded and compact before SceneGraph transfer")
     check(backendApiMapMovieChannelItems([invalid, "provider-note", 42, []], "p").count() = 0, "catalog mapper rejects hostile row shapes independently")
     check(backendApiResponseItems("bad").count() = 0 and backendApiResponseItems({body: "bad"}).count() = 0, "malformed response envelopes fail closed")
     check(backendApiResponseNextCursor({body: {data: {items: [], pagination: "bad"}}}) = -1, "malformed pagination cannot terminate catalog loading")
@@ -44,13 +76,13 @@ sub main()
     check(cleanMedia.count() = 1 and cleanMedia[0].playlistId = "p", "stored media catalog discards invalid record shapes")
     check(detailText("bad", "title") = "", "series detail reader rejects invalid navigation payloads")
 
-    fixture = {success: true, data: {items: [{id: "show", name: "Movie Stories", cover_url: "cover", category_title: "Drama", plot: "Series plot"}]}, meta: {request_id: "fixture", pagination: {page: 2, page_size: 50, total: 51, has_next: false}}}
+    fixture = {success: true, data: {items: [{id: "show", name: "Movie Stories", cover_url: "https://provider.invalid/cover.jpg", category_title: "Drama", plot: "Series plot"}]}, meta: {request_id: "fixture", pagination: {page: 2, page_size: 50, total: 51, has_next: false}}}
     body = backendApiTaskCompactResponseBody(fixture, "/playlists/p/series?page=2")
     response = {ok: true, body: body}
     check(backendApiResponseNextCursor(response) = -1, "full or partial terminal page never invents a next request")
     mapped = backendApiMapSyncItems(body.data.items, "p", "series")
     check(mapped.count() = 1, "series type overrides misleading title inference")
-    check(mapped[0].posterUrl = "cover" and mapped[0].streamUrl = "", "series artwork and no fake channel playback")
+    check(mapped[0].posterUrl = "https://provider.invalid/cover.jpg" and mapped[0].heroUrl = "" and mapped[0].backdropUrl = "" and mapped[0].streamUrl = "", "cover-only Series artwork stays on the card and right-side fallback")
 
     fixture = {success: true, data: {items: [{id: "episode-a", series_id: "show", title: "Pilot", season_number: 3, episode_num: 7, info: {duration_secs: 1800}, stream_url: "https://example.invalid/episode.mp4"}]}, meta: {pagination: {page: 1, page_size: 50, total: 1, has_next: false}}}
     body = backendApiTaskCompactResponseBody(fixture, "/series/show/episodes")
@@ -70,6 +102,16 @@ sub main()
     check(groupNames.count() = 3 and groupNames[1] = "Sports" and groupNames[2] = "News", "empty compound group segments are ignored safely")
     fallbackSeries = backendApiMapSeriesChannelItems([{id: "episode", name: "Pilot S01E01", group_title: "Drama;Series", content_type: "unknown"}], "p")
     check(fallbackSeries.count() = 1 and fallbackSeries[0].detailMediaType = "series_channel" and fallbackSeries[0].genre = "Drama", "M3U episode channels remain browseable on Series")
+    fallbackSeries = backendApiMapSeriesChannelItems([{id: "episode", name: "Pilot S01E01", group_title: "Drama;Series", content_type: "unknown", logo_url: "https://provider.invalid/logo.png"}], "p")
+    check(fallbackSeries[0].posterUrl <> "" and fallbackSeries[0].heroUrl = "" and fallbackSeries[0].backdropUrl = "" and fallbackSeries[0].artworkRole = "logo", "logo-only M3U Series row keeps the default background")
+    posterSeries = backendApiMapSeriesChannelItems([{id: "episode-poster", name: "Pilot S01E02", group_title: "Drama;Series", content_type: "series", poster_url: "https://provider.invalid/series-poster.jpg"}], "p")
+    check(posterSeries[0].heroUrl = "" and posterSeries[0].backdropUrl = "" and posterSeries[0].artworkRole = "poster" and posterSeries[0].cardDisplayMode = "fit", "M3U Series poster remains card-only without an explicit backdrop")
+    backdropSeries = backendApiMapSeriesChannelItems([{id: "episode-backdrop", name: "Pilot S01E03", content_type: "series", poster_url: "https://provider.invalid/series-poster.jpg", backdrop_url: "https://provider.invalid/series-backdrop.jpg"}], "p")
+    check(backdropSeries[0].heroUrl = "https://provider.invalid/series-backdrop.jpg" and backdropSeries[0].backdropUrl = backdropSeries[0].heroUrl, "explicit M3U Series backdrop remains available as hero artwork")
+    check(mediaFullscreenArtworkUrl("https://provider.invalid/hero.png") <> "" and mediaFullscreenArtworkUrl("pkg:/images/demo/hero_real/series/dark.jpg") <> "" and mediaFullscreenArtworkUrl("javascript:bad") = "", "full-screen Series artwork accepts bounded web and packaged assets only")
+    check(mediaArtworkCanFillHero(1280, 720) and mediaArtworkCanFillHero(640, 360), "large landscape artwork qualifies for a Series hero")
+    check(not mediaArtworkCanFillHero(639, 360) and not mediaArtworkCanFillHero(720, 1280) and not mediaArtworkCanFillHero(1600, 300), "small portrait and extreme logo artwork stay off the Series backdrop")
+    check(backendApiArtworkUrl({logo_url: "javascript:bad"}, "logo_url") = "", "unsupported provider artwork schemes are rejected")
     fallbackSeries = backendApiMapSeriesChannelItems([{id: "movie", name: "Feature", content_type: "movie", stream_url: "https://provider.invalid/feature.mp4"}, {id: "unknown", name: "Unclassified Item", content_type: "unknown"}], "p")
     check(fallbackSeries.count() = 0, "movie and unidentifiable rows never leak into Series")
     fallbackGroups = backendApiGroupsFromChannelItems([{group_title: "Drama;Series"}, {group_title: "Drama;Series"}, {group_title: "Comedy;Series"}])

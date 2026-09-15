@@ -1,4 +1,20 @@
 sub init()
+    m.recoveringStartup = false
+    try
+        initializeMoviesPage()
+    catch error
+        print "Movies startup exception: "; error.message
+        m.recoveringStartup = true
+        try
+            initializeMoviesPage()
+        catch recoveryError
+            print "Movies startup recovery exception: "; recoveryError.message
+            initializeMoviesFailurePage()
+        end try
+    end try
+end sub
+
+sub initializeMoviesPage()
     m.colors = appColors()
     m.canvas = m.top.findNode("moviesCanvas")
     m.focusItems = []
@@ -41,16 +57,14 @@ sub init()
     m.activePlaylistTitle = playlistStoreText(m.activePlaylist, "title", "Demo Playlist")
     m.backendMovieContentType = backendApiMovieContentType(playlistStoreEffectiveContentProfile(m.activePlaylist), playlistStoreText(m.activePlaylist, "sourceType"))
     contentProfile = playlistStoreEffectiveContentProfile(m.activePlaylist)
+    startBackendAfterRender = false
     if playlistStoreBool(m.activePlaylist, "backendManaged", false) and not playlistStoreBackendPageAllowed(m.activePlaylist, "movies") then
         m.movies = []
-        if contentProfile = "backend_series" then
-            m.backendMessage = "This is a series playlist. Open Series."
-        else
-            m.backendMessage = "This is a live TV playlist. Open Live TV."
-        end if
+        m.backendMessage = "No movies in this playlist."
     else if playlistStoreBool(m.activePlaylist, "backendManaged", false) then
         m.movies = []
-        startBackendMoviesLoad()
+        m.backendLoading = true
+        startBackendAfterRender = true
     else
         m.movies = mediaMovieCatalogForPlaylist(m.activePlaylistId)
         if m.movies.count() = 0 and playlistStoreText(m.activePlaylist, "sourceUrl") <> "" then
@@ -63,7 +77,43 @@ sub init()
     m.focusedCategoryIndex = 0
     m.categoryWindowStart = 0
     m.categoryWindowSize = 8
+    if m.recoveringStartup = true and startBackendAfterRender then
+        m.backendLoading = false
+        m.backendMessage = "No movies in this playlist."
+        startBackendAfterRender = false
+    end if
     render()
+    if startBackendAfterRender then startBackendMoviesLoad()
+end sub
+
+sub initializeMoviesFailurePage()
+    m.canvas = m.top.findNode("moviesCanvas")
+    m.movies = []
+    m.categories = ["All"]
+    m.focusItems = []
+    m.focusIndex = 0
+    m.focusArea = "normal"
+    m.searchEditing = false
+    m.searchQuery = ""
+    m.searchReturnPending = false
+    m.categoryResultsActive = false
+    m.backendTask = invalid
+    m.backendHasMore = false
+    if m.canvas <> invalid then uiPageStartupFailure(m.canvas, "Movies could not be loaded. Press Back to return.")
+end sub
+
+sub disposePage()
+    if m.backendQueryTimer <> invalid then m.backendQueryTimer.control = "stop"
+    if m.backendTask <> invalid then
+        m.backendTask.unobserveField("response")
+        m.backendTask.control = "STOP"
+        m.backendTask = invalid
+    end if
+    m.movies = []
+    m.backendPages = []
+    m.backendGroups = []
+    m.focusItems = []
+    if m.canvas <> invalid then uiClear(m.canvas)
 end sub
 
 sub startBackendMoviesLoad(cursor = 0 as Integer)
@@ -114,7 +164,7 @@ sub onBackendMoviesLoaded()
             pageNumber = m.backendCursor
             if pageNumber < 1 then pageNumber = 1
             if m.backendMovieContentType = "" then
-                mapped = backendApiMapMovieChannelItems(items, m.activePlaylistId, (pageNumber - 1) * 50)
+                mapped = backendApiMapMovieChannelItems(items, m.activePlaylistId, (pageNumber - 1) * 50, true)
             else
                 mapped = backendApiMapSyncItems(items, m.activePlaylistId, "movies", (pageNumber - 1) * 50)
             end if
@@ -152,7 +202,7 @@ sub onBackendMoviesLoaded()
         if m.movies.count() > 0 then
             m.backendMessage = ""
         else
-            m.backendMessage = "No movies found in this playlist."
+            m.backendMessage = "No movies in this playlist."
         end if
         if m.backendCursor = 0 then
             resetMovieWindow()
@@ -278,7 +328,7 @@ sub render()
         return
     end if
     if visible.count() = 0 then
-        emptyTitle = "No movies in " + m.activePlaylistTitle
+        emptyTitle = "No movies in this playlist."
         if m.backendLoading then
             emptyTitle = ""
         else if m.backendMessage <> "" then
@@ -624,8 +674,11 @@ end sub
 sub drawMoviePoster(movie as Object, parent as Object, x as Integer, y as Integer, w as Integer, h as Integer)
     artUrl = movieCardUrl(movie)
     if artUrl <> "" then
-        poster = uiPoster(parent, artUrl, x, y, w, h, 0.96)
-        poster.loadDisplayMode = "scaleToZoom"
+        if movieText(movie, "cardDisplayMode") = "fit" then
+            poster = uiPosterFit(parent, artUrl, x, y, w, h, 0.96)
+        else
+            poster = uiPosterZoom(parent, artUrl, x, y, w, h, 0.96)
+        end if
     else
         iconW = 36
         iconH = 36
@@ -651,8 +704,7 @@ end sub
 sub drawFeaturedPoster(movie as Object, parent as Object, x as Integer, y as Integer, w as Integer, h as Integer)
     posterUrl = movieText(movie, "posterUrl")
     if posterUrl <> "" then
-        poster = uiPoster(parent, posterUrl, x - 4, y - 4, w + 8, h + 8)
-        poster.loadDisplayMode = "scaleToZoom"
+        poster = uiPosterZoom(parent, posterUrl, x - 4, y - 4, w + 8, h + 8)
         uiPoster(parent, "pkg:/images/demo/frames/featured_poster_corner_mask.png", x - 4, y - 4, w + 8, h + 8)
         uiPoster(parent, "pkg:/images/demo/frames/featured_poster_frame_neutral.png", x - 4, y - 4, w + 8, h + 8)
     else
@@ -677,8 +729,7 @@ end sub
 sub drawMovieFallbackBackdrop(movie as Object)
     bgUrl = movieBackgroundUrl(movie)
     if bgUrl <> "" then
-        backdrop = uiPoster(m.canvas, bgUrl, 0, 0, 1280, 720, movieListBackdropOpacity())
-        backdrop.loadDisplayMode = "scaleToFill"
+        backdrop = uiPosterZoom(m.canvas, bgUrl, 0, 0, 1280, 720, movieListBackdropOpacity())
     end if
     posterUrl = movieCardUrl(movie)
     if posterUrl <> "" then drawMovieFallbackPosterAnchor(posterUrl)
@@ -693,15 +744,13 @@ sub drawMovieFallbackPosterAnchor(posterUrl as String)
     h = 404
     uiRect(m.canvas, x - 10, y - 4, w + 20, h + 16, "0x000000FF", 0.16)
     uiRect(m.canvas, x - 3, y + 5, w + 9, h + 2, "0x000000FF", 0.10)
-    poster = uiPoster(m.canvas, posterUrl, x, y, w, h, 0.78)
-    poster.loadDisplayMode = "scaleToZoom"
+    poster = uiPosterFit(m.canvas, posterUrl, x, y, w, h, 0.78)
     uiRect(m.canvas, x, y, w, h, "0xFFFFFF18", 0.035)
     uiRect(m.canvas, x - 2, y - 2, w + 4, h + 4, "0x000000FF", 0.035)
 end sub
 
 sub drawMovieBackdropPosterAnchor(heroUrl as String, x as Integer, y as Integer, w as Integer, h as Integer)
-    hero = uiPoster(m.canvas, heroUrl, 0, 0, 1280, 720, movieListBackdropOpacity())
-    hero.loadDisplayMode = "scaleToZoom"
+    hero = uiPosterZoom(m.canvas, heroUrl, 0, 0, 1280, 720, movieListBackdropOpacity())
     drawMovieListHeroSmoke()
 end sub
 
@@ -1388,6 +1437,9 @@ sub scheduleBackendQuery()
         m.backendTask = invalid
     end if
     m.backendHasMore = false
+    m.backendLoading = true
+    m.backendMessage = ""
+    m.movies = []
     m.backendQueryTimer.control = "stop"
     m.backendQueryTimer.control = "start"
 end sub
@@ -1395,4 +1447,5 @@ end sub
 sub reloadBackendQuery()
     if m.searchEditing then return
     startBackendMoviesLoad()
+    render()
 end sub

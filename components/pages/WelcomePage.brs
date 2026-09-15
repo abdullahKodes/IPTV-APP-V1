@@ -19,7 +19,7 @@ sub init()
     m.restoreMessage = ""
     m.restoreKeyboardIndex = 0
     m.restoreTask = invalid
-    m.restoreKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "-", "DEL", "CLEAR", "DONE"]
+    m.restoreKeys = welcomeRestoreKeyboardKeys()
     m.previousFocusIndex = -1
     m.mockTimer = CreateObject("roSGNode", "Timer")
     m.mockTimer.repeat = false
@@ -32,6 +32,10 @@ sub init()
     end if
     render()
 end sub
+
+function welcomeRestoreKeyboardKeys() as Object
+    return ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "-", "DEL", "CLEAR", "DONE"]
+end function
 
 sub refreshClock()
 end sub
@@ -898,4 +902,3 @@ function welcomeCleanInput(value as Dynamic) as String
     end while
     return text
 end function
-

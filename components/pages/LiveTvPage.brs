@@ -1,4 +1,20 @@
 sub init()
+    m.recoveringStartup = false
+    try
+        initializeLiveTvPage()
+    catch error
+        print "Live TV startup exception: "; error.message
+        m.recoveringStartup = true
+        try
+            initializeLiveTvPage()
+        catch recoveryError
+            print "Live TV startup recovery exception: "; recoveryError.message
+            initializeLiveTvFailurePage()
+        end try
+    end try
+end sub
+
+sub initializeLiveTvPage()
     m.colors = appColors()
     m.canvas = m.top.findNode("liveTvCanvas")
     m.focusItems = []
@@ -52,16 +68,14 @@ sub init()
     m.activePlaylistTitle = playlistStoreText(m.activePlaylist, "title", "Demo Playlist")
     refreshLiveFavoriteKeys()
     contentProfile = playlistStoreEffectiveContentProfile(m.activePlaylist)
+    startBackendAfterRender = false
     if playlistStoreBool(m.activePlaylist, "backendManaged", false) and not playlistStoreBackendPageAllowed(m.activePlaylist, "live") then
         m.channels = []
-        if contentProfile = "backend_movies" then
-            m.backendMessage = "This is a movies playlist. Open Movies."
-        else
-            m.backendMessage = "This is a series playlist. Open Series."
-        end if
+        m.backendMessage = "No live channels in this playlist."
     else if playlistStoreBool(m.activePlaylist, "backendManaged", false) then
         m.channels = []
-        startBackendLiveLoad()
+        m.backendLoading = true
+        startBackendAfterRender = true
     else
         m.channels = mediaLiveCatalogForPlaylist(m.activePlaylistId)
         if m.channels.count() = 0 and playlistStoreText(m.activePlaylist, "sourceUrl") <> "" then
@@ -69,7 +83,52 @@ sub init()
         end if
     end if
     m.categories = liveCategoriesFromChannels(m.channels)
+    if m.recoveringStartup = true and startBackendAfterRender then
+        m.backendLoading = false
+        m.backendMessage = "No live channels in this playlist."
+        startBackendAfterRender = false
+    end if
     render()
+    if startBackendAfterRender then startBackendLiveLoad()
+end sub
+
+sub initializeLiveTvFailurePage()
+    m.canvas = m.top.findNode("liveTvCanvas")
+    m.channels = []
+    m.categories = ["All"]
+    m.focusItems = []
+    m.focusIndex = 0
+    m.focusArea = "normal"
+    m.searchEditing = false
+    m.searchQuery = ""
+    m.searchReturnPending = false
+    m.categoryResultsActive = false
+    m.backendTask = invalid
+    m.backendHasMore = false
+    if m.canvas <> invalid then uiPageStartupFailure(m.canvas, "Live TV could not be loaded. Press Back to return.")
+end sub
+
+sub disposePage()
+    if m.backendQueryTimer <> invalid then m.backendQueryTimer.control = "stop"
+    if m.backendTask <> invalid then
+        m.backendTask.unobserveField("response")
+        m.backendTask.control = "STOP"
+        m.backendTask = invalid
+    end if
+    if m.backendPlaybackTask <> invalid then
+        m.backendPlaybackTask.unobserveField("response")
+        m.backendPlaybackTask.control = "STOP"
+        m.backendPlaybackTask = invalid
+    end if
+    m.backendPlaybackChannel = invalid
+    m.channels = []
+    m.backendPages = []
+    m.backendGroups = []
+    m.filteredChannelsCache = invalid
+    m.focusItems = []
+    m.liveFastFocusNodes = {}
+    m.liveFavoriteKeys = {}
+    if m.canvas <> invalid then uiClear(m.canvas)
 end sub
 
 sub startBackendLiveLoad(cursor = 0 as Integer)
@@ -157,7 +216,7 @@ sub onBackendLiveLoaded()
         if m.channels.count() > 0 then
             m.backendMessage = ""
         else
-            m.backendMessage = "No live channels found in this playlist."
+            m.backendMessage = "No live channels in this playlist."
         end if
         if m.backendCursor = 0 then
             m.selectedChannelIndex = 0
@@ -177,7 +236,7 @@ sub maybeLoadMoreLiveChannels(visibleCount as Integer)
     if not m.backendHasMore then return
     if m.backendTask <> invalid then return
     if m.searchQuery <> "" then return
-    if m.categoryIndex <> 0 then return
+    if m.categoryResultsActive then return
     if visibleCount <= 0 then return
     threshold = visibleCount - (m.channelWindowSize * 2)
     if threshold < 0 then threshold = 0
@@ -309,7 +368,11 @@ sub selectLiveCategory(categoryIndex as Integer, fromSearch = false as Boolean)
     m.focusedCategoryIndex = categoryIndex
     m.selectedChannelIndex = 0
     m.channelWindowStart = 0
-    m.focusArea = "categories"
+    if m.categoryResultsActive then
+        m.focusArea = "channels"
+    else
+        m.focusArea = "categories"
+    end if
     normalizeCategoryWindow()
     scheduleBackendQuery()
     render()
@@ -324,8 +387,7 @@ sub render()
     visible = filteredChannels()
     hasChannels = visible.count() > 0
     if hasChannels then
-        liveBackground = uiPoster(m.canvas, "pkg:/images/live/live_tv_background_v7_art.jpg", 0, 0, 1280, 720, 0.44)
-        liveBackground.loadDisplayMode = "scaleToFill"
+        liveBackground = uiPosterFill(m.canvas, "pkg:/images/live/live_tv_background_v7_art.jpg", 0, 0, 1280, 720, 0.44)
         uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.42)
         uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.16)
     end if
@@ -341,7 +403,7 @@ sub render()
     normalizeChannelWindow(visible.count())
 
     if visible.count() = 0 then
-        emptyTitle = "No live channels in " + m.activePlaylistTitle
+        emptyTitle = "No live channels in this playlist."
         if m.backendLoading then
             emptyTitle = ""
         else if m.backendMessage <> "" then
@@ -353,14 +415,24 @@ sub render()
             uiContentLoader(m.canvas, m.colors, "Loading Live TV")
         end if
     else
-        drawCategoryPills()
+        if not m.categoryResultsActive then drawCategoryPills()
         sectionTitle = "LIVE TV"
         if m.categoryIndex > 0 and m.categoryIndex < m.categories.count() then sectionTitle = UCase(m.categories[m.categoryIndex])
-        uiLabel(m.canvas, sectionTitle, 244, 160, 520, 32, 18, m.colors.text)
-        uiLabel(m.canvas, liveChannelCountText(visible.count()), 926, 156, 188, 24, 11, m.colors.textDim, "right")
-        drawLiveFavoriteHint(visible)
-        drawChannelGrid(visible)
-        drawChannelScrollbar(visible.count())
+        headingY = 160
+        countY = 156
+        hintY = 190
+        gridY = 218
+        if m.categoryResultsActive then
+            headingY = 108
+            countY = 108
+            hintY = 140
+            gridY = 166
+        end if
+        uiLabel(m.canvas, sectionTitle, 244, headingY, 520, 32, 18, m.colors.text)
+        uiLabel(m.canvas, liveChannelCountText(visible.count()), 926, countY, 188, 24, 11, m.colors.textDim, "right")
+        drawLiveFavoriteHint(visible, hintY)
+        drawChannelGrid(visible, gridY)
+        drawChannelScrollbar(visible.count(), gridY)
     end if
 
     ensureLiveFocus()
@@ -534,7 +606,7 @@ sub drawCategoryPills()
     end if
 end sub
 
-sub drawChannelGrid(visible as Object)
+sub drawChannelGrid(visible as Object, startY = 218 as Integer)
     endIndex = m.channelWindowStart + m.channelWindowSize - 1
     if endIndex > visible.count() - 1 then endIndex = visible.count() - 1
     for i = m.channelWindowStart to endIndex
@@ -542,7 +614,7 @@ sub drawChannelGrid(visible as Object)
         gridRow = Int(slot / m.channelColumns)
         gridCol = slot mod m.channelColumns
         x = 244 + gridCol * 176
-        y = 218 + gridRow * 236
+        y = startY + gridRow * 236
         rowData = visible[i]
         drawChannelCard(rowData.channel, rowData.index, i, x, y, gridRow + 2, gridCol + 1)
     end for
@@ -573,21 +645,17 @@ sub drawChannelCard(channel as Object, channelIndex as Integer, visibleIndex as 
     baseNode = uiRect(cardCanvas, 0, 0, cardW, cardH, bg, opacity)
     drawChannelFallbackSurface(cardCanvas, channel, false, cardW, cardH, not hasArtwork)
     if posterUrl <> "" then
-        poster = uiPoster(cardCanvas, posterUrl, 0, 0, cardW, cardH, 1.0)
-        poster.loadDisplayMode = "scaleToZoom"
+        poster = uiPosterZoom(cardCanvas, posterUrl, 0, 0, cardW, cardH, 1.0)
     else
         if backgroundUrl <> "" then
-            background = uiPoster(cardCanvas, backgroundUrl, 0, 0, cardW, cardH, 1.0)
-            background.loadDisplayMode = "scaleToZoom"
+            background = uiPosterZoom(cardCanvas, backgroundUrl, 0, 0, cardW, cardH, 1.0)
             if logoUrl <> "" then
                 logo = uiPoster(cardCanvas, logoUrl, 34, 45, 96, 58, 1.0)
-                logo.loadDisplayMode = "scaleToFit"
             end if
         end if
         if backgroundUrl = "" then
             if logoUrl <> "" then
                 logo = uiPoster(cardCanvas, logoUrl, 27, 43, 110, 66, 1.0)
-                logo.loadDisplayMode = "scaleToFit"
             end if
         end if
     end if
@@ -714,7 +782,7 @@ sub drawChannelFavoriteBadge(parent as Object, channel as Object, focused as Boo
     uiDrawIcon(parent, "heart", cardW - 31, 14, 16, 14, true, m.colors.text, 10)
 end sub
 
-sub drawLiveFavoriteHint(visible as Object)
+sub drawLiveFavoriteHint(visible as Object, y = 190 as Integer)
     if visible.count() <= 0 then return
     text = "Press * to favorite"
     selected = selectedVisibleChannel()
@@ -722,7 +790,7 @@ sub drawLiveFavoriteHint(visible as Object)
         text = "Press * to remove favorite"
     end if
     if m.favoriteMessage <> "" then text = m.favoriteMessage
-    m.liveFavoriteHintNode = uiScaledLabel(m.canvas, text, 776, 190, 338, 18, 10, m.colors.textMuted, "right", 0.68)
+    m.liveFavoriteHintNode = uiScaledLabel(m.canvas, text, 776, y, 338, 18, 10, m.colors.textMuted, "right", 0.68)
 end sub
 
 sub updateLiveFavoriteHintFast()
@@ -753,10 +821,9 @@ sub animateLiveCardFocus(cardCanvas as Object, x as Integer, y as Integer)
     animation.control = "start"
 end sub
 
-sub drawChannelScrollbar(total as Integer)
+sub drawChannelScrollbar(total as Integer, y = 218 as Integer)
     if total <= m.channelWindowSize then return
     x = 1160
-    y = 218
     h = 444
     uiRect(m.canvas, x, y, 4, h, "0xFFFFFF18", 0.10)
     thumbH = Int(h * m.channelWindowSize / total)
@@ -777,7 +844,10 @@ function routeLiveFocus(dx as Integer, dy as Integer, fastFocus = invalid as Dyn
     if current.doesExist("action") then action = current.action
 
     if current.col = 0 and dx > 0 then
-        if m.categories.count() > 0 and m.channels.count() > 0 then
+        if m.categoryResultsActive and m.channels.count() > 0 then
+            m.focusArea = "channels"
+            normalizeChannelWindow(filteredChannels().count())
+        else if m.categories.count() > 0 and m.channels.count() > 0 then
             m.focusArea = "categories"
             m.focusedCategoryIndex = m.categoryIndex
             normalizeCategoryWindow()
@@ -790,7 +860,10 @@ function routeLiveFocus(dx as Integer, dy as Integer, fastFocus = invalid as Dyn
 
     if action = "search" then
         if dy > 0 then
-            if m.categories.count() > 0 and m.channels.count() > 0 then
+            if m.categoryResultsActive and m.channels.count() > 0 then
+                m.focusArea = "channels"
+                normalizeChannelWindow(filteredChannels().count())
+            else if m.categories.count() > 0 and m.channels.count() > 0 then
                 m.focusArea = "categories"
                 m.focusedCategoryIndex = m.categoryIndex
                 normalizeCategoryWindow()
@@ -848,9 +921,15 @@ function routeLiveFocus(dx as Integer, dy as Integer, fastFocus = invalid as Dyn
         end if
         if dx > 0 and currentCol = m.channelColumns - 1 then return true
         if dy < 0 and m.selectedChannelIndex < m.channelColumns then
-            m.focusArea = "categories"
-            m.focusedCategoryIndex = m.categoryIndex
-            normalizeCategoryWindow()
+            if m.categoryResultsActive then
+                m.focusArea = "normal"
+                searchIndex = findFocusAction("search")
+                if searchIndex >= 0 then m.focusIndex = searchIndex
+            else
+                m.focusArea = "categories"
+                m.focusedCategoryIndex = m.categoryIndex
+                normalizeCategoryWindow()
+            end if
             return true
         end if
         if nextChannel >= 0 and nextChannel < visible.count() then
@@ -1018,7 +1097,13 @@ sub normalizeChannelWindow(total as Integer)
     if total <= 0 then
         m.channelWindowStart = 0
         m.selectedChannelIndex = 0
-        if m.focusArea = "channels" then m.focusArea = "categories"
+        if m.focusArea = "channels" then
+            if m.categoryResultsActive then
+                m.focusArea = "normal"
+            else
+                m.focusArea = "categories"
+            end if
+        end if
         return
     end if
     if m.selectedChannelIndex < 0 then m.selectedChannelIndex = 0
@@ -1300,14 +1385,12 @@ sub clearLiveSearchAndStay()
     if m.searchReturnPending then
         m.categoryIndex = m.searchPreviousCategoryIndex
         if m.categoryIndex < 0 or m.categoryIndex >= m.categories.count() then m.categoryIndex = 0
-    else if returnToCategory then
-        m.categoryIndex = 0
     end if
-    scheduleBackendQuery()
     m.searchReturnPending = false
     m.categoryResultsActive = false
     m.focusedCategoryIndex = m.categoryIndex
     normalizeCategoryWindow()
+    scheduleBackendQuery()
     m.channelWindowStart = 0
     m.selectedChannelIndex = 0
     if returnToCategory then
@@ -1343,10 +1426,7 @@ sub drawSearchKeyboardOverlay()
 end sub
 
 function backendSelectedGroup() as String
-    if m.searchQuery <> "" then return "All"
-    if m.categories = invalid or m.categoryIndex = invalid then return "All"
-    if m.categoryIndex < 0 or m.categoryIndex >= m.categories.count() then return "All"
-    return backendApiGroupQuery(m.backendGroups, m.categories[m.categoryIndex])
+    return backendApiBrowseGroupQuery(m.backendGroups, m.categories, m.categoryIndex, m.categoryResultsActive, m.searchQuery)
 end function
 
 sub scheduleBackendQuery()

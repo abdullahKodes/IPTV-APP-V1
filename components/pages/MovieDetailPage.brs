@@ -106,8 +106,17 @@ sub onBackendMoviePlaybackLoaded()
         m.loadedDetailId = m.top.detailId
         channel = backendApiChannelData(response)
         m.top.detailDescription = backendApiText(channel, "overview", m.top.detailDescription)
-        m.top.detailPosterUrl = backendApiText(channel, "poster_url", m.top.detailPosterUrl)
-        m.top.detailBackdropUrl = backendApiText(channel, "backdrop_url", m.top.detailBackdropUrl)
+        providerPoster = backendApiArtworkUrl(channel, "poster_url")
+        providerLogo = backendApiArtworkUrl(channel, "logo_url")
+        if providerPoster <> "" then
+            m.top.detailPosterUrl = providerPoster
+        else if providerLogo <> "" then
+            m.top.detailPosterUrl = providerLogo
+        end if
+        providerHero = backendApiMovieHeroArtworkUrl(channel)
+        if providerHero <> "" then m.top.detailHeroUrl = providerHero
+        providerBackdrop = backendApiMovieExplicitHeroArtworkUrl(channel)
+        if providerBackdrop <> "" then m.top.detailBackdropUrl = providerBackdrop
         year = backendApiText(channel, "release_year")
         duration = backendApiDuration(channel)
         if year <> "" or duration <> "" then m.top.detailSubtitle = year + " - " + duration
@@ -145,8 +154,7 @@ sub drawBackdrop()
     if heroUrl <> invalid and heroUrl <> "" then
         drawMovieDetailHeroPoster(heroUrl)
     else
-        bg = uiPoster(m.canvas, "pkg:/images/demo/backgrounds/movies_series_fallback_backdrop_v6.jpg", 0, 0, 1280, 720, 0.74)
-        bg.loadDisplayMode = "scaleToFill"
+        bg = uiPosterZoom(m.canvas, "pkg:/images/demo/backgrounds/movies_series_fallback_backdrop_v6.jpg", 0, 0, 1280, 720, 0.74)
         posterUrl = m.top.detailPosterUrl
         if posterUrl <> invalid and posterUrl <> "" then drawMoviePosterAnchor(posterUrl)
         uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.52)
@@ -165,15 +173,13 @@ sub drawMoviePosterAnchor(posterUrl as String)
     h = 404
     uiRect(m.canvas, x - 10, y - 4, w + 20, h + 16, "0x000000FF", 0.16)
     uiRect(m.canvas, x - 3, y + 5, w + 9, h + 2, "0x000000FF", 0.10)
-    poster = uiPoster(m.canvas, posterUrl, x, y, w, h, 0.78)
-    poster.loadDisplayMode = "scaleToZoom"
+    poster = uiPosterFit(m.canvas, posterUrl, x, y, w, h, 0.78)
     uiRect(m.canvas, x, y, w, h, "0xFFFFFF18", 0.035)
     uiRect(m.canvas, x - 2, y - 2, w + 4, h + 4, "0x000000FF", 0.035)
 end sub
 
 sub drawMovieDetailHeroPoster(posterUrl as String)
-    poster = uiPoster(m.canvas, posterUrl, 0, 0, 1280, 720, 1.0)
-    poster.loadDisplayMode = "scaleToZoom"
+    poster = uiPosterZoom(m.canvas, posterUrl, 0, 0, 1280, 720, 1.0)
     drawMovieDetailSmokeBlend()
 end sub
 

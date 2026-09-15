@@ -1,4 +1,20 @@
 sub init()
+    m.recoveringStartup = false
+    try
+        initializeSeriesPage()
+    catch error
+        print "Series startup exception: "; error.message
+        m.recoveringStartup = true
+        try
+            initializeSeriesPage()
+        catch recoveryError
+            print "Series startup recovery exception: "; recoveryError.message
+            initializeSeriesFailurePage()
+        end try
+    end try
+end sub
+
+sub initializeSeriesPage()
     m.colors = appColors()
     m.canvas = m.top.findNode("seriesCanvas")
     m.focusItems = []
@@ -14,6 +30,9 @@ sub init()
     m.seriesWindowStart = 0
     m.seriesWindowSize = 5
     m.selectedSeriesIndex = 0
+    m.seriesHeroEligibility = {}
+    m.seriesHeroProbe = invalid
+    m.seriesHeroProbeUrl = ""
     m.resumeWindowStart = 0
     m.resumeWindowSize = 2
     m.selectedResumeIndex = 0
@@ -44,16 +63,14 @@ sub init()
     m.activePlaylistId = playlistStoreText(m.activePlaylist, "id", playlistStoreDemoId())
     m.activePlaylistTitle = playlistStoreText(m.activePlaylist, "title", "Demo Playlist")
     contentProfile = playlistStoreEffectiveContentProfile(m.activePlaylist)
+    startBackendAfterRender = false
     if playlistStoreBool(m.activePlaylist, "backendManaged", false) and not playlistStoreBackendPageAllowed(m.activePlaylist, "series") then
         m.series = []
-        if contentProfile = "backend_movies" then
-            m.backendMessage = "This is a movies playlist. Open Movies."
-        else
-            m.backendMessage = "This is a live TV playlist. Open Live TV."
-        end if
+        m.backendMessage = "No series in this playlist."
     else if playlistStoreBool(m.activePlaylist, "backendManaged", false) then
         m.series = []
-        startBackendSeriesLoad()
+        m.backendLoading = true
+        startBackendAfterRender = true
     else
         m.series = mediaSeriesCatalogForPlaylist(m.activePlaylistId)
         if m.series.count() = 0 and playlistStoreText(m.activePlaylist, "sourceUrl") <> "" then
@@ -66,7 +83,44 @@ sub init()
     m.focusedCategoryIndex = 0
     m.categoryWindowStart = 0
     m.categoryWindowSize = 8
+    if m.recoveringStartup = true and startBackendAfterRender then
+        m.backendLoading = false
+        m.backendMessage = "No series in this playlist."
+        startBackendAfterRender = false
+    end if
     render()
+    if startBackendAfterRender then startBackendSeriesLoad()
+end sub
+
+sub initializeSeriesFailurePage()
+    m.canvas = m.top.findNode("seriesCanvas")
+    m.series = []
+    m.categories = ["All"]
+    m.focusItems = []
+    m.focusIndex = 0
+    m.focusArea = "normal"
+    m.searchEditing = false
+    m.searchQuery = ""
+    m.searchReturnPending = false
+    m.categoryResultsActive = false
+    m.backendTask = invalid
+    m.backendHasMore = false
+    if m.canvas <> invalid then uiPageStartupFailure(m.canvas, "Series could not be loaded. Press Back to return.")
+end sub
+
+sub disposePage()
+    clearSeriesHeroProbe()
+    if m.backendQueryTimer <> invalid then m.backendQueryTimer.control = "stop"
+    if m.backendTask <> invalid then
+        m.backendTask.unobserveField("response")
+        m.backendTask.control = "STOP"
+        m.backendTask = invalid
+    end if
+    m.series = []
+    m.backendPages = []
+    m.backendGroups = []
+    m.focusItems = []
+    if m.canvas <> invalid then uiClear(m.canvas)
 end sub
 
 sub startBackendSeriesLoad(cursor = 0 as Integer)
@@ -127,7 +181,7 @@ sub onBackendSeriesLoaded()
             else
                 mapped = backendApiMapSyncItems(items, m.activePlaylistId, "series", (pageNumber - 1) * 50)
             end if
-            if mapped.count() = 0 and not m.backendChannelFallback and not m.backendFallbackAttempted and m.backendCursor = 0 and m.searchQuery = "" and backendSelectedGroup() = "All" then
+            if mapped.count() = 0 and not m.backendChannelFallback and not m.backendFallbackAttempted and m.backendCursor = 0 and m.searchQuery = "" and backendSelectedGroup() = "All" and playlistStoreEffectiveContentProfile(m.activePlaylist) = "backend_series" then
                 m.backendFallbackAttempted = true
                 m.backendChannelFallback = true
                 startBackendSeriesLoad()
@@ -153,6 +207,16 @@ sub onBackendSeriesLoaded()
         m.backendHasMore = not duplicatePage and nextCursor > 0
         m.backendNextCursor = -1
         if m.backendHasMore then m.backendNextCursor = nextCursor
+        if m.series.count() = 0 and m.backendHasMore then
+            if m.backendChannelFallback and playlistStoreEffectiveContentProfile(m.activePlaylist) = "backend_series" then
+                nextSeriesPage = m.backendNextCursor
+                m.backendLoading = true
+                startBackendSeriesLoad(nextSeriesPage)
+                return
+            end if
+            m.backendHasMore = false
+            m.backendNextCursor = -1
+        end if
         m.backendLoading = false
         applySeriesProgress()
         data = backendApiResponseData(response)
@@ -171,7 +235,7 @@ sub onBackendSeriesLoaded()
         if m.series.count() > 0 then
             m.backendMessage = ""
         else
-            m.backendMessage = "No series found in this playlist."
+            m.backendMessage = "No series in this playlist."
         end if
         if m.backendCursor = 0 then
             resetSeriesWindow()
@@ -182,7 +246,6 @@ sub onBackendSeriesLoaded()
         m.backendLoading = false
         m.backendMessage = backendApiUserMessage(response, "Series could not be loaded.")
     end if
-    if m.series.count() = 0 and m.backendHasMore then m.backendMessage = "No matching items on this page. Press OK for more."
     if not m.searchEditing then render()
 end sub
 
@@ -207,10 +270,6 @@ end sub
 function handleKey(key as String) as Boolean
     if m.searchEditing then return handleSearchKeyboardKey(key)
     if playlistStoreBool(m.activePlaylist, "backendManaged", false) and m.backendTask = invalid then
-        if m.series.count() = 0 and m.backendHasMore and key = "OK" then
-            startBackendSeriesLoad(m.backendNextCursor)
-            return true
-        end if
         if m.focusArea = "series" and m.selectedSeriesIndex = 0 and key = "left" and m.backendFirstPage > 1 then
             startBackendSeriesLoad(m.backendFirstPage - 1)
             return true
@@ -308,7 +367,7 @@ sub render()
         return
     end if
     if visible.count() = 0 then
-        emptyTitle = "No series in " + m.activePlaylistTitle
+        emptyTitle = "No series in this playlist."
         if m.backendLoading then
             emptyTitle = ""
         else if m.backendMessage <> "" then
@@ -642,8 +701,7 @@ sub drawContinuePoster(series as Object, parent as Object, x as Integer, y as In
     posterUrl = seriesText(series, "posterUrl")
     if posterUrl = "" then posterUrl = seriesCardUrl(series)
     if posterUrl <> "" then
-        poster = uiPoster(parent, posterUrl, x, y, w, h)
-        poster.loadDisplayMode = "scaleToZoom"
+        poster = uiPosterFit(parent, posterUrl, x, y, w, h)
         uiPoster(parent, "pkg:/images/demo/frames/featured_poster_corner_mask.png", x, y, w, h)
         uiPoster(parent, "pkg:/images/demo/frames/featured_poster_frame_neutral.png", x, y, w, h)
     else
@@ -712,8 +770,7 @@ end sub
 sub drawSeriesPoster(series as Object, parent as Object, x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean)
     artUrl = seriesCardUrl(series)
     if artUrl <> "" then
-        poster = uiPoster(parent, artUrl, x, y, w, h, 0.96)
-        poster.loadDisplayMode = "scaleToZoom"
+        poster = uiPosterFit(parent, artUrl, x, y, w, h, 0.96)
     else
         iconW = 36
         iconH = 36
@@ -739,8 +796,7 @@ end sub
 sub drawSeriesFallbackBackdrop(series as Object)
     bgUrl = seriesBackgroundUrl(series)
     if bgUrl <> "" then
-        backdrop = uiPoster(m.canvas, bgUrl, 0, 0, 1280, 720, seriesListBackdropOpacity())
-        backdrop.loadDisplayMode = "scaleToFill"
+        backdrop = uiPosterZoom(m.canvas, bgUrl, 0, 0, 1280, 720, seriesListBackdropOpacity())
     end if
     posterUrl = seriesCardUrl(series)
     if posterUrl <> "" then drawSeriesFallbackPosterAnchor(posterUrl)
@@ -755,15 +811,13 @@ sub drawSeriesFallbackPosterAnchor(posterUrl as String)
     h = 404
     uiRect(m.canvas, x - 10, y - 4, w + 20, h + 16, "0x000000FF", 0.16)
     uiRect(m.canvas, x - 3, y + 5, w + 9, h + 2, "0x000000FF", 0.10)
-    poster = uiPoster(m.canvas, posterUrl, x, y, w, h, 0.78)
-    poster.loadDisplayMode = "scaleToZoom"
+    poster = uiPosterFit(m.canvas, posterUrl, x, y, w, h, 0.78)
     uiRect(m.canvas, x, y, w, h, "0xFFFFFF18", 0.035)
     uiRect(m.canvas, x - 2, y - 2, w + 4, h + 4, "0x000000FF", 0.035)
 end sub
 
 sub drawSeriesBackdropPosterAnchor(heroUrl as String, x as Integer, y as Integer, w as Integer, h as Integer)
-    hero = uiPoster(m.canvas, heroUrl, 0, 0, 1280, 720, seriesListBackdropOpacity())
-    hero.loadDisplayMode = "scaleToZoom"
+    hero = uiPosterZoom(m.canvas, heroUrl, 0, 0, 1280, 720, seriesListBackdropOpacity())
     drawSeriesListHeroSmoke()
 end sub
 
@@ -818,16 +872,68 @@ function seriesBackgroundUrl(series as Object) as String
 end function
 
 function seriesHeroArtworkUrl(series as Object) as String
-    heroUrl = seriesText(series, "heroUrl")
-    if heroUrl <> "" then return heroUrl
-
-    backdropUrl = seriesBackdropUrl(series)
-    if backdropUrl <> "" then
-        if Instr(1, LCase(backdropUrl), "/series_backdrops/") > 0 then return ""
-        return backdropUrl
+    candidate = seriesHeroCandidateUrl(series)
+    if candidate = "" then return ""
+    if Left(LCase(candidate), 5) = "pkg:/" then return candidate
+    if m.seriesHeroEligibility <> invalid and m.seriesHeroEligibility.doesExist(candidate) then
+        if m.seriesHeroEligibility[candidate] = "hero" then return candidate
+        return ""
     end if
+    scheduleSeriesHeroProbe(candidate)
     return ""
 end function
+
+function seriesHeroCandidateUrl(series as Object) as String
+    heroUrl = mediaFullscreenArtworkUrl(seriesText(series, "heroUrl"))
+    if heroUrl <> "" then return heroUrl
+    backdropUrl = mediaFullscreenArtworkUrl(seriesBackdropUrl(series))
+    if backdropUrl <> "" then return backdropUrl
+    if LCase(seriesText(series, "artworkRole")) = "logo" then return ""
+    return mediaFullscreenArtworkUrl(seriesCardUrl(series))
+end function
+
+sub scheduleSeriesHeroProbe(url as String)
+    if url = "" then return
+    if m.seriesHeroProbe <> invalid and m.seriesHeroProbeUrl = url then return
+    clearSeriesHeroProbe()
+    probe = CreateObject("roSGNode", "Poster")
+    if probe = invalid then return
+    probe.width = 1
+    probe.height = 1
+    probe.opacity = 0.0
+    probe.loadWidth = 1280
+    probe.loadHeight = 720
+    probe.loadDisplayMode = "limitSize"
+    probe.observeField("loadStatus", "onSeriesHeroProbeStatusChanged")
+    m.top.appendChild(probe)
+    m.seriesHeroProbe = probe
+    m.seriesHeroProbeUrl = url
+    probe.uri = url
+end sub
+
+sub onSeriesHeroProbeStatusChanged(event as Object)
+    if m.seriesHeroProbe = invalid then return
+    status = event.getData()
+    if status <> "ready" and status <> "failed" then return
+    url = m.seriesHeroProbeUrl
+    eligibility = "card"
+    if status = "ready" then
+        if mediaArtworkCanFillHero(m.seriesHeroProbe.bitmapWidth, m.seriesHeroProbe.bitmapHeight) then eligibility = "hero"
+    end if
+    if m.seriesHeroEligibility = invalid then m.seriesHeroEligibility = {}
+    if url <> "" then m.seriesHeroEligibility[url] = eligibility
+    clearSeriesHeroProbe()
+    if not m.searchEditing then render()
+end sub
+
+sub clearSeriesHeroProbe()
+    if m.seriesHeroProbe <> invalid then
+        m.seriesHeroProbe.unobserveField("loadStatus")
+        m.top.removeChild(m.seriesHeroProbe)
+    end if
+    m.seriesHeroProbe = invalid
+    m.seriesHeroProbeUrl = ""
+end sub
 
 function seriesAssetFileName(url as String) as String
     if url = invalid or url = "" then return ""
@@ -1426,6 +1532,9 @@ sub scheduleBackendQuery()
         m.backendTask = invalid
     end if
     m.backendHasMore = false
+    m.backendLoading = true
+    m.backendMessage = ""
+    m.series = []
     m.backendQueryTimer.control = "stop"
     m.backendQueryTimer.control = "start"
 end sub
@@ -1433,4 +1542,5 @@ end sub
 sub reloadBackendQuery()
     if m.searchEditing then return
     startBackendSeriesLoad()
+    render()
 end sub

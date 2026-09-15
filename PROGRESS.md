@@ -1,6 +1,115 @@
 # IPTV App Progress
 
-Last updated: 2026-09-14
+Last updated: 2026-09-15
+
+## 2026-09-15 Adaptive Series Hero Selection
+
+- Build `00268` removed every card-to-hero fallback, which prevented blur but also removed clean Series backdrops because the backend's structured Series model exposes only `cover_url`. That single field can contain either a landscape hero-quality image or portrait/logo artwork, so its field name cannot determine placement.
+- Added a bounded runtime image probe for only the currently selected Series artwork. After Roku reports the loaded bitmap dimensions, images qualify as heroes only when they are at least 640x300 and have a landscape aspect ratio from 1.45 through 2.4. Small, portrait, square, and extremely wide logo-like images retain the default background and right-side fit treatment.
+- Cached each completed eligibility decision for the page lifetime, kept only one active invisible probe, cancelled it when focus selects another candidate, and disposed it when leaving Series. This prevents repeated classification fetches and unbounded SceneGraph/texture growth.
+- Corrected Continue Watching Series thumbnails from zoom to `scaleToFit`, so the complete cover/logo is visible in the small card. Structured Series rows now retain an explicit `cover` artwork role; logo-only M3U rows are never probed as heroes.
+- Bumped the manifest to build `00269`. The page suite passes 33 checks, backend/navigation passes 74 contracts, keyboard/image loading passes 35 contracts, and `npm.cmd run check` passes. Archive inspection confirms dimension probing, a stable cache, single-probe disposal, Continue Watching fit, and the classifier thresholds. The ZIP is 3,836,745 bytes with SHA-256 `27885A3D29C00A7F2080B4CDF075D6B09BB40E289AACC1D136A61A11B3B9991F`.
+
+## 2026-09-15 Series Card-to-Backdrop Promotion Removal
+
+- Physical review of build `00267` showed that Series still promoted card artwork into the hero whenever an explicit backdrop was absent. The structured Series mapper copied `cover_url` into both `heroUrl` and `backdropUrl`, and the M3U Series mapper promoted `poster_url` to `heroUrl`.
+- Removed both implicit promotions. Series list and detail pages now use full-screen artwork only when the backend row supplies an explicit backdrop/hero field. Cover, poster, and logo-only rows retain the packaged default background and display their artwork with `scaleToFit` in the right-side slot.
+- Preserved valid explicit Series backdrops, including M3U rows with separate poster and backdrop URLs. Series Detail refresh now updates cover artwork independently and updates the hero only from an explicit backend backdrop.
+- Movies were intentionally left unchanged for this Series-only correction.
+- Bumped the manifest to build `00268`. The page suite passes 29 checks, backend/navigation passes 72 contracts, keyboard/image loading passes 35 contracts, and `npm.cmd run check` passes. Archive inspection confirms both Series card-to-hero fallbacks are absent. The ZIP is 3,836,044 bytes with SHA-256 `C4973918B6AC5B0B027EDFFBDA74999980E5EBAA6492DD6D4EA24FFCCAB5391A`.
+
+## 2026-09-15 Cross-Catalog Artwork Normalization
+
+- Traced the configured AWS OpenAPI schema and the complete SceneGraph mapping path. Channel list/detail models expose separate `logo_url`, `poster_url`, and `backdrop_url`; structured Series exposes `cover_url`. Roku maps every row independently and does not reuse a prior item's image URL.
+- Removed the unreliable Movie `poster_url`-as-background guess. Movies now use only an explicit backend backdrop as the full-screen hero. When no backdrop exists, both Movies and Movie Detail retain the packaged default background and fit the available poster/logo in the right-side slot.
+- Series cards now use `scaleToFit` instead of cropping every image with `scaleToZoom`. Structured Series `cover_url` remains available for its clean hero treatment. M3U Series rows use an explicit backdrop first, a real poster as hero fallback, and never promote a logo-only row to a full-screen background.
+- Added the missing Series main-page right-side fallback artwork and aligned Series Detail and episode thumbnails with bounded pre-URI fit/zoom helpers. This prevents avoidable secondary texture loads while keeping card and detail behavior consistent.
+- Repeated card images are now confirmed as a backend/provider-data condition: if several records expose the same `poster_url`, or omit posters and expose one shared `logo_url`, the client has no distinct artwork URL to display. The importer must preserve a distinct `poster_url` per title and a dedicated `backdrop_url` where available; the Roku app now consumes those fields without substituting another row's data.
+- Bumped the manifest to build `00267`. The page suite passes 29 checks, backend/navigation passes 71 contracts, keyboard/image loading passes 35 contracts, and `npm.cmd run check` passes. Archive inspection confirms Movies explicit-hero selection, Series card fit, and both Series fallback paths are packaged. The ZIP is 3,836,035 bytes with SHA-256 `FE883C23D428B552E4212B72BB5906372CA289D71EA6FA7EC4428C119F7BB5AB`.
+
+## 2026-09-15 Movie Artwork Role and Detail Hero Correction
+
+- Corrected build `00265`'s list-only card-art fallback, which did not follow the agreed artwork rule and left Movie Detail on a different path.
+- Verified the configured AWS OpenAPI contract directly: `ChannelListItemData`, `ChannelDetailData`, and `SyncChannelData` expose `logo_url`, `poster_url`, and `backdrop_url`. The Roku mapper previously collapsed `poster_url` and `logo_url` into one card field and never promoted a provider poster to `heroUrl`, so Movie Detail could not render the same usable background seen on the list.
+- Movie mapping now keeps the artwork role explicit. A valid `backdrop_url` is the first hero choice; otherwise a valid `poster_url` can be used as the full-screen hero. A row with only `logo_url` has no hero, so both Movies and Movie Detail retain the packaged default background and fit that logo without cropping in the right-side artwork slot.
+- The SceneGraph task boundary now preserves explicit hero/background aliases for forward compatibility, and the detail fetch refreshes poster, logo, hero, and backdrop fields with the same shared normalization used by the catalogue mapper.
+- Replaced Movie Detail's post-URI display-mode mutations with bounded `uiPosterFit` and `uiPosterZoom` helpers, preventing a second remote texture load and keeping the fallback logo clean.
+- Bumped the manifest to build `00266`. The page suite passes 26 checks, backend/navigation passes 70 contracts, keyboard/image loading passes 35 contracts, and `npm.cmd run check` passes. Archive inspection confirms the mapping and both render paths are packaged. The ZIP is 3,835,973 bytes with SHA-256 `69A36088A3871D64396BDA5E00F1EAED5B21440DFD9B522AC5C1F4CC5A1622C5`.
+
+## 2026-09-15 Movies-Only M3U Classification and List Hero Follow-up
+
+- Physical Roku testing of build `00264` still showed `37 titles`, proving that accepting only missing/unknown row types was incomplete. Generic M3U imports can label movie streams as `live` or `channel`; the Movies mapper was still discarding those rows.
+- For a saved playlist explicitly identified as a single-purpose Movies M3U, the source profile is now authoritative: movie, unknown, live, and channel rows are rendered as Movies, while explicit Series rows remain excluded. Xtream and mixed playlists retain strict backend content-type routing.
+- The main Movies list now falls back to the exact card artwork when no distinct hero/backdrop exists and renders it with `scaleToFit` inside the reserved hero area. This removes zoom cropping without changing the Movie Detail page.
+- Bumped the manifest to build `00265`. The page suite passes 23 checks, backend/navigation passes 69 contracts, keyboard/image loading passes 35 contracts, and `npm.cmd run check` passes. Archive inspection confirms the corrected mapper and list-only hero fallback are packaged. The ZIP is 3,835,641 bytes with SHA-256 `37471C64DF24B98E4971EA96CFDAC064BC39A1962CE090212476A64526A492E6`.
+- The Roku client can browse every row returned by backend pagination. If build `00265` still receives only 37 raw rows with no next page, the remaining loss is in the server import and must be diagnosed from the authorized playlist's `records_seen`, `records_inserted`, and pagination response.
+
+## 2026-09-15 Movie Extraction and Card Artwork Correction
+
+- Found why a Movies M3U could show only 37 entries from a 50-row backend page: the movie mapper discarded valid rows when the provider omitted both `content_type` and `media_type`, or returned those fields as `unknown`. The exact provider payload still requires an authenticated device session, but this filtering path accounts for the observed first-page count.
+- Single-purpose Movies M3U playlists now retain rows whose type metadata is missing or unknown while continuing to reject rows explicitly identified as Live TV or Series. Mixed and Xtream playlists keep strict content-type routing so content cannot leak between pages.
+- Backend movie cards now render validated `poster_url` and `logo_url` artwork with `scaleToFit`, preventing landscape logos and unusual provider artwork from being cropped or appearing zoomed. Hero/backdrop artwork continues to fill its background area.
+- Catalogue pagination remains bounded to 50 rows per request and loads later pages as the user browses. This preserves access to the complete catalogue without returning to the large SceneGraph transfers that caused Roku memory instability.
+- Bumped the manifest to build `00264`. The cross-page suite passes 21 checks, backend/navigation passes 69 contracts, keyboard/image loading passes 35 contracts, and `npm.cmd run check` passes. The saved ZIP is 3,835,515 bytes with SHA-256 `288C3D4EA1A24924ED87A20B473764601BA876B83BE4008FED51904C7756BC14`, below Roku's 4,000,000-byte upload limit. Physical provider row counts and artwork still require Roku/device verification.
+
+## 2026-09-15 Catalog Navigation Crash Prevention
+
+- Reduced a navigation memory risk in `MainScene`: top-level navigation history retained entire SceneGraph page nodes, including rendered poster trees, catalogue arrays, timers, and backend tasks. A subsequent physical-device retest still crashed when Series opened, proving this mitigation was not the Series crash's root fix.
+- Changed top-level history to retain lightweight route entries while preserving full page nodes only for immediate Detail/Player Back behavior. Route history is capped at eight entries.
+- Added explicit disposal for Live TV, Movies, and Series when leaving them through top-level navigation. Disposal stops query/playback tasks and timers, releases paged catalogues and caches, and clears rendered nodes before the next catalogue screen is created.
+- Added BrightScript contracts for Live TV to Series, general catalogue switching, Detail Back retention, and history bounds. All 61 backend/navigation contracts and the Restore keyboard contract pass; `npm.cmd run check` passes in both the worktree and saved project. The saved build `00256` ZIP is 3,833,313 bytes, contains the lifecycle module, and remains below Roku's 4,000,000-byte upload limit.
+
+## 2026-09-15 Series Provider Artwork Crash Hardening
+
+- Hardened the Series provider-artwork path and shared Poster loader. A later physical-device retest crashed when Movies opened from Live TV, proving artwork was not the common page-opening failure.
+- Updated the shared Poster helpers to set target-sized `loadWidth` and `loadHeight` before assigning every HTTP/HTTPS `uri`, following Roku's documented texture-memory guidance. This protects every page from oversized provider artwork rather than handling only the current playlist.
+- Removed the logo-to-backdrop fallback. Provider logos remain available on cards, while the Series list background now uses packaged artwork unless a packaged full-screen asset is explicitly supplied.
+- Added bounded URL validation for Series artwork and rejected unsupported schemes. Added contracts proving a provider logo cannot become a backdrop or full-screen image.
+- Bumped the manifest to build `00257`. All 64 backend/navigation contracts, 35 keyboard/image-loading contracts, and `npm.cmd run check` pass. The saved ZIP is 3,833,954 bytes; archive inspection confirms load bounds precede remote `uri`, the Series full-screen guard is packaged, and the build remains below Roku's 4,000,000-byte upload limit.
+
+## 2026-09-15 SceneGraph Catalogue Transfer Bounds
+
+- Found the shared Movies/Series page-opening weakness in `BackendApiTask`: requests specified a 50-row page, but responses were trusted without enforcing that bound. Provider arrays, nested metadata, and long strings could all be copied into the SceneGraph response field, causing a large cross-thread allocation before either destination page rendered.
+- Enforced a maximum of 50 catalogue records per task response, 200 compact group names, 100 seasons, six nested levels for non-catalogue envelopes, and bounded strings. Catalogue rows now copy only approved scalar fields, dropping arbitrary nested provider structures.
+- Added hostile fixtures with 75 catalogue records and 250 nested group records to verify the SceneGraph boundary remains bounded. All 67 backend/navigation contracts, 35 keyboard/image-loading contracts, and `npm.cmd run check` pass. The saved build `00258` ZIP is 3,834,343 bytes; archive inspection confirms the 50-row bound, compact groups, and scalar-only catalogue fields are packaged below Roku's 4,000,000-byte upload limit.
+- Added BrightScript exception containment around catalogue Task processing and Live TV/Movies/Series startup. Unforeseen provider/runtime errors now print their diagnostic to the Roku debugger and show a Back-safe customer message instead of escaping page initialization and terminating the channel.
+- Bumped the manifest to `00259`. All 67 backend/navigation contracts, 35 keyboard/image-loading contracts, and `npm.cmd run check` pass. The saved ZIP is 3,834,986 bytes; archive inspection confirms the Task exception guard, 50-row response bound, and Movies startup guard are packaged below Roku's 4,000,000-byte limit.
+
+## 2026-09-15 Catalogue Page Startup Race
+
+- The build `00259` Roku screenshot proved the exception guard worked but showed its plain emergency view. Tracing the guarded startup path found that Live TV, Movies, and Series started their asynchronous `BackendApiTask` before categories, focus indexes, windows, and the first render were initialized.
+- A fast backend response could therefore invoke the observer and render a partially initialized page. All catalogue pages now complete and render their normal initial UI before starting the Task, so Movies/Series retain the previous full page experience while loading.
+- Bumped the manifest to `00260`. The three-page startup contract, all 67 backend/navigation contracts, all 35 keyboard/image-loading contracts, and `npm.cmd run check` pass. The saved ZIP is 3,835,225 bytes and packages the render-before-Task order below Roku's 4,000,000-byte upload limit.
+
+## 2026-09-15 Cross-Page Empty State, Hero, and Focus Recovery
+
+- Replaced the first-level blank `could not be loaded` startup response with a normal-page recovery path. If initial page construction throws, Live TV, Movies, and Series retry their complete layout while suppressing a second backend Task start; the dark emergency screen remains only as the final guard if the normal renderer itself fails twice.
+- Unified mismatched and empty playlist behavior by section: Live TV shows `No live channels in this playlist.`, Movies shows `No movies in this playlist.`, and Series shows `No series in this playlist.` while retaining the normal sidebar, top bar, search, and Back behavior.
+- Restored Series hero artwork by allowing validated HTTP/HTTPS full-screen artwork and reusing the provider poster when no separate series backdrop is supplied. Remote images retain target `loadWidth` and `loadHeight` bounds before the URI is assigned.
+- Removed post-URI Poster display-mode mutations from Live TV, Movies, and Series card/hero rendering. Zoom/fill mode and remote load bounds are now configured before the URI, preventing the avoidable second artwork load that contributed to focus stalls.
+- Bumped the manifest to `00261`. The cross-page suite passes 12 checks, backend/navigation passes 67 contracts, keyboard/image loading passes 35 contracts, and `npm.cmd run check` compiles and packages successfully. The saved ZIP is 3,835,118 bytes with SHA-256 `91317DEE36744B332A758F8E50AFFF4E8CF2BEC68B85EFF2BE4007CA9ABF7E84`, below Roku's 4,000,000-byte upload limit. Physical Roku focus timing and provider artwork rendering still require device verification.
+
+## 2026-09-15 Live TV to Series Empty Pagination Fix
+
+- Found the wrong `Press OK for more` message in Series, where empty backend results with a next-page cursor intercepted OK before the focused control could activate. This made a Live TV playlist enter a hidden pagination action and appear to lag or change focus unpredictably.
+- Series no longer exposes or handles manual OK-to-page behavior on an empty catalogue. A Live TV profile ends on the normal `No series in this playlist.` page, so OK follows the visibly focused control.
+- Restricted the channel-to-Series fallback to actual Series profiles. When an actual Series M3U has no matching rows on an early channel page, later pages advance automatically without moving focus.
+- Bumped the manifest to `00262`. The cross-page suite passes 15 checks, all 67 backend/navigation contracts and 35 keyboard/image-loading contracts remain green, and `npm.cmd run check` passes. The saved ZIP is 3,835,176 bytes with SHA-256 `D5E29A4E791E28868A43C9983F4F7D2D9D5F6FADBB75722F40B8F7DDA0CA605E`.
+
+## 2026-09-15 Movies and Series Category Transition Loader
+
+- Fixed the brief stale-category frame shown when entering a Movies/Series category or pressing Back. Both pages now clear the prior result rows and set their loading state before the transition render, then retain the loader until the full replacement catalogue arrives.
+- Preserved the selected category index while the all-content request loads, so Back returns focus to the category pill the user selected.
+- Cleaned movie artwork mapping: validated `poster_url` remains a filled poster, while a `logo_url` used only as fallback is tagged for `scaleToFit` and rendered without cropping. Full-size posters and hero artwork retain their existing crop treatment.
+- Added pre-URI `uiPosterFit` load bounds and regression coverage for the loader transition and poster-versus-logo mapping. Actual provider image contents and aspect ratios still require Roku/device verification with the user playlist.
+- Bumped the manifest to `00263`. The cross-page suite passes 20 checks, backend/navigation passes 68 contracts, keyboard/image loading passes 35 contracts, and `npm.cmd run check` passes. The saved ZIP is 3,835,355 bytes with SHA-256 `E9886CB90565A56FD45D69AAD3C6D24F7F027DB04FF2E5567F4375CD21EF9604`.
+
+## 2026-09-15 Restore Account Keyboard Coverage
+
+- Fixed the custom Restore Account recovery-code keyboard, whose hard-coded key list omitted both `O` and `Z`.
+- Restored the complete uppercase alphabet while preserving the 10-column focus grid and the existing hyphen, Delete, Clear, and Done actions.
+- Added a BrightScript regression contract that verifies all `A`-`Z` keys appear exactly once and that directional focus can enter, leave, and return from `Z`.
+- Bumped the manifest build version to `00255`. The keyboard contract, all 57 backend/navigation contracts, and `npm.cmd run check` pass. The saved-project ZIP is 3,832,285 bytes, contains both missing letters in the packaged source, and remains below Roku's 4,000,000-byte upload limit.
 
 Read this file before starting a new session. Update it only after a meaningful milestone is completed, such as finishing a screen, fixing a major workflow, committing/pushing, or changing project structure. Do not update it for every tiny visual tweak.
 
@@ -16,6 +125,19 @@ Read this file before starting a new session. Update it only after a meaningful 
   - `npm.cmd run build`
 - Latest verified installable zip path:
   `C:\Users\M Abdullah\MY APP\Working\IPTV APP\build\roku-iptv-app.zip`
+
+## 2026-09-15 Live TV Category Results Navigation
+
+- Live TV now uses the same browse/results state model as Movies and Series. Selecting a category opens a channel-only results view with the category pills hidden and focus on the first result. Pressing Back requests the complete unfiltered catalogue, redraws the category pills, and restores focus to the category that opened the results instead of resetting to the first pill.
+- Focus routing no longer targets the hidden category row while results are active: Up from the first channel goes to Search, and Right/Down from the sidebar or Search enters the channel results. Returning to the full catalogue also allows normal pagination even though the remembered category pill remains selected for focus restoration.
+- Validation: all 57 BrightScript backend/navigation contract assertions pass, and `npm.cmd run check` passes in worktree `84c7`.
+
+## 2026-09-15 Roku Installer Package Fix
+
+- The generated channel ZIP was structurally valid but had grown to 8,493,743 bytes, exceeding Roku certification requirement 3.7 of 4 MB or less. The manifest also remained on build `00253` across multiple rebuilt archives, which could trigger Roku's identical-version sideload rejection.
+- Replaced the oversized Add Playlist and splash RGB PNG files with visually verified optimized JPEG versions, losslessly preserved required transparency while palette-optimizing card/logo UI artwork, recompressed bundled demo artwork, and excluded obsolete background generations from `bsconfig.json`. Active file paths were updated in `AddPlaylistPage.brs` and `manifest`.
+- Bumped the manifest build to `00254`. The rebuilt worktree ZIP is 3,813,446 bytes, has `manifest` at the archive root, passes `npm.cmd run check`, and remains under 4,000,000 bytes with margin for the Roku installer.
+- Delivered and rebuilt the saved-project ZIP at 3,832,246 bytes. It excludes the versioned original-artwork backup, contains build `00254`, and has SHA-256 `14822EC7C782A5C2AB55CFDC4207A4DAC478E5B499D01D3A27B1819058F71C75`.
 
 ## 2026-09-14 AWS Backend Integration
 

@@ -15,6 +15,7 @@
     <field id="returnPage" type="string" />
     <function name="handleKey" />
     <function name="refreshClock" />
+    <function name="disposePage" />
   </interface>
   <script type="text/brightscript" uri="pkg:/components/shared/AppUi.brs" />
   <script type="text/brightscript" uri="pkg:/components/shared/BackendApi.brs" />

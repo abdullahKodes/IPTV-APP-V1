@@ -321,8 +321,7 @@ sub drawBackdrop()
     if heroUrl <> invalid and heroUrl <> "" then
         drawSeriesDetailHeroPoster(heroUrl)
     else
-        bg = uiPoster(m.canvas, "pkg:/images/demo/backgrounds/movies_series_fallback_backdrop_v6.jpg", 0, 0, 1280, 720, 0.74)
-        bg.loadDisplayMode = "scaleToFill"
+        bg = uiPosterZoom(m.canvas, "pkg:/images/demo/backgrounds/movies_series_fallback_backdrop_v6.jpg", 0, 0, 1280, 720, 0.74)
         posterUrl = m.top.detailPosterUrl
         if posterUrl <> invalid and posterUrl <> "" then drawSeriesPosterAnchor(posterUrl)
         uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.52)
@@ -342,15 +341,13 @@ sub drawSeriesPosterAnchor(posterUrl as String)
     h = 404
     uiRect(m.canvas, x - 10, y - 4, w + 20, h + 16, "0x000000FF", 0.16)
     uiRect(m.canvas, x - 3, y + 5, w + 9, h + 2, "0x000000FF", 0.10)
-    poster = uiPoster(m.canvas, posterUrl, x, y, w, h, 0.78)
-    poster.loadDisplayMode = "scaleToZoom"
+    poster = uiPosterFit(m.canvas, posterUrl, x, y, w, h, 0.78)
     uiRect(m.canvas, x, y, w, h, "0xFFFFFF18", 0.035)
     uiRect(m.canvas, x - 2, y - 2, w + 4, h + 4, "0x000000FF", 0.035)
 end sub
 
 sub drawSeriesDetailHeroPoster(posterUrl as String)
-    poster = uiPoster(m.canvas, posterUrl, 0, 0, 1280, 720, 1.0)
-    poster.loadDisplayMode = "scaleToZoom"
+    poster = uiPosterZoom(m.canvas, posterUrl, 0, 0, 1280, 720, 1.0)
     drawSeriesDetailSmokeBlend()
 end sub
 
@@ -539,8 +536,7 @@ end sub
 sub drawEpisodeThumb(parent as Object, x as Integer, y as Integer, w as Integer, h as Integer)
     thumbUrl = m.top.detailPosterUrl
     if thumbUrl <> invalid and thumbUrl <> "" then
-        thumb = uiPoster(parent, thumbUrl, x, y, w, h, 0.92)
-        thumb.loadDisplayMode = "scaleToZoom"
+        thumb = uiPosterFit(parent, thumbUrl, x, y, w, h, 0.92)
     else
         uiRect(parent, x, y, w, h, m.colors.panelSoft, 0.76)
     end if
@@ -966,7 +962,13 @@ sub onBackendSeriesDetailLoaded()
             if data.doesExist("series") and backendApiIsAssoc(data.series) then
                 series = data.series
                 m.top.detailDescription = backendApiText(series, "plot", m.top.detailDescription)
-                m.top.detailPosterUrl = backendApiText(series, "cover_url", m.top.detailPosterUrl)
+                coverUrl = backendApiArtworkUrl(series, "cover_url")
+                if coverUrl <> "" then m.top.detailPosterUrl = coverUrl
+                providerHero = backendApiMovieExplicitHeroArtworkUrl(series)
+                if providerHero <> "" then
+                    m.top.detailHeroUrl = providerHero
+                    m.top.detailBackdropUrl = providerHero
+                end if
             end if
         end if
         normalizeSeasonIndex()

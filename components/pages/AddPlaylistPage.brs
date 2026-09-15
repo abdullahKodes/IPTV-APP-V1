@@ -278,7 +278,7 @@ sub render()
 end sub
 
 sub drawAddPlaylistArtwork()
-    backdrop = uiPoster(m.canvas, "pkg:/images/add_playlist/add_playlist_background_v4.png", 0, 0, 1280, 720, 0.48)
+    backdrop = uiPoster(m.canvas, "pkg:/images/add_playlist/add_playlist_background_v4.jpg", 0, 0, 1280, 720, 0.48)
     backdrop.loadDisplayMode = "scaleToFill"
     uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.5)
     uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.16)

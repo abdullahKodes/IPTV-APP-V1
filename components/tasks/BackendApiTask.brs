@@ -3,6 +3,16 @@ sub init()
 end sub
 
 sub runBackendApiRequest()
+    try
+        runBackendApiRequestInternal()
+    catch error
+        message = "Unexpected catalogue processing error."
+        if error <> invalid and error.doesExist("message") then print "Backend task exception: "; error.message
+        m.top.response = backendApiErrorResponse(0, message)
+    end try
+end sub
+
+sub runBackendApiRequestInternal()
     request = m.top.request
     if request = invalid then
         m.top.response = backendApiErrorResponse(0, "Missing backend request.")
@@ -78,31 +88,39 @@ function backendApiErrorResponse(statusCode as Integer, message as String) as Ob
     }
 end function
 
-function backendApiTaskSanitizeJson(value as Dynamic) as Dynamic
+function backendApiTaskSanitizeJson(value as Dynamic, depth = 0 as Integer) as Dynamic
     if value = invalid then return invalid
+    if depth > 6 then return ""
     valueType = Type(value)
     if valueType = "roAssociativeArray" or valueType = "AssociativeArray" then
         clean = {}
+        copied = 0
         for each key in value
+            if copied >= 100 then exit for
             child = value[key]
             if child = invalid then
                 clean[key] = ""
             else
-                clean[key] = backendApiTaskSanitizeJson(child)
+                clean[key] = backendApiTaskSanitizeJson(child, depth + 1)
             end if
+            copied += 1
         end for
         return clean
     end if
     if valueType = "roArray" or valueType = "Array" then
         clean = []
         for each child in value
+            if clean.count() >= 200 then exit for
             if child = invalid then
                 clean.push("")
             else
-                clean.push(backendApiTaskSanitizeJson(child))
+                clean.push(backendApiTaskSanitizeJson(child, depth + 1))
             end if
         end for
         return clean
+    end if
+    if valueType = "String" or valueType = "roString" then
+        if value.len() > 4096 then return Left(value, 4096)
     end if
     return value
 end function
@@ -131,12 +149,14 @@ function backendApiTaskCompactResponseBody(parsed as Dynamic, path as String) as
     if backendApiTaskIsArray(seasons) then
         cleanSeasons = []
         for each season in seasons
+            if cleanSeasons.count() >= 100 then exit for
             if backendApiTaskIsAssoc(season) then cleanSeasons.push(backendApiTaskCompactChannel(season))
         end for
         cleanSeasons.SortBy("season_number")
         cleanData.seasons = cleanSeasons
     end if
-    backendApiTaskCopyIfExists(cleanData, data, "groups")
+    groups = backendApiTaskValue(data, "groups")
+    if backendApiTaskIsArray(groups) then cleanData.groups = backendApiTaskCompactGroups(groups)
     backendApiTaskCopyIfExists(cleanData, data, "content_types")
     channels = backendApiTaskValue(data, "channels")
     if backendApiTaskIsAssoc(channels) then
@@ -153,6 +173,7 @@ function backendApiTaskCompactResponseBody(parsed as Dynamic, path as String) as
     if items <> invalid and backendApiTaskIsArray(items) then
         cleanItems = []
         for each item in items
+            if cleanItems.count() >= 50 then exit for
             ' Provider feeds can contain scalar metadata rows. Never pass them into SceneGraph catalog mappers.
             if backendApiTaskIsAssoc(item) then cleanItems.push(backendApiTaskCompactItem(item, path))
         end for
@@ -183,6 +204,22 @@ function backendApiTaskCompactResponseBody(parsed as Dynamic, path as String) as
 
     if cleanData.Count() = 0 then cleanData = backendApiTaskSanitizeJson(data)
     clean.data = cleanData
+    return clean
+end function
+
+function backendApiTaskCompactGroups(groups as Dynamic) as Object
+    clean = []
+    if not backendApiTaskIsArray(groups) then return clean
+    for each group in groups
+        if clean.count() >= 200 then exit for
+        if backendApiTaskIsAssoc(group) then
+            name = backendApiTaskValue(group, "name")
+            nameType = Type(name)
+            if nameType = "String" or nameType = "roString" then
+                if name <> "" then clean.push({name: Left(name, 256)})
+            end if
+        end if
+    end for
     return clean
 end function
 
@@ -238,7 +275,7 @@ function backendApiTaskCompactChannel(item as Dynamic) as Object
     backendApiTaskCopy(clean, item, "id")
     backendApiTaskCopy(clean, item, "playlist_id")
     backendApiTaskCopy(clean, item, "name")
-    for each key in ["title", "category_title", "cover_url", "plot", "genre", "release_date", "release_year", "poster_url", "backdrop_url", "overview", "duration_seconds", "rating", "container_extension", "season_number", "episode_num", "series_id"]
+    for each key in ["title", "category_title", "cover_url", "plot", "genre", "release_date", "release_year", "poster_url", "hero_url", "backdrop_url", "background_url", "fanart_url", "overview", "duration_seconds", "rating", "container_extension", "season_number", "episode_num", "series_id"]
         backendApiTaskCopy(clean, item, key)
     end for
     info = backendApiTaskValue(item, "info")
@@ -262,10 +299,12 @@ sub backendApiTaskCopy(target as Object, source as Dynamic, key as String)
     if not backendApiTaskIsAssoc(source) then return
     if not source.doesExist(key) then return
     value = source[key]
-    if value = invalid then
-        target[key] = ""
-    else
-        target[key] = backendApiTaskSanitizeJson(value)
+    if value = invalid then target[key] = "" : return
+    valueType = Type(value)
+    if valueType = "String" or valueType = "roString" then
+        target[key] = Left(value, 4096)
+    else if valueType = "Integer" or valueType = "roInt" or valueType = "LongInteger" or valueType = "roLongInteger" or valueType = "Float" or valueType = "roFloat" or valueType = "Double" or valueType = "roDouble" or valueType = "Boolean" or valueType = "roBoolean" then
+        target[key] = value
     end if
 end sub
 

@@ -474,26 +474,55 @@ end function
 
 function backendApiMapMovieItem(item as Object, playlistId as String, index as Integer) as Object
     name = backendApiText(item, "name", "Movie")
-    poster = backendApiText(item, "poster_url", backendApiText(item, "logo_url"))
+    providerPoster = backendApiArtworkUrl(item, "poster_url")
+    providerLogo = backendApiArtworkUrl(item, "logo_url")
+    cardArtwork = providerPoster
+    artworkRole = "poster"
+    if cardArtwork = "" then
+        cardArtwork = providerLogo
+        artworkRole = "logo"
+    end if
     return {
         id: backendApiText(item, "id"), backendChannelId: backendApiText(item, "id"), playlistId: playlistId,
         contentType: "movie", title: name, year: backendApiText(item, "release_year"),
         duration: backendApiDuration(item), genre: backendApiGroupLabel(backendApiText(item, "group_title", "Movies")),
         rating: backendApiText(item, "rating", "NR"), description: backendApiText(item, "overview"),
-        posterUrl: poster, cardUrl: poster, backdropUrl: backendApiText(item, "backdrop_url"),
+        posterUrl: cardArtwork, cardUrl: cardArtwork, cardDisplayMode: "fit", artworkRole: artworkRole,
+        heroUrl: backendApiMovieHeroArtworkUrl(item), backdropUrl: backendApiMovieExplicitHeroArtworkUrl(item),
         streamUrl: backendApiText(item, "stream_url"), streamHost: backendApiText(item, "stream_host"),
         streamFormat: backendApiStreamFormat(backendApiText(item, "stream_url")),
         featured: index = 1, featuredPriority: 1000 - index, resumePercent: 0, accent: "purple"
     }
 end function
 
-function backendApiMapMovieChannelItems(items as Dynamic, playlistId as String, startIndex = 0 as Integer) as Object
+function backendApiMovieExplicitHeroArtworkUrl(item as Dynamic) as String
+    heroUrl = backendApiArtworkUrl(item, "hero_url")
+    if heroUrl <> "" then return heroUrl
+    heroUrl = backendApiArtworkUrl(item, "backdrop_url")
+    if heroUrl <> "" then return heroUrl
+    heroUrl = backendApiArtworkUrl(item, "background_url")
+    if heroUrl <> "" then return heroUrl
+    return backendApiArtworkUrl(item, "fanart_url")
+end function
+
+function backendApiMovieHeroArtworkUrl(item as Dynamic) as String
+    ' The backend contract provides a dedicated backdrop_url. Poster and logo artwork
+    ' remain in the right-side slot when no explicit background is available.
+    return backendApiMovieExplicitHeroArtworkUrl(item)
+end function
+
+function backendApiMapMovieChannelItems(items as Dynamic, playlistId as String, startIndex = 0 as Integer, assumeMoviePlaylist = false as Boolean) as Object
     out = []
     if Type(items) <> "roArray" then return out
     index = startIndex
     for each item in items
         if backendApiIsAssoc(item) and not backendApiBool(item, "deleted", false) then
-            if backendApiItemKind(item) = "movie" then
+            itemKind = backendApiItemKind(item)
+            includeMovie = itemKind = "movie"
+            ' Generic M3U imports are commonly stored as channel/live rows. When the saved
+            ' playlist itself is explicitly Movies-only, that source profile is authoritative.
+            if assumeMoviePlaylist and itemKind <> "series" then includeMovie = true
+            if includeMovie then
                 index += 1
                 out.push(backendApiMapMovieItem(item, playlistId, index))
             end if
@@ -502,14 +531,23 @@ function backendApiMapMovieChannelItems(items as Dynamic, playlistId as String, 
     return out
 end function
 
+function backendApiItemTypeIsMissing(item as Dynamic) as Boolean
+    if not backendApiIsAssoc(item) then return false
+    contentType = LCase(backendApiText(item, "content_type"))
+    mediaType = LCase(backendApiText(item, "media_type"))
+    contentMissing = contentType = "" or contentType = "unknown"
+    mediaMissing = mediaType = "" or mediaType = "unknown"
+    return contentMissing and mediaMissing
+end function
+
 function backendApiMapSeriesItem(item as Object, playlistId as String, index as Integer) as Object
-    poster = backendApiText(item, "cover_url", backendApiText(item, "poster_url", backendApiText(item, "logo_url")))
+    cover = backendApiArtworkUrl(item, "cover_url", backendApiArtworkUrl(item, "poster_url", backendApiArtworkUrl(item, "logo_url")))
     return {
         id: backendApiText(item, "id"), backendSeriesId: backendApiText(item, "id"), playlistId: playlistId,
         contentType: "series", title: backendApiText(item, "name", "Series"), year: backendApiText(item, "release_date"),
         seasons: "", episodeCount: "", genre: backendApiGroupLabel(backendApiText(item, "category_title", "Series")),
         rating: backendApiText(item, "rating", "NR"), description: backendApiText(item, "plot"),
-        posterUrl: poster, cardUrl: poster, backdropUrl: backendApiText(item, "backdrop_url"),
+        posterUrl: cover, cardUrl: cover, cardDisplayMode: "fit", artworkRole: "cover", heroUrl: backendApiMovieExplicitHeroArtworkUrl(item), backdropUrl: backendApiMovieExplicitHeroArtworkUrl(item),
         streamUrl: "", streamFormat: "", episodeNames: "", seasonNames: "", episodeDurations: "",
         activeEpisodeTitle: "", resumePercent: 0, accent: "purple"
     }
@@ -525,7 +563,15 @@ function backendApiMapSeriesChannelItems(items as Dynamic, playlistId as String,
             if itemKind = "series" then
                 index += 1
                 name = backendApiText(item, "name", "Series episode")
-                poster = backendApiText(item, "poster_url", backendApiText(item, "logo_url"))
+                providerPoster = backendApiArtworkUrl(item, "poster_url")
+                providerLogo = backendApiArtworkUrl(item, "logo_url")
+                poster = providerPoster
+                artworkRole = "poster"
+                if poster = "" then
+                    poster = providerLogo
+                    artworkRole = "logo"
+                end if
+                heroUrl = backendApiMovieExplicitHeroArtworkUrl(item)
                 out.push({
                     id: backendApiText(item, "id", "backend_series_channel_" + index.toStr()),
                     backendChannelId: backendApiText(item, "id"), playlistId: playlistId,
@@ -533,7 +579,7 @@ function backendApiMapSeriesChannelItems(items as Dynamic, playlistId as String,
                     seasons: "Series", episodeCount: "1 Episode",
                     genre: backendApiPrimaryGroupLabel(backendApiText(item, "group_title", "Series")),
                     rating: "", description: backendApiText(item, "overview"),
-                    posterUrl: poster, cardUrl: poster, backdropUrl: backendApiText(item, "backdrop_url", poster),
+                    posterUrl: poster, cardUrl: poster, cardDisplayMode: "fit", artworkRole: artworkRole, heroUrl: heroUrl, backdropUrl: backendApiMovieExplicitHeroArtworkUrl(item),
                     streamUrl: backendApiText(item, "stream_url"), streamFormat: backendApiStreamFormat(backendApiText(item, "stream_url")),
                     episodeNames: name, seasonNames: "Season 1", episodeDurations: "",
                     activeEpisodeTitle: name, resumePercent: 0, featured: index = 1, accent: "purple"
@@ -542,6 +588,16 @@ function backendApiMapSeriesChannelItems(items as Dynamic, playlistId as String,
         end if
     end for
     return out
+end function
+
+function backendApiArtworkUrl(item as Dynamic, key as String, fallback = "" as String) as String
+    url = backendApiText(item, key, fallback)
+    if url = "" or url.len() > 2048 then return ""
+    lowerUrl = LCase(url)
+    if Left(lowerUrl, 8) = "https://" then return url
+    if Left(lowerUrl, 7) = "http://" then return url
+    if Left(lowerUrl, 5) = "pkg:/" then return url
+    return ""
 end function
 
 function backendApiDuration(item as Dynamic) as String
