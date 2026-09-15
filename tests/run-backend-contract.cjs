@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {spawnSync} = require('node:child_process');
 const root = path.resolve(__dirname, '..');
-const inputs = ['components/shared/BackendApi.brs', 'components/tasks/BackendApiTask.brs', 'components/pages/SeriesDetailPage.brs'];
+const inputs = ['components/shared/BackendApi.brs', 'components/tasks/BackendApiTask.brs', 'components/shared/PlaylistStore.brs', 'components/shared/MediaData.brs', 'components/shared/FavoriteStore.brs', 'components/shared/ProgressStore.brs', 'components/pages/SeriesDetailPage.brs'];
 const source = inputs.map((file, i) => fs.readFileSync(path.join(root, file), 'utf8').replace(/sub init\(\)/, `sub fixtureUnusedInit${i}()`)).join('\n');
 const target = path.join(root, 'build/backend-contract-harness.brs');
 fs.writeFileSync(target, source + '\n' + fs.readFileSync(path.join(__dirname, 'backend-contract.brs'), 'utf8'));

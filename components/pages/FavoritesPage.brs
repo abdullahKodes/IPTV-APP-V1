@@ -777,7 +777,7 @@ function favItemText(item as Dynamic, key as String, fallback = "" as String) as
 end function
 
 function favItemValue(item as Dynamic, key as String) as Dynamic
-    if item = invalid then return invalid
+    if not favoriteStoreIsAssoc(item) then return invalid
     if item.doesExist(key) then return item[key]
     lowerKey = LCase(key)
     if lowerKey <> key and item.doesExist(lowerKey) then return item[lowerKey]

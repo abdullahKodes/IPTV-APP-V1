@@ -156,7 +156,9 @@ sub onBackendSeriesLoaded()
         m.backendLoading = false
         applySeriesProgress()
         data = backendApiResponseData(response)
-        if data <> invalid and data.doesExist("groups") and Type(data.groups) = "roArray" and m.searchQuery = "" and backendSelectedGroup() = "All" then m.backendGroups = data.groups
+        if backendApiIsAssoc(data) then
+            if data.doesExist("groups") and Type(data.groups) = "roArray" and m.searchQuery = "" and backendSelectedGroup() = "All" then m.backendGroups = data.groups
+        end if
         if m.backendChannelFallback and m.searchQuery = "" and backendSelectedGroup() = "All" then
             fallbackGroups = backendApiGroupsFromChannelItems(items)
             if fallbackGroups.count() > 0 then m.backendGroups = fallbackGroups
@@ -856,7 +858,7 @@ function seriesProgress(series as Dynamic) as Integer
 end function
 
 function seriesValue(series as Dynamic, key as String) as Dynamic
-    if series = invalid then return invalid
+    if not backendApiIsAssoc(series) then return invalid
     if series.doesExist(key) then return series[key]
     lowerKey = LCase(key)
     if lowerKey <> key and series.doesExist(lowerKey) then return series[lowerKey]
@@ -936,15 +938,17 @@ end function
 sub applySeriesProgress()
     progressStoreTrimMediaType(m.activePlaylistId, "series", 5)
     for each series in m.series
-        series.resumePercent = 0
-        series.progressText = ""
+        if backendApiIsAssoc(series) then
+            series.resumePercent = 0
+            series.progressText = ""
+        end if
     end for
     entries = progressStoreList(m.activePlaylistId)
     for each entry in entries
         if progressStoreText(entry, "mediaType") = "series" then
             mediaId = progressStoreText(entry, "mediaId")
             for each series in m.series
-                if seriesProgressMediaId(series) = mediaId then
+                if backendApiIsAssoc(series) and seriesProgressMediaId(series) = mediaId then
                     series.resumePercent = progressStoreInt(entry, "percent")
                     series.progressText = ""
                     episodeLabel = progressStoreText(entry, "subtitle")
@@ -1409,10 +1413,7 @@ sub drawSearchKeyboardOverlay()
 end sub
 
 function backendSelectedGroup() as String
-    if m.searchQuery <> "" then return "All"
-    if m.categories = invalid or m.categoryIndex = invalid then return "All"
-    if m.categoryIndex < 0 or m.categoryIndex >= m.categories.count() then return "All"
-    return backendApiGroupQuery(m.backendGroups, m.categories[m.categoryIndex])
+    return backendApiBrowseGroupQuery(m.backendGroups, m.categories, m.categoryIndex, m.categoryResultsActive, m.searchQuery)
 end function
 
 sub scheduleBackendQuery()

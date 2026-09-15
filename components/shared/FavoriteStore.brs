@@ -16,9 +16,9 @@ end function
 
 function favoriteStoreHydrateList(items as Object, playlistId as String) as Object
     out = []
-    if items = invalid then return out
+    if Type(items) <> "roArray" then return out
     for each item in items
-        if item <> invalid then
+        if favoriteStoreIsAssoc(item) then
             kind = favoriteStoreText(item, "favoriteKind", "item")
             catalogItem = favoriteStoreFindCatalogItem(kind, item, playlistId)
             if catalogItem <> invalid then
@@ -46,9 +46,9 @@ end function
 
 function favoriteStoreNormalizeList(items as Object, playlistId as String) as Object
     out = []
-    if items = invalid then return out
+    if Type(items) <> "roArray" then return out
     for each item in items
-        if item <> invalid then
+        if favoriteStoreIsAssoc(item) then
             if not item.doesExist("playlistId") then item.playlistId = playlistId
             if not item.doesExist("favorite") then item.favorite = true
             if not item.doesExist("favoriteKey") then item.favoriteKey = favoriteStoreItemKey(item, favoriteStoreText(item, "favoriteKind"))
@@ -74,9 +74,9 @@ end function
 
 function favoriteStoreCompactList(items as Object, playlistId as String) as Object
     out = []
-    if items = invalid then return out
+    if Type(items) <> "roArray" then return out
     for each item in items
-        if item <> invalid then
+        if favoriteStoreIsAssoc(item) then
             kind = favoriteStoreText(item, "favoriteKind", "item")
             compact = {
                 favoriteKind: kind,
@@ -278,9 +278,14 @@ function favoriteStoreText(item as Dynamic, key as String, fallback = "" as Stri
 end function
 
 function favoriteStoreValue(item as Dynamic, key as String) as Dynamic
-    if item = invalid then return invalid
+    if not favoriteStoreIsAssoc(item) then return invalid
     if item.doesExist(key) then return item[key]
     lowerKey = LCase(key)
     if lowerKey <> key and item.doesExist(lowerKey) then return item[lowerKey]
     return invalid
+end function
+
+function favoriteStoreIsAssoc(value as Dynamic) as Boolean
+    valueType = Type(value)
+    return valueType = "roAssociativeArray" or valueType = "AssociativeArray"
 end function

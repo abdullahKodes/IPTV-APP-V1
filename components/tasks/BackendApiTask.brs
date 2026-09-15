@@ -153,7 +153,8 @@ function backendApiTaskCompactResponseBody(parsed as Dynamic, path as String) as
     if items <> invalid and backendApiTaskIsArray(items) then
         cleanItems = []
         for each item in items
-            cleanItems.push(backendApiTaskCompactItem(item, path))
+            ' Provider feeds can contain scalar metadata rows. Never pass them into SceneGraph catalog mappers.
+            if backendApiTaskIsAssoc(item) then cleanItems.push(backendApiTaskCompactItem(item, path))
         end for
         cleanData.items = cleanItems
     end if
@@ -286,7 +287,7 @@ function backendApiTaskIsArray(value as Dynamic) as Boolean
 end function
 
 function backendApiTaskText(item as Object, key as String, fallback as String) as String
-    if item = invalid then return fallback
+    if not backendApiTaskIsAssoc(item) then return fallback
     if not item.doesExist(key) then return fallback
     if item[key] = invalid then return fallback
     if item[key] = "" then return fallback
@@ -302,8 +303,9 @@ function backendApiTaskValue(item as Object, key as String) as Dynamic
 end function
 
 function backendApiTaskData(response as Dynamic) as Dynamic
-    if response = invalid then return invalid
+    if not backendApiTaskIsAssoc(response) then return invalid
     if not response.doesExist("data") then return invalid
+    if not backendApiTaskIsAssoc(response.data) then return invalid
     return response.data
 end function
 
@@ -316,7 +318,7 @@ function backendApiTaskString(item as Dynamic, key as String) as String
 end function
 
 function backendApiTaskBool(item as Object, key as String, fallback as Boolean) as Boolean
-    if item = invalid then return fallback
+    if not backendApiTaskIsAssoc(item) then return fallback
     if not item.doesExist(key) then return fallback
     if item[key] = invalid then return fallback
     if item[key] = true then return true
@@ -331,7 +333,7 @@ function backendApiTaskAccessToken() as String
     ' Only a fresh installation may bootstrap anonymously. Never replace a saved user.
     if backendApiTaskHasSavedIdentity() then return ""
     response = backendApiTaskRunAuthRequest()
-    if response = invalid then return ""
+    if not backendApiTaskIsAssoc(response) then return ""
     if not response.doesExist("success") then return ""
     if response.success <> true then return ""
     data = backendApiTaskData(response)

@@ -636,8 +636,8 @@ sub drawPlaylistCardShell(parent as Object, x as Integer, y as Integer, w as Int
     uiPoster(parent, uri, x, y, w, h, opacity)
 end sub
 
-function playlistStoreBoolField(item as Object, key as String, fallback as Boolean) as Boolean
-    if item = invalid then return fallback
+function playlistStoreBoolField(item as Dynamic, key as String, fallback as Boolean) as Boolean
+    if not playlistStoreIsAssoc(item) then return fallback
     value = invalid
     if item.doesExist(key) then
         value = item[key]

@@ -342,8 +342,14 @@ function entitlementRokuRenewalLabel(purchase as Object, planId as String) as St
     return entitlementRenewalLabel(planId)
 end function
 
-function entitlementText(status as Object, key as String, fallback = "" as String) as String
-    if status <> invalid and status.doesExist(key) and status[key] <> invalid then return status[key]
+function entitlementText(status as Dynamic, key as String, fallback = "" as String) as String
+    statusType = Type(status)
+    if statusType <> "roAssociativeArray" and statusType <> "AssociativeArray" then return fallback
+    if status.doesExist(key) and status[key] <> invalid then
+        valueType = Type(status[key])
+        if valueType = "String" or valueType = "roString" then return status[key]
+        if valueType = "Integer" or valueType = "roInt" or valueType = "LongInteger" or valueType = "roLongInteger" then return status[key].toStr()
+    end if
     return fallback
 end function
 

@@ -141,7 +141,9 @@ sub onBackendMoviesLoaded()
         m.backendLoading = false
         m.featuredMovieIndex = selectFeaturedMovieIndex(m.movies)
         data = backendApiResponseData(response)
-        if data <> invalid and data.doesExist("groups") and Type(data.groups) = "roArray" and m.searchQuery = "" and backendSelectedGroup() = "All" then m.backendGroups = data.groups
+        if backendApiIsAssoc(data) then
+            if data.doesExist("groups") and Type(data.groups) = "roArray" and m.searchQuery = "" and backendSelectedGroup() = "All" then m.backendGroups = data.groups
+        end if
         if m.backendGroups.count() > 0 then
             m.categories = backendApiGroupNames(m.backendGroups)
         else if m.searchQuery = "" and backendSelectedGroup() = "All" then
@@ -784,7 +786,7 @@ function movieFlag(movie as Dynamic, key as String) as Boolean
 end function
 
 function movieValue(movie as Dynamic, key as String) as Dynamic
-    if movie = invalid then return invalid
+    if not backendApiIsAssoc(movie) then return invalid
     if movie.doesExist(key) then return movie[key]
     lowerKey = LCase(key)
     if lowerKey <> key and movie.doesExist(lowerKey) then return movie[lowerKey]
@@ -1373,10 +1375,7 @@ sub drawSearchKeyboardOverlay()
 end sub
 
 function backendSelectedGroup() as String
-    if m.searchQuery <> "" then return "All"
-    if m.categories = invalid or m.categoryIndex = invalid then return "All"
-    if m.categoryIndex < 0 or m.categoryIndex >= m.categories.count() then return "All"
-    return backendApiGroupQuery(m.backendGroups, m.categories[m.categoryIndex])
+    return backendApiBrowseGroupQuery(m.backendGroups, m.categories, m.categoryIndex, m.categoryResultsActive, m.searchQuery)
 end function
 
 sub scheduleBackendQuery()

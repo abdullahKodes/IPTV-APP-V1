@@ -596,10 +596,11 @@ end function
 
 function playlistStoreNormalize(items as Object) as Object
     normalized = []
+    if Type(items) <> "roArray" then return normalized
     usedIds = {}
     for i = 0 to items.count() - 1
         item = items[i]
-        if item <> invalid then
+        if playlistStoreIsAssoc(item) then
             if not item.doesExist("id") then item.id = "playlist_" + i.toStr()
             itemId = playlistStoreText(item, "id", "playlist_" + i.toStr())
             if usedIds.doesExist(itemId) then
@@ -1011,30 +1012,41 @@ sub playlistStoreRememberDeletedDemo(id as String)
     section.Flush()
 end sub
 
-function playlistStoreText(item as Object, key as String, fallback = "" as String) as String
+function playlistStoreText(item as Dynamic, key as String, fallback = "" as String) as String
     value = playlistStoreValue(item, key)
     if value = invalid or value = "" then return fallback
-    return value
+    valueType = Type(value)
+    if valueType = "String" or valueType = "roString" then return value
+    if valueType = "Integer" or valueType = "roInt" or valueType = "LongInteger" or valueType = "roLongInteger" or valueType = "Float" or valueType = "roFloat" or valueType = "Double" or valueType = "roDouble" then return value.toStr()
+    return fallback
 end function
 
-function playlistStoreNumber(item as Object, key as String) as Integer
+function playlistStoreNumber(item as Dynamic, key as String) as Integer
     value = playlistStoreValue(item, key)
     if value = invalid then return 0
-    return value
+    valueType = Type(value)
+    if valueType = "Integer" or valueType = "roInt" or valueType = "LongInteger" or valueType = "roLongInteger" or valueType = "Float" or valueType = "roFloat" or valueType = "Double" or valueType = "roDouble" then return Int(value)
+    if valueType = "String" or valueType = "roString" then return Int(Val(value))
+    return 0
 end function
 
-function playlistStoreBool(item as Object, key as String, fallback as Boolean) as Boolean
+function playlistStoreBool(item as Dynamic, key as String, fallback as Boolean) as Boolean
     value = playlistStoreValue(item, key)
     if value = invalid then return fallback
     return value = true
 end function
 
-function playlistStoreValue(item as Object, key as String) as Dynamic
-    if item = invalid then return invalid
+function playlistStoreValue(item as Dynamic, key as String) as Dynamic
+    if not playlistStoreIsAssoc(item) then return invalid
     if item.doesExist(key) then return item[key]
     lowerKey = LCase(key)
     if lowerKey <> key and item.doesExist(lowerKey) then return item[lowerKey]
     return invalid
+end function
+
+function playlistStoreIsAssoc(value as Dynamic) as Boolean
+    valueType = Type(value)
+    return valueType = "roAssociativeArray" or valueType = "AssociativeArray"
 end function
 
 function playlistStoreTitleExists(title as String) as Boolean

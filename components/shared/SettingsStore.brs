@@ -83,30 +83,38 @@ function settingsStoreReadInt(section as Object, key as String, fallback as Inte
     return fallback
 end function
 
-function settingsStoreText(settings as Object, key as String, fallback = "" as String) as String
+function settingsStoreText(settings as Dynamic, key as String, fallback = "" as String) as String
+    value = settingsStoreValue(settings, key)
+    if value <> invalid then
+        valueType = Type(value)
+        if valueType = "String" or valueType = "roString" then return value
+    end if
+    return fallback
+end function
+
+function settingsStoreBool(settings as Dynamic, key as String, fallback as Boolean) as Boolean
     value = settingsStoreValue(settings, key)
     if value <> invalid then return value
     return fallback
 end function
 
-function settingsStoreBool(settings as Object, key as String, fallback as Boolean) as Boolean
+function settingsStoreNumber(settings as Dynamic, key as String, fallback as Integer) as Integer
     value = settingsStoreValue(settings, key)
     if value <> invalid then return value
     return fallback
 end function
 
-function settingsStoreNumber(settings as Object, key as String, fallback as Integer) as Integer
-    value = settingsStoreValue(settings, key)
-    if value <> invalid then return value
-    return fallback
-end function
-
-function settingsStoreValue(settings as Object, key as String) as Dynamic
-    if settings = invalid then return invalid
+function settingsStoreValue(settings as Dynamic, key as String) as Dynamic
+    if not settingsStoreIsAssoc(settings) then return invalid
     if settings.doesExist(key) then return settings[key]
     lowerKey = LCase(key)
     if lowerKey <> key and settings.doesExist(lowerKey) then return settings[lowerKey]
     return invalid
+end function
+
+function settingsStoreIsAssoc(value as Dynamic) as Boolean
+    valueType = Type(value)
+    return valueType = "roAssociativeArray" or valueType = "AssociativeArray"
 end function
 
 function settingsStoreCaptionMode(value as String) as String

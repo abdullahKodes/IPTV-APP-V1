@@ -89,8 +89,13 @@ function parentalControlLiveTextIsRestricted(text as String) as Boolean
     return Instr(1, LCase(text), needle) > 0
 end function
 
-function parentalControlPayloadText(payload as Object, key as String) as String
-    if payload = invalid or key = invalid then return ""
-    if payload.doesExist(key) and payload[key] <> invalid then return payload[key]
+function parentalControlPayloadText(payload as Dynamic, key as String) as String
+    payloadType = Type(payload)
+    if payloadType <> "roAssociativeArray" and payloadType <> "AssociativeArray" then return ""
+    if key = invalid then return ""
+    if payload.doesExist(key) and payload[key] <> invalid then
+        valueType = Type(payload[key])
+        if valueType = "String" or valueType = "roString" then return payload[key]
+    end if
     return ""
 end function

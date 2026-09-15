@@ -146,7 +146,9 @@ sub onBackendLiveLoaded()
         if m.backendHasMore then m.backendNextCursor = nextCursor
         m.backendLoading = false
         data = backendApiResponseData(response)
-        if data <> invalid and data.doesExist("groups") and Type(data.groups) = "roArray" and m.searchQuery = "" and backendSelectedGroup() = "All" then m.backendGroups = data.groups
+        if backendApiIsAssoc(data) then
+            if data.doesExist("groups") and Type(data.groups) = "roArray" and m.searchQuery = "" and backendSelectedGroup() = "All" then m.backendGroups = data.groups
+        end if
         if m.backendGroups.count() > 0 then
             m.categories = backendApiGroupNames(m.backendGroups)
         else if m.searchQuery = "" and backendSelectedGroup() = "All" then
@@ -1065,7 +1067,7 @@ function liveText(item as Dynamic, key as String, fallback = "" as String) as St
 end function
 
 function liveValue(item as Dynamic, key as String) as Dynamic
-    if item = invalid then return invalid
+    if not backendApiIsAssoc(item) then return invalid
     if item.doesExist(key) then return item[key]
     lowerKey = LCase(key)
     if lowerKey <> key and item.doesExist(lowerKey) then return item[lowerKey]

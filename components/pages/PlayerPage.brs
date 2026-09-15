@@ -963,7 +963,8 @@ function shortTrackLabel(value as String) as String
 end function
 
 function trackValue(track as Dynamic, key as String) as String
-    if track = invalid then return ""
+    trackType = Type(track)
+    if trackType <> "roAssociativeArray" and trackType <> "AssociativeArray" then return ""
     if track.doesExist(key) and track[key] <> invalid then return track[key].toStr()
     lowerKey = LCase(key)
     if lowerKey <> key and track.doesExist(lowerKey) and track[lowerKey] <> invalid then return track[lowerKey].toStr()

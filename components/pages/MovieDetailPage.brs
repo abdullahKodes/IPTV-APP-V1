@@ -340,8 +340,8 @@ function detailPlaybackFormat() as String
 end function
 
 function detailText(item as Dynamic, key as String) as String
-    if item = invalid then return ""
-    if item.doesExist(key) then return item[key]
+    if not backendApiIsAssoc(item) then return ""
+    if item.doesExist(key) then return backendApiText(item, key)
     return ""
 end function
 

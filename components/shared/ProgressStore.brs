@@ -9,7 +9,11 @@ function progressStoreList(playlistId as String) as Object
     if raw = invalid or raw = "" then return []
     parsed = ParseJson(raw)
     if parsed = invalid or Type(parsed) <> "roArray" then return []
-    return parsed
+    clean = []
+    for each item in parsed
+        if progressStoreIsAssoc(item) then clean.push(item)
+    end for
+    return clean
 end function
 
 function progressStoreFind(playlistId as String, mediaType as String, mediaId as String) as Dynamic
@@ -130,9 +134,14 @@ function progressStoreInt(item as Dynamic, key as String, fallback = 0 as Intege
 end function
 
 function progressStoreValue(item as Dynamic, key as String) as Dynamic
-    if item = invalid then return invalid
+    if not progressStoreIsAssoc(item) then return invalid
     if item.doesExist(key) then return item[key]
     lowerKey = LCase(key)
     if lowerKey <> key and item.doesExist(lowerKey) then return item[lowerKey]
     return invalid
+end function
+
+function progressStoreIsAssoc(value as Dynamic) as Boolean
+    valueType = Type(value)
+    return valueType = "roAssociativeArray" or valueType = "AssociativeArray"
 end function

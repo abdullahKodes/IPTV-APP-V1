@@ -73,11 +73,15 @@ function mediaPlaylistProfile(playlistId as String) as String
 end function
 
 function mediaSetPlaylistId(items as Object, playlistId as String) as Object
-    if items = invalid then return []
+    if Type(items) <> "roArray" then return []
+    clean = []
     for i = 0 to items.count() - 1
-        if items[i] <> invalid then items[i].playlistId = playlistId
+        if mediaIsAssoc(items[i]) then
+            items[i].playlistId = playlistId
+            clean.push(items[i])
+        end if
     end for
-    return items
+    return clean
 end function
 
 function mediaPlaylistItem(playlistId as String) as Object
@@ -104,11 +108,16 @@ function mediaStoredPlaylistItems(playlistId as String, key as String) as Object
 end function
 
 function mediaValue(item as Dynamic, key as String) as Dynamic
-    if item = invalid then return invalid
+    if not mediaIsAssoc(item) then return invalid
     if item.doesExist(key) then return item[key]
     lowerKey = LCase(key)
     if lowerKey <> key and item.doesExist(lowerKey) then return item[lowerKey]
     return invalid
+end function
+
+function mediaIsAssoc(value as Dynamic) as Boolean
+    valueType = Type(value)
+    return valueType = "roAssociativeArray" or valueType = "AssociativeArray"
 end function
 
 function mediaM3uCatalogForPlaylist(playlistId as String, kind as String) as Object

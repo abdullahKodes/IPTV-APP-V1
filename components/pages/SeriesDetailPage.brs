@@ -699,8 +699,8 @@ function detailHeroUrl() as String
 end function
 
 function detailText(item as Dynamic, key as String) as String
-    if item = invalid then return ""
-    if item.doesExist(key) then return item[key]
+    if not backendApiIsAssoc(item) then return ""
+    if item.doesExist(key) then return backendApiText(item, key)
     return ""
 end function
 
@@ -961,11 +961,13 @@ sub onBackendSeriesDetailLoaded()
     m.detailLoading = false
     if backendApiResponseOk(response) then
         data = backendApiResponseData(response)
-        if data.doesExist("seasons") and Type(data.seasons) = "roArray" then m.backendSeasons = data.seasons
-        if data.doesExist("series") then
-            series = data.series
-            m.top.detailDescription = backendApiText(series, "plot", m.top.detailDescription)
-            m.top.detailPosterUrl = backendApiText(series, "cover_url", m.top.detailPosterUrl)
+        if backendApiIsAssoc(data) then
+            if data.doesExist("seasons") and Type(data.seasons) = "roArray" then m.backendSeasons = data.seasons
+            if data.doesExist("series") and backendApiIsAssoc(data.series) then
+                series = data.series
+                m.top.detailDescription = backendApiText(series, "plot", m.top.detailDescription)
+                m.top.detailPosterUrl = backendApiText(series, "cover_url", m.top.detailPosterUrl)
+            end if
         end if
         normalizeSeasonIndex()
         m.seasonWindowStart = Int(m.seasonIndex / 8) * 8

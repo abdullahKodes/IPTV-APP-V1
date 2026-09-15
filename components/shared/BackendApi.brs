@@ -169,7 +169,7 @@ function backendApiBuildUrl(path as String) as String
 end function
 
 sub backendApiStoreAuthData(data as Dynamic)
-    if data = invalid then return
+    if not backendApiIsAssoc(data) then return
     section = CreateObject("roRegistrySection", backendApiAuthRegistrySection())
     token = backendApiText(data, "access_token")
     if token <> "" then section.Write("accessToken", token)
@@ -192,7 +192,7 @@ sub backendApiClearAuthSession()
 end sub
 
 function backendApiResponseOk(response as Dynamic) as Boolean
-    if response = invalid then return false
+    if not backendApiIsAssoc(response) then return false
     if not response.doesExist("ok") then return false
     return response.ok = true
 end function
@@ -200,14 +200,14 @@ end function
 function backendApiResponseProblem(response as Dynamic, fallback as String) as String
     message = fallback
     statusCode = 0
-    if response <> invalid then
+    if backendApiIsAssoc(response) then
         if response.doesExist("statusCode") then statusCode = response.statusCode
         body = invalid
         if response.doesExist("body") then body = response.body
-        if body <> invalid then
+        if backendApiIsAssoc(body) then
             errorData = invalid
             if body.doesExist("error") then errorData = body.error
-            if errorData <> invalid then
+            if backendApiIsAssoc(errorData) then
                 errorMessage = backendApiText(errorData, "message")
                 if errorMessage <> "" then message = errorMessage
                 errorCode = backendApiText(errorData, "code")
@@ -234,17 +234,16 @@ function backendApiUserMessage(response as Dynamic, fallback as String) as Strin
 end function
 
 function backendApiResponseStatusCode(response as Dynamic) as Integer
-    if response = invalid then return 0
-    if not response.doesExist("statusCode") then return 0
-    return response.statusCode
+    return backendApiInt(response, "statusCode", 0)
 end function
 
 function backendApiResponseData(response as Dynamic) as Dynamic
-    if response = invalid then return invalid
+    if not backendApiIsAssoc(response) then return invalid
     if not response.doesExist("body") then return invalid
     body = response.body
-    if body = invalid then return invalid
+    if not backendApiIsAssoc(body) then return invalid
     if not body.doesExist("data") then return invalid
+    if not backendApiIsAssoc(body.data) then return invalid
     return body.data
 end function
 
@@ -259,17 +258,17 @@ function backendApiResponseItems(response as Dynamic) as Object
 end function
 
 function backendApiResponsePagination(response as Dynamic) as Dynamic
-    if response = invalid then return invalid
+    if not backendApiIsAssoc(response) then return invalid
     if not response.doesExist("body") then return invalid
     body = response.body
-    if body = invalid then return invalid
-    if body.doesExist("meta") and Type(body.meta) = "roAssociativeArray" then
-        if body.meta.doesExist("pagination") then return body.meta.pagination
+    if not backendApiIsAssoc(body) then return invalid
+    if body.doesExist("meta") and backendApiIsAssoc(body.meta) then
+        if body.meta.doesExist("pagination") and backendApiIsAssoc(body.meta.pagination) then return body.meta.pagination
     end if
     data = backendApiResponseData(response)
     if data <> invalid then
-        if data.doesExist("pagination") then return data.pagination
-        if data.doesExist("meta") and data.meta <> invalid then return data.meta
+        if data.doesExist("pagination") and backendApiIsAssoc(data.pagination) then return data.pagination
+        if data.doesExist("meta") and backendApiIsAssoc(data.meta) then return data.meta
         return data
     end if
     return invalid
@@ -277,7 +276,7 @@ end function
 
 function backendApiResponseNextCursor(response as Dynamic) as Integer
     meta = backendApiResponsePagination(response)
-    if meta = invalid then return -1
+    if not backendApiIsAssoc(meta) then return -1
     if meta.doesExist("has_next") then
         if not backendApiBool(meta, "has_next", false) then return -1
         return backendApiInt(meta, "page", 1) + 1
@@ -308,47 +307,51 @@ function backendApiResponseTotalCount(response as Dynamic) as Integer
 end function
 
 function backendApiFirstItemId(items as Object) as String
-    if items = invalid then return ""
+    if not backendApiIsArray(items) then return ""
     if items.count() = 0 then return ""
     return backendApiText(items[0], "id")
 end function
 
 function backendApiResponsePlaylist(response as Dynamic) as Dynamic
     data = backendApiResponseData(response)
-    if data = invalid then return invalid
+    if not backendApiIsAssoc(data) then return invalid
     if not data.doesExist("playlist") then return invalid
+    if not backendApiIsAssoc(data.playlist) then return invalid
     return data.playlist
 end function
 
 function backendApiResponseImportJob(response as Dynamic) as Dynamic
     data = backendApiResponseData(response)
     if data = invalid then
-        if response <> invalid and response.doesExist("body") then
-            body = response.body
-            if body.doesExist("error") and Type(body.error) = "roAssociativeArray" then
-                if body.error.doesExist("details") and Type(body.error.details) = "roAssociativeArray" then
-                    details = body.error.details
-                    if details.doesExist("import_job") then return details.import_job
-                    jobId = backendApiText(details, "import_job_id", backendApiText(details, "job_id"))
-                    if jobId <> "" then return {id: jobId, status: "running"}
+        if backendApiIsAssoc(response) then
+            if response.doesExist("body") and backendApiIsAssoc(response.body) then
+                body = response.body
+                if body.doesExist("error") and backendApiIsAssoc(body.error) then
+                    if body.error.doesExist("details") and backendApiIsAssoc(body.error.details) then
+                        details = body.error.details
+                        if details.doesExist("import_job") and backendApiIsAssoc(details.import_job) then return details.import_job
+                        jobId = backendApiText(details, "import_job_id", backendApiText(details, "job_id"))
+                        if jobId <> "" then return {id: jobId, status: "running"}
+                    end if
                 end if
             end if
         end if
         return invalid
     end if
+    if not backendApiIsAssoc(data) then return invalid
     if not data.doesExist("import_job") then return invalid
-    if Type(data.import_job) <> "roAssociativeArray" then return invalid
+    if not backendApiIsAssoc(data.import_job) then return invalid
     return data.import_job
 end function
 
 function backendApiChannelData(response as Dynamic) as Dynamic
     data = backendApiResponseData(response)
-    if data = invalid then return invalid
+    if not backendApiIsAssoc(data) then return invalid
     if data.doesExist("channel") then
-        if data.channel <> invalid then return data.channel
+        if backendApiIsAssoc(data.channel) then return data.channel
     end if
     if data.doesExist("item") then
-        if data.item <> invalid then return data.item
+        if backendApiIsAssoc(data.item) then return data.item
     end if
     return data
 end function
@@ -367,7 +370,7 @@ function backendApiMapSyncItems(items as Dynamic, playlistId as String, kind as 
     if Type(items) <> "roArray" then return out
     index = startIndex
     for each item in items
-        if item <> invalid and not backendApiBool(item, "deleted", false) then
+        if backendApiIsAssoc(item) and not backendApiBool(item, "deleted", false) then
             itemKind = backendApiItemKind(item)
             if kind = "movies" then
                 if itemKind = "movie" then
@@ -489,7 +492,7 @@ function backendApiMapMovieChannelItems(items as Dynamic, playlistId as String, 
     if Type(items) <> "roArray" then return out
     index = startIndex
     for each item in items
-        if item <> invalid and not backendApiBool(item, "deleted", false) then
+        if backendApiIsAssoc(item) and not backendApiBool(item, "deleted", false) then
             if backendApiItemKind(item) = "movie" then
                 index += 1
                 out.push(backendApiMapMovieItem(item, playlistId, index))
@@ -517,7 +520,7 @@ function backendApiMapSeriesChannelItems(items as Dynamic, playlistId as String,
     if Type(items) <> "roArray" then return out
     index = startIndex
     for each item in items
-        if item <> invalid and not backendApiBool(item, "deleted", false) then
+        if backendApiIsAssoc(item) and not backendApiBool(item, "deleted", false) then
             itemKind = backendApiItemKind(item)
             if itemKind = "series" then
                 index += 1
@@ -552,8 +555,13 @@ function backendApiStreamFormat(url as String) as String
     path = LCase(url)
     queryStart = Instr(1, path, "?")
     if queryStart > 0 then path = Left(path, queryStart - 1)
-    if Right(path, 3) = ".ts" then return "ts"
-    if Right(path, 4) = ".mp4" or Right(path, 4) = ".mkv" or Right(path, 4) = ".m4v" then return "mp4"
+    if path.len() >= 3 then
+        if Right(path, 3) = ".ts" then return "ts"
+    end if
+    if path.len() >= 4 then
+        suffix = Right(path, 4)
+        if suffix = ".mp4" or suffix = ".mkv" or suffix = ".m4v" then return "mp4"
+    end if
     return "hls"
 end function
 
@@ -572,7 +580,7 @@ function backendApiGroupLabel(groupTitle as String) as String
 end function
 
 function backendApiText(item as Dynamic, key as String, fallback = "" as String) as String
-    if Type(item) <> "roAssociativeArray" then return fallback
+    if not backendApiIsAssoc(item) then return fallback
     value = invalid
     if item.doesExist(key) then value = item[key]
     if value = invalid then return fallback
@@ -586,13 +594,13 @@ function backendApiText(item as Dynamic, key as String, fallback = "" as String)
 end function
 
 function backendApiBool(item as Dynamic, key as String, fallback as Boolean) as Boolean
-    if item = invalid then return fallback
+    if not backendApiIsAssoc(item) then return fallback
     if not item.doesExist(key) then return fallback
     return item[key] = true
 end function
 
 function backendApiInt(item as Dynamic, key as String, fallback as Integer) as Integer
-    if item = invalid then return fallback
+    if not backendApiIsAssoc(item) then return fallback
     if not item.doesExist(key) then return fallback
     value = item[key]
     if value = invalid then return fallback
@@ -619,6 +627,7 @@ end function
 
 function backendApiGroupNames(groups as Object) as Object
     names = ["All"]
+    if not backendApiIsArray(groups) then return names
     for each group in groups
         backendApiAppendGroupName(names, backendApiPrimaryGroupLabel(backendApiText(group, "name")))
     end for
@@ -627,12 +636,20 @@ end function
 
 function backendApiGroupQuery(groups as Object, displayName as String) as String
     if displayName = "" or displayName = "All" then return "All"
+    if not backendApiIsArray(groups) then return displayName
     needle = LCase(displayName)
     for each group in groups
         rawName = backendApiText(group, "name")
         if LCase(backendApiPrimaryGroupLabel(rawName)) = needle then return rawName
     end for
     return displayName
+end function
+
+function backendApiBrowseGroupQuery(groups as Object, categories as Dynamic, categoryIndex as Integer, categoryResultsActive as Boolean, searchQuery as String) as String
+    if searchQuery <> "" or not categoryResultsActive then return "All"
+    if Type(categories) <> "roArray" then return "All"
+    if categoryIndex < 0 or categoryIndex >= categories.count() then return "All"
+    return backendApiGroupQuery(groups, categories[categoryIndex])
 end function
 
 function backendApiGroupsFromChannelItems(items as Dynamic) as Object
@@ -691,9 +708,15 @@ end function
 ' Retain at most three catalog pages. Evicted pages are fetched again when going back.
 function backendApiCatalogWindow(pages as Object, page as Integer, items as Object, nextPage as Integer, selectedId as String) as Object
     if page < 1 then page = 1
+    if not backendApiIsArray(pages) then pages = []
+    if not backendApiIsArray(items) then items = []
     updated = []
     for each cached in pages
-        if cached.page <> page then updated.push(cached)
+        if backendApiIsAssoc(cached) then
+            if backendApiInt(cached, "page", -1) <> page and cached.doesExist("items") then
+                if backendApiIsArray(cached.items) then updated.push(cached)
+            end if
+        end if
     end for
     updated.push({page: page, items: items, nextPage: nextPage})
     updated.SortBy("page")
@@ -708,9 +731,21 @@ function backendApiCatalogWindow(pages as Object, page as Integer, items as Obje
     selectedIndex = 0
     for each cached in updated
         for each item in cached.items
-            if backendApiText(item, "id") = selectedId then selectedIndex = combined.count()
-            combined.push(item)
+            if backendApiIsAssoc(item) then
+                if backendApiText(item, "id") = selectedId then selectedIndex = combined.count()
+                combined.push(item)
+            end if
         end for
     end for
     return {pages: updated, items: combined, selectedIndex: selectedIndex, firstPage: updated[0].page, nextPage: updated[updated.count() - 1].nextPage}
+end function
+
+function backendApiIsAssoc(value as Dynamic) as Boolean
+    valueType = Type(value)
+    return valueType = "roAssociativeArray" or valueType = "AssociativeArray"
+end function
+
+function backendApiIsArray(value as Dynamic) as Boolean
+    valueType = Type(value)
+    return valueType = "roArray" or valueType = "Array"
 end function
