@@ -103,7 +103,7 @@ function uiPoster(parent as Object, uri as String, x as Integer, y as Integer, w
     return node
 end function
 
-function uiPosterZoom(parent as Object, uri as String, x as Integer, y as Integer, w as Integer, h as Integer, opacity = 1.0 as Float) as Object
+function uiPosterZoom(parent as Object, uri as String, x as Integer, y as Integer, w as Integer, h as Integer, opacity = 1.0 as Float, fallbackUri = "" as String) as Object
     node = CreateObject("roSGNode", "Poster")
     node.translation = [x, y]
     node.width = w
@@ -114,6 +114,10 @@ function uiPosterZoom(parent as Object, uri as String, x as Integer, y as Intege
         node.loadHeight = h
     end if
     node.loadDisplayMode = "scaleToZoom"
+    if fallbackUri <> "" then
+        node.loadingBitmapUri = fallbackUri
+        node.failedBitmapUri = fallbackUri
+    end if
     node.uri = uri
     parent.appendChild(node)
     return node
@@ -152,6 +156,21 @@ end function
 function uiPosterIsRemoteUri(uri as String) as Boolean
     lowerUri = LCase(uri)
     return Left(lowerUri, 8) = "https://" or Left(lowerUri, 7) = "http://"
+end function
+
+function uiPrefetchRemoteArtwork(parent as Object, uri as String, loadW = 1280 as Integer, loadH = 720 as Integer) as Dynamic
+    if parent = invalid or not uiPosterIsRemoteUri(uri) then return invalid
+    node = CreateObject("roSGNode", "Poster")
+    if node = invalid then return invalid
+    node.width = 1
+    node.height = 1
+    node.opacity = 0.0
+    node.loadWidth = loadW
+    node.loadHeight = loadH
+    node.loadDisplayMode = "limitSize"
+    parent.appendChild(node)
+    node.uri = uri
+    return node
 end function
 
 function uiColorKey(color as String) as String

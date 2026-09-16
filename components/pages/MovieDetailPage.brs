@@ -105,8 +105,9 @@ sub onBackendMoviePlaybackLoaded()
     if backendApiResponseOk(response) and playbackUrl <> "" then
         m.loadedDetailId = m.top.detailId
         channel = backendApiChannelData(response)
+        m.top.detailTitle = backendApiMovieDisplayTitle(channel, m.top.detailTitle)
         m.top.detailDescription = backendApiText(channel, "overview", m.top.detailDescription)
-        providerPoster = backendApiArtworkUrl(channel, "poster_url")
+        providerPoster = backendApiArtworkUrl(channel, "poster_url", backendApiArtworkUrl(channel, "cover_url"))
         providerLogo = backendApiArtworkUrl(channel, "logo_url")
         if providerPoster <> "" then
             m.top.detailPosterUrl = providerPoster

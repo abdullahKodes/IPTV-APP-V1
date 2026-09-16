@@ -216,7 +216,11 @@ function backendApiTaskCompactGroups(groups as Dynamic) as Object
             name = backendApiTaskValue(group, "name")
             nameType = Type(name)
             if nameType = "String" or nameType = "roString" then
-                if name <> "" then clean.push({name: Left(name, 256)})
+                if name <> "" then
+                    cleanGroup = {name: Left(name, 256)}
+                    backendApiTaskCopy(cleanGroup, group, "channel_count")
+                    clean.push(cleanGroup)
+                end if
             end if
         end if
     end for
@@ -275,9 +279,21 @@ function backendApiTaskCompactChannel(item as Dynamic) as Object
     backendApiTaskCopy(clean, item, "id")
     backendApiTaskCopy(clean, item, "playlist_id")
     backendApiTaskCopy(clean, item, "name")
+    backendApiTaskCopyProviderTitleAliases(clean, item)
+    metadata = backendApiTaskValue(item, "metadata")
+    if backendApiTaskIsAssoc(metadata) then
+        backendApiTaskCopyProviderTitleAliases(clean, metadata)
+        backendApiTaskCopyProviderArtworkAliases(clean, metadata)
+        metadataInfo = backendApiTaskValue(metadata, "info")
+        if backendApiTaskIsAssoc(metadataInfo) then
+            backendApiTaskCopyProviderTitleAliases(clean, metadataInfo)
+            backendApiTaskCopyProviderArtworkAliases(clean, metadataInfo)
+        end if
+    end if
     for each key in ["title", "category_title", "cover_url", "plot", "genre", "release_date", "release_year", "poster_url", "hero_url", "backdrop_url", "background_url", "fanart_url", "overview", "duration_seconds", "rating", "container_extension", "season_number", "episode_num", "series_id"]
         backendApiTaskCopy(clean, item, key)
     end for
+    backendApiTaskCopyProviderArtworkAliases(clean, item)
     info = backendApiTaskValue(item, "info")
     if backendApiTaskIsAssoc(info) then clean.duration_seconds = backendApiInt(info, "duration_secs", 0)
     backendApiTaskCopy(clean, item, "tvg_id")
@@ -294,6 +310,53 @@ function backendApiTaskCompactChannel(item as Dynamic) as Object
     return clean
 end function
 
+sub backendApiTaskCopyProviderTitleAliases(target as Object, source as Dynamic)
+    backendApiTaskCopyTextAliasIfMissing(target, source, "provider_title", "title")
+    backendApiTaskCopyTextAliasIfMissing(target, source, "provider_original_name", "o_name")
+    backendApiTaskCopyTextAliasIfMissing(target, source, "provider_original_name", "original_name")
+    backendApiTaskCopyTextAliasIfMissing(target, source, "provider_name", "movie_name")
+    backendApiTaskCopyTextAliasIfMissing(target, source, "provider_name", "name")
+end sub
+
+sub backendApiTaskCopyProviderArtworkAliases(target as Object, source as Dynamic)
+    backendApiTaskCopyArtworkAliasIfMissing(target, source, "provider_cover_url", "cover")
+    backendApiTaskCopyArtworkAliasIfMissing(target, source, "provider_cover_url", "cover_big")
+    backendApiTaskCopyArtworkAliasIfMissing(target, source, "provider_cover_url", "series_image")
+    backendApiTaskCopyArtworkAliasIfMissing(target, source, "provider_cover_url", "movie_image")
+    backendApiTaskCopyArtworkAliasIfMissing(target, source, "provider_cover_url", "stream_icon")
+    backendApiTaskCopyArtworkAliasIfMissing(target, source, "provider_cover_url", "image")
+    backendApiTaskCopyArtworkAliasIfMissing(target, source, "provider_cover_url", "poster")
+    backendApiTaskCopyArtworkAliasIfMissing(target, source, "provider_backdrop_url", "backdrop")
+    backendApiTaskCopyArtworkAliasIfMissing(target, source, "provider_backdrop_url", "backdrop_path")
+    backendApiTaskCopyArtworkAliasIfMissing(target, source, "provider_backdrop_url", "background")
+    backendApiTaskCopyArtworkAliasIfMissing(target, source, "provider_backdrop_url", "fanart")
+end sub
+
+sub backendApiTaskCopyArtworkAliasIfMissing(target as Object, source as Dynamic, targetKey as String, sourceKey as String)
+    if target = invalid or source = invalid then return
+    if target.doesExist(targetKey) and backendApiTaskString(target, targetKey) <> "" then return
+    if not backendApiTaskIsAssoc(source) or not source.doesExist(sourceKey) then return
+    value = source[sourceKey]
+    if backendApiTaskIsArray(value) then
+        if value.count() = 0 then return
+        value = value[0]
+    end if
+    valueType = Type(value)
+    if valueType <> "String" and valueType <> "roString" then return
+    if value = "" then return
+    target[targetKey] = Left(value, 2048)
+end sub
+
+sub backendApiTaskCopyTextAliasIfMissing(target as Object, source as Dynamic, targetKey as String, sourceKey as String)
+    if target = invalid or source = invalid then return
+    if target.doesExist(targetKey) then return
+    if not backendApiTaskIsAssoc(source) or not source.doesExist(sourceKey) then return
+    value = source[sourceKey]
+    valueType = Type(value)
+    if valueType <> "String" and valueType <> "roString" then return
+    if value = "" then return
+    target[targetKey] = Left(value, 512)
+end sub
 sub backendApiTaskCopy(target as Object, source as Dynamic, key as String)
     if target = invalid or source = invalid then return
     if not backendApiTaskIsAssoc(source) then return

@@ -93,16 +93,18 @@ function backendApiSyncChannelsRequest(backendPlaylistId as String, limit = 50 a
     ' Existing page state uses zero for the initial request; subsequent values are page numbers.
     page = cursor
     if page < 1 then page = 1
+    requestedContentType = LCase(contentType)
     route = "/channels"
     if page = 1 then route = "/bootstrap"
-    if contentType = "series" then route = "/series"
+    if requestedContentType = "series" then route = "/series"
     path = "/api/v1/playlists/" + backendPlaylistId + route + "?page=" + page.toStr() + "&page_size=50"
-    if contentType = "series" then contentType = ""
-    if contentType <> "" then path += "&content_type=" + contentType
+    if requestedContentType <> "" and requestedContentType <> "series" then path += "&content_type=" + requestedContentType
     if group <> "" and group <> "All" then path += "&group=" + group.Escape()
     if search <> "" then path += "&search=" + search.Escape()
     request = { method: "GET", path: path }
-    if route = "/series" and page = 1 and search = "" and (group = "" or group = "All") then request.groupsPath = "/api/v1/playlists/" + backendPlaylistId + "/groups?content_type=series"
+    if requestedContentType <> "" and page = 1 and search = "" and (group = "" or group = "All") then
+        request.groupsPath = "/api/v1/playlists/" + backendPlaylistId + "/groups?content_type=" + requestedContentType
+    end if
     return request
 end function
 
@@ -383,7 +385,7 @@ function backendApiMapSyncItems(items as Dynamic, playlistId as String, kind as 
                     out.push(backendApiMapSeriesItem(item, playlistId, index))
                 end if
             else
-                if itemKind = "live" then
+                if itemKind = "live" and backendApiLiveItemBrowsable(item) then
                     index += 1
                     out.push(backendApiMapLiveItem(item, playlistId, index))
                 end if
@@ -444,10 +446,47 @@ function backendApiLooksLive(text as String) as Boolean
     return false
 end function
 
+function backendApiLiveItemBrowsable(item as Dynamic) as Boolean
+    if not backendApiIsAssoc(item) then return false
+    name = backendApiTrim(backendApiText(item, "name", backendApiText(item, "title")))
+    if name = "" then return false
+
+    ' Artwork or a provider guide ID is strong evidence that this is a real channel.
+    if backendApiArtworkUrl(item, "logo_url") <> "" then return true
+    if backendApiArtworkUrl(item, "poster_url") <> "" then return true
+    if backendApiArtworkUrl(item, "backdrop_url") <> "" then return true
+    if backendApiText(item, "tvg_id") <> "" then return true
+
+    decorationCount = 0
+    alphaNumericCount = 0
+    otherCount = 0
+    decorations = "#*=_~-|"
+    alphaNumeric = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    upperName = UCase(name)
+    for i = 1 to upperName.len()
+        ch = Mid(upperName, i, 1)
+        if Instr(1, alphaNumeric, ch) > 0 then
+            alphaNumericCount += 1
+        else if Instr(1, decorations, ch) > 0 then
+            decorationCount += 1
+        else if ch <> " " and ch <> Chr(9) then
+            otherCount += 1
+        end if
+    end for
+
+    ' Xtream feeds sometimes encode bouquet/country headers as fake live rows.
+    if decorationCount >= 6 and decorationCount >= alphaNumericCount then return false
+    if alphaNumericCount <= 4 and otherCount = 0 and decorationCount >= 2 then
+        if Instr(1, decorations, Left(upperName, 1)) > 0 and Instr(1, decorations, Right(upperName, 1)) > 0 then return false
+    end if
+    return true
+end function
 function backendApiMapLiveItem(item as Object, playlistId as String, index as Integer) as Object
     name = backendApiText(item, "name", "Live TV")
     group = backendApiText(item, "group_title", "Uncategorized")
-    logoUrl = backendApiText(item, "logo_url")
+    logoUrl = backendApiArtworkUrl(item, "logo_url")
+    posterUrl = backendApiArtworkUrl(item, "poster_url")
+    backdropUrl = backendApiArtworkUrl(item, "backdrop_url")
     return {
         id: backendApiText(item, "id", "backend_live_" + index.toStr()),
         backendChannelId: backendApiText(item, "id"),
@@ -460,6 +499,10 @@ function backendApiMapLiveItem(item as Object, playlistId as String, index as In
         groupTitle: group,
         logoUrl: logoUrl,
         badgeUrl: logoUrl,
+        posterUrl: posterUrl,
+        cardUrl: posterUrl,
+        cardBackgroundUrl: backdropUrl,
+        backdropUrl: backdropUrl,
         logoText: backendApiInitials(name),
         brandColor: "0x2B8C6BFF",
         brandColor2: "0x151C26FF",
@@ -472,19 +515,69 @@ function backendApiMapLiveItem(item as Object, playlistId as String, index as In
     }
 end function
 
+function backendApiMovieDisplayTitle(item as Dynamic, fallback = "Movie" as String) as String
+    name = backendApiTrim(backendApiText(item, "name"))
+    if backendApiMovieTitleUsable(name) then return name
+    title = backendApiTrim(backendApiText(item, "title"))
+    if backendApiMovieTitleUsable(title) then return title
+    tvgName = backendApiTrim(backendApiText(item, "tvg_name"))
+    if backendApiMovieTitleUsable(tvgName) then return tvgName
+    providerTitle = backendApiTrim(backendApiText(item, "provider_title"))
+    if backendApiMovieTitleUsable(providerTitle) then return providerTitle
+    providerOriginalName = backendApiTrim(backendApiText(item, "provider_original_name"))
+    if backendApiMovieTitleUsable(providerOriginalName) then return providerOriginalName
+    providerName = backendApiTrim(backendApiText(item, "provider_name"))
+    if backendApiMovieTitleUsable(providerName) then return providerName
+    return fallback
+end function
+
+function backendApiMovieHasUsableTitle(item as Dynamic) as Boolean
+    if backendApiMovieTitleUsable(backendApiTrim(backendApiText(item, "name"))) then return true
+    if backendApiMovieTitleUsable(backendApiTrim(backendApiText(item, "title"))) then return true
+    if backendApiMovieTitleUsable(backendApiTrim(backendApiText(item, "tvg_name"))) then return true
+    if backendApiMovieTitleUsable(backendApiTrim(backendApiText(item, "provider_title"))) then return true
+    if backendApiMovieTitleUsable(backendApiTrim(backendApiText(item, "provider_original_name"))) then return true
+    return backendApiMovieTitleUsable(backendApiTrim(backendApiText(item, "provider_name")))
+end function
+
+function backendApiMovieTitleUsable(value as String) as Boolean
+    if value = invalid or value = "" then return false
+    normalizedValue = LCase(backendApiTrim(value))
+    if normalizedValue = "movie" or normalizedValue = "vod" or normalizedValue = "untitled" then return false
+    upperValue = UCase(value)
+    alphaNumeric = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    alphaNumericCount = 0
+    punctuationCount = 0
+    for i = 1 to upperValue.len()
+        ch = Mid(upperValue, i, 1)
+        if Instr(1, alphaNumeric, ch) > 0 then
+            alphaNumericCount += 1
+        else if ch <> " " and ch <> Chr(9) then
+            punctuationCount += 1
+        end if
+    end for
+    if alphaNumericCount = 0 then return false
+    if alphaNumericCount <= 3 and punctuationCount >= 2 then return false
+    return true
+end function
 function backendApiMapMovieItem(item as Object, playlistId as String, index as Integer) as Object
-    name = backendApiText(item, "name", "Movie")
-    providerPoster = backendApiArtworkUrl(item, "poster_url")
+    name = backendApiMovieDisplayTitle(item)
+    providerPoster = backendApiArtworkUrl(item, "poster_url", backendApiArtworkUrl(item, "cover_url"))
     providerLogo = backendApiArtworkUrl(item, "logo_url")
+    providerBackdrop = backendApiMovieExplicitHeroArtworkUrl(item)
     cardArtwork = providerPoster
     artworkRole = "poster"
     if cardArtwork = "" then
         cardArtwork = providerLogo
         artworkRole = "logo"
     end if
+    if cardArtwork = "" then
+        cardArtwork = providerBackdrop
+        artworkRole = "backdrop"
+    end if
     return {
         id: backendApiText(item, "id"), backendChannelId: backendApiText(item, "id"), playlistId: playlistId,
-        contentType: "movie", title: name, year: backendApiText(item, "release_year"),
+        contentType: "movie", title: name, titleNeedsDetail: not backendApiMovieHasUsableTitle(item), year: backendApiText(item, "release_year"),
         duration: backendApiDuration(item), genre: backendApiGroupLabel(backendApiText(item, "group_title", "Movies")),
         rating: backendApiText(item, "rating", "NR"), description: backendApiText(item, "overview"),
         posterUrl: cardArtwork, cardUrl: cardArtwork, cardDisplayMode: "fit", artworkRole: artworkRole,
@@ -502,7 +595,9 @@ function backendApiMovieExplicitHeroArtworkUrl(item as Dynamic) as String
     if heroUrl <> "" then return heroUrl
     heroUrl = backendApiArtworkUrl(item, "background_url")
     if heroUrl <> "" then return heroUrl
-    return backendApiArtworkUrl(item, "fanart_url")
+    heroUrl = backendApiArtworkUrl(item, "fanart_url")
+    if heroUrl <> "" then return heroUrl
+    return backendApiArtworkUrl(item, "provider_backdrop_url")
 end function
 
 function backendApiMovieHeroArtworkUrl(item as Dynamic) as String
@@ -541,7 +636,7 @@ function backendApiItemTypeIsMissing(item as Dynamic) as Boolean
 end function
 
 function backendApiMapSeriesItem(item as Object, playlistId as String, index as Integer) as Object
-    cover = backendApiArtworkUrl(item, "cover_url", backendApiArtworkUrl(item, "poster_url", backendApiArtworkUrl(item, "logo_url")))
+    cover = backendApiArtworkUrl(item, "cover_url", backendApiArtworkUrl(item, "poster_url", backendApiArtworkUrl(item, "logo_url", backendApiArtworkUrl(item, "provider_cover_url"))))
     return {
         id: backendApiText(item, "id"), backendSeriesId: backendApiText(item, "id"), playlistId: playlistId,
         contentType: "series", title: backendApiText(item, "name", "Series"), year: backendApiText(item, "release_date"),
@@ -685,7 +780,9 @@ function backendApiGroupNames(groups as Object) as Object
     names = ["All"]
     if not backendApiIsArray(groups) then return names
     for each group in groups
-        backendApiAppendGroupName(names, backendApiPrimaryGroupLabel(backendApiText(group, "name")))
+        includeGroup = true
+        if backendApiIsAssoc(group) and group.doesExist("channel_count") then includeGroup = backendApiInt(group, "channel_count", 0) > 0
+        if includeGroup then backendApiAppendGroupName(names, backendApiPrimaryGroupLabel(backendApiText(group, "name")))
     end for
     return names
 end function

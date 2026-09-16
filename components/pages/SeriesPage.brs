@@ -33,6 +33,15 @@ sub initializeSeriesPage()
     m.seriesHeroEligibility = {}
     m.seriesHeroProbe = invalid
     m.seriesHeroProbeUrl = ""
+    m.seriesHeroPrefetchNode = invalid
+    m.seriesHeroPrefetchUrl = ""
+    m.seriesPreviewTimer = CreateObject("roSGNode", "Timer")
+    m.seriesPreviewTimer.duration = 0.25
+    m.seriesPreviewTimer.repeat = false
+    m.seriesPreviewTimer.observeField("fire", "loadFocusedSeriesPreview")
+    m.seriesPreviewTask = invalid
+    m.seriesPreviewTaskId = ""
+    m.seriesPreviewPendingId = ""
     m.resumeWindowStart = 0
     m.resumeWindowSize = 2
     m.selectedResumeIndex = 0
@@ -110,6 +119,9 @@ end sub
 
 sub disposePage()
     clearSeriesHeroProbe()
+    clearSeriesHeroPrefetch()
+    stopSeriesPreviewLoad()
+    if m.seriesPreviewTimer <> invalid then m.seriesPreviewTimer.control = "stop"
     if m.backendQueryTimer <> invalid then m.backendQueryTimer.control = "stop"
     if m.backendTask <> invalid then
         m.backendTask.unobserveField("response")
@@ -124,6 +136,7 @@ sub disposePage()
 end sub
 
 sub startBackendSeriesLoad(cursor = 0 as Integer)
+    if cursor = 0 then clearSeriesHeroPrefetch()
     if cursor = 0 and m.backendTask <> invalid then
         m.backendTask.unobserveField("response")
         m.backendTask.control = "STOP"
@@ -246,7 +259,11 @@ sub onBackendSeriesLoaded()
         m.backendLoading = false
         m.backendMessage = backendApiUserMessage(response, "Series could not be loaded.")
     end if
-    if not m.searchEditing then render()
+    if not m.searchEditing then
+        render()
+        scheduleFocusedSeriesPreview()
+        prefetchSeriesHeroArtwork(0)
+    end if
 end sub
 
 sub maybeLoadMoreSeries(visibleCount as Integer)
@@ -285,10 +302,17 @@ function handleKey(key as String) as Boolean
 end function
 
 sub move(dx as Integer, dy as Integer)
-    if routeSeriesFocus(dx, dy) then render() : return
+    if routeSeriesFocus(dx, dy) then
+        render()
+        scheduleFocusedSeriesPreview()
+        prefetchSeriesHeroArtwork(dx)
+        return
+    end if
     m.focusIndex = uiMoveFocus(m.focusItems, m.focusIndex, dx, dy)
     syncSeriesFocus()
     render()
+    scheduleFocusedSeriesPreview()
+    prefetchSeriesHeroArtwork(dx)
 end sub
 
 sub activate()
@@ -303,6 +327,7 @@ end sub
 
 sub openSeriesDetail(series as Object)
     if series = invalid then return
+    stopSeriesPreviewLoad()
     m.top.detailId = seriesText(series, "id")
     m.top.detailTitle = seriesText(series, "title", "Series")
     m.top.detailSubtitle = seriesText(series, "seasons") + " - " + seriesText(series, "episodeCount")
@@ -817,7 +842,7 @@ sub drawSeriesFallbackPosterAnchor(posterUrl as String)
 end sub
 
 sub drawSeriesBackdropPosterAnchor(heroUrl as String, x as Integer, y as Integer, w as Integer, h as Integer)
-    hero = uiPosterZoom(m.canvas, heroUrl, 0, 0, 1280, 720, seriesListBackdropOpacity())
+    hero = uiPosterZoom(m.canvas, heroUrl, 0, 0, 1280, 720, seriesListBackdropOpacity(), "pkg:/images/demo/backgrounds/movies_series_fallback_backdrop_v6.jpg")
     drawSeriesListHeroSmoke()
 end sub
 
@@ -872,6 +897,9 @@ function seriesBackgroundUrl(series as Object) as String
 end function
 
 function seriesHeroArtworkUrl(series as Object) as String
+    explicitHero = mediaFullscreenArtworkUrl(seriesText(series, "heroUrl"))
+    if explicitHero = "" then explicitHero = mediaFullscreenArtworkUrl(seriesBackdropUrl(series))
+    if explicitHero <> "" then return explicitHero
     candidate = seriesHeroCandidateUrl(series)
     if candidate = "" then return ""
     if Left(LCase(candidate), 5) = "pkg:/" then return candidate
@@ -935,6 +963,158 @@ sub clearSeriesHeroProbe()
     m.seriesHeroProbeUrl = ""
 end sub
 
+sub prefetchSeriesHeroArtwork(direction = 0 as Integer)
+    if m.searchEditing or m.series = invalid or m.series.count() = 0 then return
+    visible = filteredSeries()
+    if visible.count() = 0 then return
+    targetIndex = m.selectedSeriesIndex
+    if targetIndex < 0 then targetIndex = 0
+    if targetIndex >= visible.count() then targetIndex = visible.count() - 1
+    if direction > 0 and targetIndex < visible.count() - 1 then targetIndex += 1
+    if direction < 0 and targetIndex > 0 then targetIndex -= 1
+    series = visible[targetIndex].series
+    url = mediaFullscreenArtworkUrl(seriesText(series, "heroUrl"))
+    if url = "" then url = mediaFullscreenArtworkUrl(seriesBackdropUrl(series))
+    if url = "" or Left(LCase(url), 4) <> "http" then return
+    if m.seriesHeroPrefetchNode <> invalid and m.seriesHeroPrefetchUrl = url then return
+    clearSeriesHeroPrefetch()
+    node = uiPrefetchRemoteArtwork(m.top, url, 1280, 720)
+    if node = invalid then return
+    m.seriesHeroPrefetchNode = node
+    m.seriesHeroPrefetchUrl = url
+end sub
+
+sub clearSeriesHeroPrefetch()
+    if m.seriesHeroPrefetchNode <> invalid then m.top.removeChild(m.seriesHeroPrefetchNode)
+    m.seriesHeroPrefetchNode = invalid
+    m.seriesHeroPrefetchUrl = ""
+end sub
+
+sub scheduleFocusedSeriesPreview()
+    if m.seriesPreviewTimer = invalid or m.searchEditing then return
+    if not playlistStoreBool(m.activePlaylist, "backendManaged", false) then return
+    if not seriesContentFocusActive() then
+        m.seriesPreviewTimer.control = "stop"
+        return
+    end if
+
+    visible = filteredSeries()
+    series = selectedSeriesForBackdrop(visible)
+    if series = invalid then return
+    seriesId = seriesText(series, "backendSeriesId")
+    if seriesId = "" then return
+
+    if m.seriesPreviewTask <> invalid and m.seriesPreviewTaskId <> seriesId then stopSeriesPreviewLoad()
+    if not seriesNeedsPreviewEnrichment(series) then
+        m.seriesPreviewTimer.control = "stop"
+        return
+    end if
+    if m.seriesPreviewTask <> invalid and m.seriesPreviewTaskId = seriesId then return
+
+    m.seriesPreviewPendingId = seriesId
+    m.seriesPreviewTimer.control = "stop"
+    m.seriesPreviewTimer.control = "start"
+end sub
+
+sub loadFocusedSeriesPreview()
+    seriesId = m.seriesPreviewPendingId
+    m.seriesPreviewPendingId = ""
+    if seriesId = "" then return
+    seriesIndex = seriesIndexForBackendId(seriesId)
+    if seriesIndex < 0 then return
+    series = m.series[seriesIndex]
+    if not seriesNeedsPreviewEnrichment(series) then return
+
+    stopSeriesPreviewLoad()
+    task = CreateObject("roSGNode", "BackendApiTask")
+    if task = invalid then return
+    m.seriesPreviewTask = task
+    m.seriesPreviewTaskId = seriesId
+    task.observeField("response", "onFocusedSeriesPreviewLoaded")
+    task.request = backendApiGetSeriesRequest(seriesId)
+    task.control = "RUN"
+end sub
+
+sub onFocusedSeriesPreviewLoaded()
+    if m.seriesPreviewTask = invalid then return
+    response = m.seriesPreviewTask.response
+    seriesId = m.seriesPreviewTaskId
+    m.seriesPreviewTask.unobserveField("response")
+    m.seriesPreviewTask = invalid
+    m.seriesPreviewTaskId = ""
+
+    seriesIndex = seriesIndexForBackendId(seriesId)
+    if seriesIndex < 0 then return
+    series = m.series[seriesIndex]
+    series.detailPreviewAttempted = true
+    if backendApiResponseOk(response) then
+        data = backendApiResponseData(response)
+        detailSeries = invalid
+        if backendApiIsAssoc(data) and data.doesExist("series") and backendApiIsAssoc(data.series) then detailSeries = data.series
+        if backendApiIsAssoc(detailSeries) then
+            coverUrl = backendApiArtworkUrl(detailSeries, "cover_url", backendApiArtworkUrl(detailSeries, "poster_url", backendApiArtworkUrl(detailSeries, "logo_url", backendApiArtworkUrl(detailSeries, "provider_cover_url"))))
+            if coverUrl <> "" then
+                series.posterUrl = coverUrl
+                series.cardUrl = coverUrl
+                series.artworkRole = "cover"
+            end if
+            providerHero = backendApiMovieExplicitHeroArtworkUrl(detailSeries)
+            if providerHero <> "" then
+                series.heroUrl = providerHero
+                series.backdropUrl = providerHero
+            end if
+            description = backendApiText(detailSeries, "plot")
+            if description <> "" then series.description = description
+            rating = backendApiText(detailSeries, "rating")
+            if rating <> "" then series.rating = rating
+            releaseDate = backendApiText(detailSeries, "release_date")
+            if releaseDate <> "" then series.year = releaseDate
+            series.detailEnriched = true
+        end if
+    end if
+    m.series[seriesIndex] = series
+
+    visible = filteredSeries()
+    focusedSeries = selectedSeriesForBackdrop(visible)
+    if focusedSeries <> invalid then
+        focusedId = seriesText(focusedSeries, "backendSeriesId")
+        if focusedId = seriesId and not m.searchEditing then render()
+    end if
+end sub
+
+sub stopSeriesPreviewLoad()
+    if m.seriesPreviewTimer <> invalid then m.seriesPreviewTimer.control = "stop"
+    if m.seriesPreviewTask <> invalid then
+        m.seriesPreviewTask.unobserveField("response")
+        m.seriesPreviewTask.control = "STOP"
+    end if
+    m.seriesPreviewTask = invalid
+    m.seriesPreviewTaskId = ""
+    m.seriesPreviewPendingId = ""
+end sub
+
+function seriesNeedsPreviewEnrichment(series as Dynamic) as Boolean
+    if series = invalid then return false
+    if seriesFlag(series, "detailEnriched") or seriesFlag(series, "detailPreviewAttempted") then return false
+    return seriesCardUrl(series) = ""
+end function
+
+function seriesIndexForBackendId(seriesId as String) as Integer
+    if seriesId = "" then return -1
+    for i = 0 to m.series.count() - 1
+        if seriesText(m.series[i], "backendSeriesId") = seriesId then return i
+    end for
+    return -1
+end function
+
+function seriesContentFocusActive() as Boolean
+    if m.focusArea = "series" or m.focusArea = "resume" then return true
+    if m.focusItems = invalid or m.focusIndex < 0 or m.focusIndex >= m.focusItems.count() then return false
+    item = m.focusItems[m.focusIndex]
+    if not item.doesExist("action") then return false
+    return item.action = "series" or item.action = "play"
+end function
+
 function seriesAssetFileName(url as String) as String
     if url = invalid or url = "" then return ""
     for i = url.len() to 1 step -1
@@ -950,6 +1130,12 @@ function seriesText(series as Dynamic, key as String, fallback = "" as String) a
     if valueType = "String" or valueType = "roString" then return value
     if valueType = "Integer" or valueType = "roInt" or valueType = "LongInteger" or valueType = "roLongInteger" or valueType = "Float" or valueType = "roFloat" or valueType = "Double" or valueType = "roDouble" then return value.toStr()
     return fallback
+end function
+
+function seriesFlag(series as Dynamic, key as String) as Boolean
+    value = seriesValue(series, key)
+    if value = invalid then return false
+    return value = true
 end function
 
 function seriesProgress(series as Dynamic) as Integer

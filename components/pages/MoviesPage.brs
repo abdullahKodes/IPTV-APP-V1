@@ -31,6 +31,18 @@ sub initializeMoviesPage()
     m.movieWindowSize = 5
     m.selectedMovieIndex = 0
     m.featuredMovieIndex = -1
+    m.movieHeroEligibility = {}
+    m.movieHeroProbe = invalid
+    m.movieHeroProbeUrl = ""
+    m.movieHeroPrefetchNode = invalid
+    m.movieHeroPrefetchUrl = ""
+    m.moviePreviewTimer = CreateObject("roSGNode", "Timer")
+    m.moviePreviewTimer.duration = 0.25
+    m.moviePreviewTimer.repeat = false
+    m.moviePreviewTimer.observeField("fire", "loadFocusedMoviePreview")
+    m.moviePreviewTask = invalid
+    m.moviePreviewTaskId = ""
+    m.moviePreviewPendingId = ""
     m.focusArea = "normal"
     m.backendQueryTimer = CreateObject("roSGNode", "Timer")
     m.backendQueryTimer.duration = 0.35
@@ -103,6 +115,10 @@ sub initializeMoviesFailurePage()
 end sub
 
 sub disposePage()
+    clearMovieHeroProbe()
+    clearMovieHeroPrefetch()
+    stopMoviePreviewLoad()
+    if m.moviePreviewTimer <> invalid then m.moviePreviewTimer.control = "stop"
     if m.backendQueryTimer <> invalid then m.backendQueryTimer.control = "stop"
     if m.backendTask <> invalid then
         m.backendTask.unobserveField("response")
@@ -117,6 +133,7 @@ sub disposePage()
 end sub
 
 sub startBackendMoviesLoad(cursor = 0 as Integer)
+    if cursor = 0 then clearMovieHeroPrefetch()
     if cursor = 0 and m.backendTask <> invalid then
         m.backendTask.unobserveField("response")
         m.backendTask.control = "STOP"
@@ -214,7 +231,11 @@ sub onBackendMoviesLoaded()
         m.backendMessage = backendApiUserMessage(response, "Movies could not be loaded.")
     end if
     if m.movies.count() = 0 and m.backendHasMore then m.backendMessage = "No matching items on this page. Press OK for more."
-    if not m.searchEditing then render()
+    if not m.searchEditing then
+        render()
+        scheduleFocusedMoviePreview()
+        prefetchMovieHeroArtwork(0)
+    end if
 end sub
 
 sub maybeLoadMoreMovies(visibleCount as Integer)
@@ -252,10 +273,17 @@ function handleKey(key as String) as Boolean
 end function
 
 sub move(dx as Integer, dy as Integer)
-    if routeMoviesFocus(dx, dy) then render() : return
+    if routeMoviesFocus(dx, dy) then
+        render()
+        scheduleFocusedMoviePreview()
+        prefetchMovieHeroArtwork(dx)
+        return
+    end if
     m.focusIndex = uiMoveFocus(m.focusItems, m.focusIndex, dx, dy)
     syncMovieFocus()
     render()
+    scheduleFocusedMoviePreview()
+    prefetchMovieHeroArtwork(dx)
 end sub
 
 sub activate()
@@ -270,6 +298,7 @@ end sub
 
 sub openMovieDetail(movie as Object)
     if movie = invalid then return
+    stopMoviePreviewLoad()
     m.top.detailId = movieText(movie, "id")
     m.top.detailTitle = movieText(movie, "title", "Movie")
     m.top.detailSubtitle = movieText(movie, "year") + " - " + movieText(movie, "duration")
@@ -704,7 +733,7 @@ end sub
 sub drawFeaturedPoster(movie as Object, parent as Object, x as Integer, y as Integer, w as Integer, h as Integer)
     posterUrl = movieText(movie, "posterUrl")
     if posterUrl <> "" then
-        poster = uiPosterZoom(parent, posterUrl, x - 4, y - 4, w + 8, h + 8)
+        poster = uiPosterFit(parent, posterUrl, x - 4, y - 4, w + 8, h + 8)
         uiPoster(parent, "pkg:/images/demo/frames/featured_poster_corner_mask.png", x - 4, y - 4, w + 8, h + 8)
         uiPoster(parent, "pkg:/images/demo/frames/featured_poster_frame_neutral.png", x - 4, y - 4, w + 8, h + 8)
     else
@@ -800,17 +829,232 @@ function movieBackgroundUrl(movie as Object) as String
 end function
 
 function movieHeroArtworkUrl(movie as Object) as String
-    heroUrl = movieText(movie, "heroUrl")
-    if heroUrl <> "" then return heroUrl
-
-    backdropUrl = movieBackdropUrl(movie)
-    if backdropUrl <> "" then
-        if Instr(1, LCase(backdropUrl), "/movie_backdrops/") > 0 then return ""
-        return backdropUrl
+    explicitHero = movieExplicitHeroArtworkUrl(movie)
+    if explicitHero <> "" then return explicitHero
+    candidate = movieHeroCandidateUrl(movie)
+    if candidate = "" then return ""
+    if Left(LCase(candidate), 5) = "pkg:/" then return candidate
+    if m.movieHeroEligibility <> invalid and m.movieHeroEligibility.doesExist(candidate) then
+        if m.movieHeroEligibility[candidate] = "hero" then return candidate
+        return ""
     end if
+    scheduleMovieHeroProbe(candidate)
     return ""
 end function
 
+function movieExplicitHeroArtworkUrl(movie as Object) as String
+    heroUrl = mediaFullscreenArtworkUrl(movieText(movie, "heroUrl"))
+    if heroUrl <> "" then return heroUrl
+    return mediaFullscreenArtworkUrl(movieBackdropUrl(movie))
+end function
+function movieHeroCandidateUrl(movie as Object) as String
+    heroUrl = mediaFullscreenArtworkUrl(movieText(movie, "heroUrl"))
+    if heroUrl <> "" then return heroUrl
+    backdropUrl = mediaFullscreenArtworkUrl(movieBackdropUrl(movie))
+    if backdropUrl <> "" then return backdropUrl
+    if LCase(movieText(movie, "artworkRole")) = "logo" then return ""
+    return mediaFullscreenArtworkUrl(movieCardUrl(movie))
+end function
+
+sub scheduleMovieHeroProbe(url as String)
+    if url = "" then return
+    if m.movieHeroProbe <> invalid and m.movieHeroProbeUrl = url then return
+    clearMovieHeroProbe()
+    probe = CreateObject("roSGNode", "Poster")
+    if probe = invalid then return
+    probe.width = 1
+    probe.height = 1
+    probe.opacity = 0.0
+    probe.loadWidth = 1280
+    probe.loadHeight = 720
+    probe.loadDisplayMode = "limitSize"
+    probe.observeField("loadStatus", "onMovieHeroProbeStatusChanged")
+    m.top.appendChild(probe)
+    m.movieHeroProbe = probe
+    m.movieHeroProbeUrl = url
+    probe.uri = url
+end sub
+
+sub onMovieHeroProbeStatusChanged(event as Object)
+    if m.movieHeroProbe = invalid then return
+    status = event.getData()
+    if status <> "ready" and status <> "failed" then return
+    url = m.movieHeroProbeUrl
+    eligibility = "card"
+    if status = "ready" then
+        if mediaArtworkCanFillHero(m.movieHeroProbe.bitmapWidth, m.movieHeroProbe.bitmapHeight) then eligibility = "hero"
+    end if
+    if m.movieHeroEligibility = invalid then m.movieHeroEligibility = {}
+    if url <> "" then m.movieHeroEligibility[url] = eligibility
+    clearMovieHeroProbe()
+    if not m.searchEditing then render()
+end sub
+
+sub clearMovieHeroProbe()
+    if m.movieHeroProbe <> invalid then
+        m.movieHeroProbe.unobserveField("loadStatus")
+        m.top.removeChild(m.movieHeroProbe)
+    end if
+    m.movieHeroProbe = invalid
+    m.movieHeroProbeUrl = ""
+end sub
+
+sub prefetchMovieHeroArtwork(direction = 0 as Integer)
+    if m.searchEditing or m.movies = invalid or m.movies.count() = 0 then return
+    visible = filteredMovies()
+    if visible.count() = 0 then return
+    targetIndex = m.selectedMovieIndex
+    if targetIndex < 0 then targetIndex = 0
+    if targetIndex >= visible.count() then targetIndex = visible.count() - 1
+    if direction > 0 and targetIndex < visible.count() - 1 then targetIndex += 1
+    if direction < 0 and targetIndex > 0 then targetIndex -= 1
+    movie = visible[targetIndex].movie
+    url = movieExplicitHeroArtworkUrl(movie)
+    if url = "" or Left(LCase(url), 4) <> "http" then return
+    if m.movieHeroPrefetchNode <> invalid and m.movieHeroPrefetchUrl = url then return
+    clearMovieHeroPrefetch()
+    node = uiPrefetchRemoteArtwork(m.top, url, 1280, 720)
+    if node = invalid then return
+    m.movieHeroPrefetchNode = node
+    m.movieHeroPrefetchUrl = url
+end sub
+
+sub clearMovieHeroPrefetch()
+    if m.movieHeroPrefetchNode <> invalid then m.top.removeChild(m.movieHeroPrefetchNode)
+    m.movieHeroPrefetchNode = invalid
+    m.movieHeroPrefetchUrl = ""
+end sub
+
+sub scheduleFocusedMoviePreview()
+    if m.moviePreviewTimer = invalid or m.searchEditing then return
+    if not playlistStoreBool(m.activePlaylist, "backendManaged", false) then return
+    if not movieContentFocusActive() then
+        m.moviePreviewTimer.control = "stop"
+        return
+    end if
+
+    visible = filteredMovies()
+    movie = selectedMovieForBackdrop(visible)
+    if movie = invalid then return
+    channelId = movieText(movie, "backendChannelId", movieText(movie, "id"))
+    if channelId = "" then return
+
+    if m.moviePreviewTask <> invalid and m.moviePreviewTaskId <> channelId then stopMoviePreviewLoad()
+    if not movieNeedsPreviewEnrichment(movie) then
+        m.moviePreviewTimer.control = "stop"
+        return
+    end if
+    if m.moviePreviewTask <> invalid and m.moviePreviewTaskId = channelId then return
+
+    m.moviePreviewPendingId = channelId
+    m.moviePreviewTimer.control = "stop"
+    m.moviePreviewTimer.control = "start"
+end sub
+
+sub loadFocusedMoviePreview()
+    channelId = m.moviePreviewPendingId
+    m.moviePreviewPendingId = ""
+    if channelId = "" then return
+    movieIndex = movieIndexForBackendId(channelId)
+    if movieIndex < 0 then return
+    movie = m.movies[movieIndex]
+    if not movieNeedsPreviewEnrichment(movie) then return
+
+    stopMoviePreviewLoad()
+    task = CreateObject("roSGNode", "BackendApiTask")
+    if task = invalid then return
+    m.moviePreviewTask = task
+    m.moviePreviewTaskId = channelId
+    task.observeField("response", "onFocusedMoviePreviewLoaded")
+    task.request = backendApiGetChannelRequest(channelId)
+    task.control = "RUN"
+end sub
+
+sub onFocusedMoviePreviewLoaded()
+    if m.moviePreviewTask = invalid then return
+    response = m.moviePreviewTask.response
+    channelId = m.moviePreviewTaskId
+    m.moviePreviewTask.unobserveField("response")
+    m.moviePreviewTask = invalid
+    m.moviePreviewTaskId = ""
+
+    movieIndex = movieIndexForBackendId(channelId)
+    if movieIndex < 0 then return
+    movie = m.movies[movieIndex]
+    movie.detailPreviewAttempted = true
+    if backendApiResponseOk(response) then
+        channel = backendApiChannelData(response)
+        if backendApiIsAssoc(channel) then
+            movie.title = backendApiMovieDisplayTitle(channel, movieText(movie, "title", "Movie"))
+            movie.titleNeedsDetail = not backendApiMovieHasUsableTitle(channel)
+
+            providerPoster = backendApiArtworkUrl(channel, "poster_url", backendApiArtworkUrl(channel, "cover_url"))
+            providerLogo = backendApiArtworkUrl(channel, "logo_url")
+            if providerPoster <> "" then
+                movie.posterUrl = providerPoster
+                movie.cardUrl = providerPoster
+                movie.artworkRole = "poster"
+            else if providerLogo <> "" and movieCardUrl(movie) = "" then
+                movie.posterUrl = providerLogo
+                movie.cardUrl = providerLogo
+                movie.artworkRole = "logo"
+            end if
+
+            providerHero = backendApiMovieHeroArtworkUrl(channel)
+            providerBackdrop = backendApiMovieExplicitHeroArtworkUrl(channel)
+            if providerHero <> "" then movie.heroUrl = providerHero
+            if providerBackdrop <> "" then movie.backdropUrl = providerBackdrop
+
+            description = backendApiText(channel, "overview")
+            if description <> "" then movie.description = description
+            year = backendApiText(channel, "release_year")
+            if year <> "" then movie.year = year
+            duration = backendApiDuration(channel)
+            if duration <> "" then movie.duration = duration
+            rating = backendApiText(channel, "rating")
+            if rating <> "" then movie.rating = rating
+            groupTitle = backendApiText(channel, "group_title")
+            if groupTitle <> "" then movie.genre = backendApiGroupLabel(groupTitle)
+            movie.detailEnriched = true
+        end if
+    end if
+    m.movies[movieIndex] = movie
+
+    visible = filteredMovies()
+    focusedMovie = selectedMovieForBackdrop(visible)
+    if focusedMovie <> invalid then
+        focusedId = movieText(focusedMovie, "backendChannelId", movieText(focusedMovie, "id"))
+        if focusedId = channelId and not m.searchEditing then render()
+    end if
+end sub
+
+sub stopMoviePreviewLoad()
+    if m.moviePreviewTimer <> invalid then m.moviePreviewTimer.control = "stop"
+    if m.moviePreviewTask <> invalid then
+        m.moviePreviewTask.unobserveField("response")
+        m.moviePreviewTask.control = "STOP"
+    end if
+    m.moviePreviewTask = invalid
+    m.moviePreviewTaskId = ""
+    m.moviePreviewPendingId = ""
+end sub
+
+function movieNeedsPreviewEnrichment(movie as Dynamic) as Boolean
+    if movie = invalid then return false
+    if movieFlag(movie, "detailEnriched") or movieFlag(movie, "detailPreviewAttempted") then return false
+    if movieExplicitHeroArtworkUrl(movie) = "" then return true
+    return movieFlag(movie, "titleNeedsDetail")
+end function
+
+function movieIndexForBackendId(channelId as String) as Integer
+    if channelId = "" then return -1
+    for i = 0 to m.movies.count() - 1
+        movie = m.movies[i]
+        itemId = movieText(movie, "backendChannelId", movieText(movie, "id"))
+        if itemId = channelId then return i
+    end for
+    return -1
+end function
 function movieAssetFileName(url as String) as String
     if url = invalid or url = "" then return ""
     for i = url.len() to 1 step -1

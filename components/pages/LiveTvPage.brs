@@ -322,7 +322,6 @@ sub startBackendLivePlaybackLoad(channel as Object)
     task.observeField("response", "onBackendLivePlaybackLoaded")
     task.request = backendApiGetChannelRequest(backendChannelId)
     task.control = "RUN"
-    render()
 end sub
 
 sub onBackendLivePlaybackLoaded()
@@ -645,7 +644,7 @@ sub drawChannelCard(channel as Object, channelIndex as Integer, visibleIndex as 
     baseNode = uiRect(cardCanvas, 0, 0, cardW, cardH, bg, opacity)
     drawChannelFallbackSurface(cardCanvas, channel, false, cardW, cardH, not hasArtwork)
     if posterUrl <> "" then
-        poster = uiPosterZoom(cardCanvas, posterUrl, 0, 0, cardW, cardH, 1.0)
+        poster = uiPosterFit(cardCanvas, posterUrl, 0, 0, cardW, cardH, 1.0)
     else
         if backgroundUrl <> "" then
             background = uiPosterZoom(cardCanvas, backgroundUrl, 0, 0, cardW, cardH, 1.0)

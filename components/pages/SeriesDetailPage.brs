@@ -313,6 +313,9 @@ sub render()
 end sub
 
 sub drawBackdrop()
+    ' Keep the packaged background underneath remote artwork. If a provider URL is
+    ' slow, broken, or blocked by its image host, the detail page never turns gray.
+    bg = uiPosterZoom(m.canvas, "pkg:/images/demo/backgrounds/movies_series_fallback_backdrop_v6.jpg", 0, 0, 1280, 720, 0.74)
     heroUrl = m.top.detailHeroUrl
     if heroUrl = invalid or heroUrl = "" then
         backdropUrl = m.top.detailBackdropUrl
@@ -321,7 +324,6 @@ sub drawBackdrop()
     if heroUrl <> invalid and heroUrl <> "" then
         drawSeriesDetailHeroPoster(heroUrl)
     else
-        bg = uiPosterZoom(m.canvas, "pkg:/images/demo/backgrounds/movies_series_fallback_backdrop_v6.jpg", 0, 0, 1280, 720, 0.74)
         posterUrl = m.top.detailPosterUrl
         if posterUrl <> invalid and posterUrl <> "" then drawSeriesPosterAnchor(posterUrl)
         uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.52)
@@ -347,7 +349,7 @@ sub drawSeriesPosterAnchor(posterUrl as String)
 end sub
 
 sub drawSeriesDetailHeroPoster(posterUrl as String)
-    poster = uiPosterZoom(m.canvas, posterUrl, 0, 0, 1280, 720, 1.0)
+    poster = uiPosterZoom(m.canvas, posterUrl, 0, 0, 1280, 720, 1.0, "pkg:/images/demo/backgrounds/movies_series_fallback_backdrop_v6.jpg")
     drawSeriesDetailSmokeBlend()
 end sub
 
@@ -962,7 +964,7 @@ sub onBackendSeriesDetailLoaded()
             if data.doesExist("series") and backendApiIsAssoc(data.series) then
                 series = data.series
                 m.top.detailDescription = backendApiText(series, "plot", m.top.detailDescription)
-                coverUrl = backendApiArtworkUrl(series, "cover_url")
+                coverUrl = backendApiArtworkUrl(series, "cover_url", backendApiArtworkUrl(series, "poster_url", backendApiArtworkUrl(series, "logo_url", backendApiArtworkUrl(series, "provider_cover_url"))))
                 if coverUrl <> "" then m.top.detailPosterUrl = coverUrl
                 providerHero = backendApiMovieExplicitHeroArtworkUrl(series)
                 if providerHero <> "" then

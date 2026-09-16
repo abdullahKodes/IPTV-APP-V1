@@ -1,7 +1,88 @@
 # IPTV App Progress
 
-Last updated: 2026-09-15
+Last updated: 2026-09-16
 
+## 2026-09-16 Bounded Movies and Series Hero Prefetch
+
+- Focused Movies and Series backdrops were still taking one to three seconds on their first display because the remote image request began only after focus landed on that item. Loading/failed fallback artwork prevented a blank screen but did not start the provider request earlier.
+- Added one hidden, bounded `1280x720` prefetch Poster per Movies or Series page. After a catalog response it warms the selected item's explicit remote backdrop; during horizontal navigation it warms only the next item in the movement direction. Existing card-only dimension probes remain separate and continue to reject unsuitable portrait/logo artwork.
+- The prefetch node is replaced instead of accumulated, and it is removed on first-page/category reload and page disposal. This caps the added decoded texture footprint to one image per active page and avoids returning to the unbounded-memory crash pattern.
+- This improves sequential remote browsing when `backdrop_url` is already present in the catalog row. A first uncached image can still take provider network time, and a backdrop available only from `/channels/{id}` or `/series/{id}` cannot be prefetched until that detail response exposes its URL. The long-term backend path is to include normalized backdrop URLs in list rows and serve Roku-sized cached images through a CDN with effective cache headers.
+- Bumped the manifest to build `00281`. The page/UI suite passes 55 checks, backend/navigation passes 87 contracts, keyboard/image loading passes 36 contracts, and `npm.cmd run check` passes.
+## 2026-09-16 Immediate Series Default Background During Remote Loading
+
+- A second device check showed the Series list could remain visually plain while a selected remote backdrop was loading, and Series Detail could still display an unresolved remote Poster instead of the packaged fallback. A base layer alone was insufficient because the remote Poster owns its loading surface.
+- Extended the shared zoom-poster helper with an optional fallback URI that is assigned to both SceneGraph `loadingBitmapUri` and `failedBitmapUri` before the remote `uri` starts loading.
+- Series list and Series Detail hero Posters now use `movies_series_fallback_backdrop_v6.jpg` during remote loading and after a remote image failure. When a row has no card, logo, hero, or backdrop URL, the existing empty-artwork branch also uses the same packaged background. Successful provider backdrops replace the fallback normally.
+- This changes only artwork presentation; Series categories, focus, detail loading, season numbers, episodes, and playback remain unchanged.
+- Bumped the manifest to build `00280`. The page/UI suite passes 52 checks, backend/navigation passes 87 contracts, keyboard/image loading passes 36 contracts, and `npm.cmd run check` passes.
+## 2026-09-16 Series Detail Persistent Artwork Fallback
+
+- Device testing confirmed that Series list rows with no provider poster correctly retain an empty card and the packaged page background, but the Series detail page could become a blank gray surface. The artwork field was sometimes nonempty even though the remote image was slow, broken, or rejected, so the detail renderer chose a remote Poster without keeping the packaged fallback underneath it.
+- Series Detail now draws `movies_series_fallback_backdrop_v6.jpg` as the base layer before attempting any remote hero/backdrop. Valid remote artwork still covers the base normally; missing, delayed, failed, or blocked artwork leaves the app fallback visible immediately.
+- Added a page contract that verifies the packaged fallback is created before the remote hero branch. Bumped the manifest to build `00279`. The page/UI suite passes 50 checks, backend/navigation passes 87 contracts, keyboard/image loading passes 36 contracts, and `npm.cmd run check` passes.
+## 2026-09-16 Series Artwork Extraction and Focused Recovery
+
+- Verified the current backend contract: Series list and detail records expose normalized artwork through `cover_url`, while provider-specific raw values can remain inside the arbitrary `metadata` object. The Roku Task boundary previously discarded aliases such as `cover`, `cover_big`, `series_image`, `stream_icon`, and array-valued `backdrop_path`, leaving valid provider artwork unavailable to the Series mapper.
+- The Task now extracts only bounded scalar artwork aliases from the top-level record, `metadata`, and one nested `metadata.info` object. The Series mapper and detail page prefer canonical fields, then use these validated aliases; arbitrary nested provider objects still do not cross into SceneGraph.
+- Added a 250 ms focused-Series fallback only when a structured Series list row has no card artwork. It makes one cancellable `/series/{id}` request, updates the card and explicit backdrop if detail data supplies them, and leaves rapid focus changes retryable. It does not preload all detail records in a large account and does not modify season numbers, season routing, episodes, or playback.
+- Explicit Series backdrop fields now render immediately. Only an unknown card/cover candidate uses the existing bitmap-dimension eligibility probe, so a declared backend backdrop no longer waits behind the poster classifier.
+- If both Series list and detail responses lack a valid artwork URL, the fallback card remains correct and the missing image is provider/backend data rather than a Roku extraction failure.
+- Bumped the manifest to build `00278`. The page/UI suite passes 49 checks, backend/navigation passes 87 contracts, keyboard/image loading passes 36 contracts, and `npm.cmd run check` passes.
+## 2026-09-16 Movie Preview Retry and Provider Title Recovery
+
+- Follow-up device testing showed some focused backdrops still waiting one to two seconds and some cards remaining on the `Movie` fallback. The focused enrichment implementation had two state defects: hero-probe cleanup recreated the preview Timer and cleared the active Task reference, and a request was marked attempted before it completed, so a focus-change cancellation could permanently block its retry.
+- Hero-probe cleanup now touches only the probe. The preview Timer is created once per page, an in-flight request keeps its observer/reference until completion or an explicit cancellation, and cancelled requests remain eligible when focus returns. A completed success or terminal failure remains bounded to one attempt for that loaded row.
+- Verified the current public OpenAPI contract: both `ChannelListItemData` and `ChannelDetailData` expose `name`, nullable `tvg_name`, `poster_url`, and `backdrop_url`; no guaranteed `title` field exists. Their arbitrary `metadata` object can still contain original provider names.
+- The Task boundary now extracts only bounded scalar aliases such as provider `title`, `o_name`, `original_name`, `movie_name`, and `name` from top-level metadata or one nested `info` object. Nested metadata itself remains excluded. Generic `Movie`, `VOD`, and `Untitled` values are treated as missing so a recovered provider name can replace them.
+- A true one-to-two-second first load can still occur when the catalogue row lacks `backdrop_url`: Roku must obtain the detail record and then download the remote image. The long-term backend correction is to denormalize the resolved title and backdrop into each list row during import/detail refresh.
+- Bumped the manifest to build `00277`. The page/UI suite passes 45 checks, backend/navigation passes 85 contracts, keyboard/image loading passes 35 contracts, and `npm.cmd run check` passes.
+## 2026-09-16 Movie Title Recovery and Focused Hero Enrichment
+
+- Device review exposed two catalogue/detail differences. Some Movies list rows contained malformed provider names such as `()` or `()-DE-` even when a usable `title` or `tvg_name` existed, and the main page sent explicit backend backdrops through the hidden poster-dimension probe before displaying them.
+- Movie mapping now selects the first usable value from `name`, `title`, and `tvg_name`. Punctuation-only or short punctuation-wrapped metadata falls back to a readable `Movie` label and is marked for detail enrichment instead of rendering a blank overlay.
+- Explicit `hero_url` and `backdrop_url` values now start loading directly on the Movies page. The dimension probe remains only for poster/card images whose landscape suitability is unknown, preserving the agreed protection against stretching portrait or logo artwork across the background.
+- Added a 250 ms focused-item debounce. When the visible catalogue row has no explicit hero or needs a title, one cancellable `/channels/{id}` request enriches that row with detail title, poster, backdrop, description, year, duration, rating, and group data. Fast focus movement cancels obsolete work, successful and failed attempts are bounded to once per loaded row, and page disposal stops the Timer and Task.
+- Bumped the manifest to build `00276`. The page/UI suite passes 43 checks, backend/navigation passes 84 contracts, keyboard/image loading passes 35 contracts, and `npm.cmd run check` passes.
+## 2026-09-16 Live TV Decorative Header Filtering
+
+- Device review showed Live TV cards named `######## UK ########`, `#US#`, and similar provider decorations. These are Xtream bouquet/country headers imported as `content_type=live` rows, not missing logos for legitimate channels. The previous Roku mapper accepted every active Live row, so the ordinary no-artwork fallback exposed them as channel cards.
+- Added a conservative client-side filter before Live rows enter the catalogue. A decoration-dominated name is rejected only when the row also has no valid logo, poster, backdrop, or `tvg_id`. Ordinary names such as `Channel #1`, valid artwork-bearing rows, guide-backed rows, and legitimate channels that simply omit artwork remain browseable.
+- Documented that the backend importer should discard these decorative rows during ingestion. The Roku filter fixes existing imported playlists visually, while the backend cleanup is still needed for exact server totals, pagination, and other clients.
+- Bumped the manifest to build `00275`. The page/UI suite passes 41 checks, backend/navigation passes 82 contracts, keyboard/image loading passes 35 contracts, and `npm.cmd run check` passes.
+## 2026-09-16 Live TV Artwork Retention and Movie Poster Fallbacks
+
+- Traced the Live TV artwork disappearance after opening a channel and pressing Back to `startBackendLivePlaybackLoad()`. Channels whose list row omitted `stream_url` launched a detail lookup and immediately rebuilt the whole grid, discarding all loaded Poster nodes just before Player navigation. Removed that rebuild, so the retained Live TV page keeps its existing logo textures and focus state while the stream URL resolves.
+- Live TV rows now preserve `logo_url`, `poster_url`, and `backdrop_url` independently. Provider poster artwork is rendered with `scaleToFit`, preventing portrait or logo-shaped assets from being cropped in the channel card.
+- Movies now accept `cover_url` when `poster_url` is absent and can use a real `backdrop_url` as the card fallback only when neither poster/cover nor logo artwork exists. Poster/cover remains first priority, logo second, and backdrop third. Rows lacking every supported artwork URL still use the app fallback; that remaining case requires provider/backend artwork enrichment rather than another client-side substitution.
+- Bumped the manifest to build `00274`. The page/UI suite passes 41 checks, backend/navigation passes 80 contracts, keyboard/image loading passes 35 contracts, and `npm.cmd run check` passes. Physical Roku testing remains required to measure provider image latency and confirm Back retention on the authenticated large Xtream account.
+## 2026-09-16 Xtream Category Isolation Across Live TV, Movies, and Series
+
+- Audited category retrieval across all three catalogue pages after a large Xtream account showed irrelevant or confusing category pills. Media rows were already requested with the correct `live`, `movie`, or `series` type, but category metadata was inconsistent: Series fetched the dedicated typed groups endpoint while Movies and Live TV relied on the groups embedded in bootstrap.
+- Verified against the current backend OpenAPI contract that `/api/v1/playlists/{playlist_id}/groups` accepts `content_type` and returns group names with `channel_count`.
+- Live TV, Movies, and Series now retrieve first-page categories from `/groups?content_type=live`, `/groups?content_type=movie`, and `/groups?content_type=series` respectively. Selecting a displayed category still sends its exact raw backend group value, preserving provider-specific routing while preventing categories from another content type from entering the page.
+- Preserved `channel_count` through the bounded SceneGraph task response and hide only groups explicitly reported with zero items. Providers that omit counts remain compatible. Provider-supplied category wording is intentionally retained; physical testing of the authenticated Xtream account is still required to judge those names.
+- Bumped the manifest to build `00273`. The page suite passes 38 checks, backend/navigation passes 77 contracts, keyboard/image loading passes 35 contracts, and `npm.cmd run check` passes.
+## 2026-09-16 Movies Hybrid Hero Selection
+
+- Movies previously differed from Series: it rendered only explicit `hero_url`, `backdrop_url`, `background_url`, or `fanart_url` fields and never evaluated a poster-only row for a usable background.
+- Movies now follows the same bounded hybrid rule as Series. Explicit background artwork takes priority; otherwise a non-logo card image can qualify only after Roku loads it and confirms it is at least 640x300 with a landscape aspect ratio from 1.45 through 2.4. Portrait, logo, small, failed, and extreme-ratio images retain the packaged default background and right-side fitted artwork.
+- Eligibility is cached per URL for the page lifetime. Only one invisible dimension probe exists at a time, focus changes cancel the previous probe, and page disposal removes it. Movie cards and the Featured mini-poster remain on `scaleToFit` and are never changed to zoom.
+- The selected qualified hero is passed through the existing Movie Detail navigation fields, keeping the list and detail view consistent without adding a second detail-page probe.
+- Added the shared `MediaArtwork.brs` dependency to `MoviesPage.xml` and a regression contract for it. Bumped the manifest to build `00272`. The page suite passes 38 checks, backend/navigation passes 74 contracts, keyboard/image loading passes 35 contracts, and `npm.cmd run check` passes.
+## 2026-09-16 Series Card Crop Rollback and Movies Hero Audit
+
+- Physical Roku review of build `00270` confirmed that filling a portrait Series card with qualified landscape hero artwork crops the image too aggressively. There is no non-distorting display mode that both preserves the entire landscape image and fills a portrait frame.
+- Restored every Series grid card to `scaleToFit`. Landscape rows may retain empty space inside the portrait card, but the complete artwork remains visible. The Series hero dimension classifier is unchanged, so eligible landscape artwork can still appear as the full-screen background.
+- Kept the Movies Featured mini-poster on `scaleToFit`, which preserves the complete poster/logo in that small slot.
+- Audited the Movies data path: the Roku client preserves and renders explicit `hero_url`, `backdrop_url`, `background_url`, and `fanart_url` values. The saved workspace does not contain the Roku registry token or authenticated response for the current Movies playlist, so it cannot count backdrop-bearing rows in that user account. The all-default on-device result is consistent with the M3U import returning poster/logo-only rows; an authenticated backend response audit is required to prove the count across the full catalogue.
+- Bumped the manifest to build `00271`. The page suite passes 34 checks, backend/navigation passes 74 contracts, keyboard/image loading passes 35 contracts, and `npm.cmd run check` passes.
+## 2026-09-16 Adaptive Series Card and Featured Movie Poster Scaling
+
+- Physical Roku review showed a landscape Series image correctly qualifying as the full-screen hero while the same image was always rendered with `scaleToFit` in its portrait grid card. The conflicting aspect ratios produced the large empty bands visible in the supplied screenshot.
+- Series grid cards now reuse the existing bitmap-dimension eligibility result. When the card URL is the same image already confirmed as a landscape hero, the card uses `scaleToZoom` to fill its frame. Portrait, logo, small, and unclassified artwork continues to use `scaleToFit`, so this does not weaken the agreed hero/background rule or crop logo-only rows.
+- The Movies Featured mini-poster still used an unconditional `scaleToZoom`; it now uses `scaleToFit` so the complete provider poster or logo remains visible in that small slot.
+- Bumped the manifest to build `00270`. The page suite passes 34 checks, backend/navigation passes 74 contracts, keyboard/image loading passes 35 contracts, and `npm.cmd run check` passes. Physical Roku review remains required to confirm provider-specific artwork composition.
 ## 2026-09-15 Adaptive Series Hero Selection
 
 - Build `00268` removed every card-to-hero fallback, which prevented blur but also removed clean Series backdrops because the backend's structured Series model exposes only `cover_url`. That single field can contain either a landscape hero-quality image or portrait/logo artwork, so its field name cannot determine placement.
