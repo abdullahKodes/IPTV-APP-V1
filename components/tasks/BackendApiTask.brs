@@ -294,8 +294,16 @@ function backendApiTaskCompactChannel(item as Dynamic) as Object
         backendApiTaskCopy(clean, item, key)
     end for
     backendApiTaskCopyProviderArtworkAliases(clean, item)
-    info = backendApiTaskValue(item, "info")
-    if backendApiTaskIsAssoc(info) then clean.duration_seconds = backendApiInt(info, "duration_secs", 0)
+    durationSeconds = backendApiInt(clean, "duration_seconds", 0)
+    if durationSeconds <= 0 then
+        info = backendApiTaskValue(item, "info")
+        if backendApiTaskIsAssoc(info) then durationSeconds = backendApiInt(info, "duration_secs", 0)
+    end if
+    if durationSeconds <= 0 and backendApiTaskIsAssoc(metadata) then
+        metadataInfo = backendApiTaskValue(metadata, "info")
+        if backendApiTaskIsAssoc(metadataInfo) then durationSeconds = backendApiInt(metadataInfo, "duration_secs", 0)
+    end if
+    if durationSeconds > 0 then clean.duration_seconds = durationSeconds
     backendApiTaskCopy(clean, item, "tvg_id")
     backendApiTaskCopy(clean, item, "tvg_name")
     backendApiTaskCopy(clean, item, "logo_url")
@@ -508,6 +516,13 @@ function backendApiTaskTransfer(request as Object, token as String) as Object
     if Left(LCase(url), 8) <> "https://" then return {statusCode: 0, text: ""}
     attempts = 1
     if method = "GET" then attempts = 3
+    if request.doesExist("singleAttempt") and request.singleAttempt = true then attempts = 1
+    timeoutMs = 45000
+    if request.doesExist("timeoutMs") then
+        if Type(request.timeoutMs) = "roInteger" or Type(request.timeoutMs) = "Integer" then
+            if request.timeoutMs >= 1000 and request.timeoutMs <= 45000 then timeoutMs = request.timeoutMs
+        end if
+    end if
     result = {statusCode: 0, text: ""}
     for attempt = 1 to attempts
         transfer = CreateObject("roUrlTransfer")
@@ -528,7 +543,7 @@ function backendApiTaskTransfer(request as Object, token as String) as Object
             started = transfer.AsyncGetToString()
         end if
         msg = invalid
-        if started then msg = wait(45000, port)
+        if started then msg = wait(timeoutMs, port)
         result = {statusCode: 0, text: ""}
         if Type(msg) = "roUrlEvent" then
             result = {statusCode: msg.GetResponseCode(), text: msg.GetString()}

@@ -474,13 +474,13 @@ sub drawPosterFavoriteCard(fav as Object, section as Integer, visibleIndex as In
     cardCanvas.translation = [x, y]
     m.canvas.appendChild(cardCanvas)
     uiRect(cardCanvas, 0, 0, w, h, m.colors.panel, 0.32)
+    fallbackUrl = "pkg:/images/fallback/movie_poster.png"
+    if section = 1 then fallbackUrl = "pkg:/images/fallback/series_poster.png"
     artUrl = favoritePosterUrl(fav)
     if artUrl <> "" then
-        poster = uiPoster(cardCanvas, artUrl, 0, 0, w, h, 0.96)
-        poster.loadDisplayMode = "scaleToZoom"
+        poster = uiPosterZoom(cardCanvas, artUrl, 0, 0, w, h, 0.96, fallbackUrl, false)
     else
-        uiRoundRect(cardCanvas, 0, 0, w, h, m.colors.purpleSoft, m.colors.whiteLine, 0.64)
-        uiDrawIcon(cardCanvas, "heart", 54, 46, 36, 36, focused, m.colors.text, 15)
+        poster = uiPosterZoom(cardCanvas, fallbackUrl, 0, 0, w, h, 0.96)
     end if
     uiCardFocusTint(cardCanvas, 0, 0, w, h, focused)
     uiRectBorder(cardCanvas, 0, 0, w, h, favoriteBorderColor(focused), favoriteBorderWidth(focused), 1.0)
@@ -771,7 +771,10 @@ function favItemText(item as Dynamic, key as String, fallback = "" as String) as
     value = favItemValue(item, key)
     if value = invalid then return fallback
     valueType = type(value)
-    if valueType = "String" or valueType = "roString" then return value
+    if valueType = "String" or valueType = "roString" then
+        if key = "duration" then return backendApiDurationLabel(value)
+        return value
+    end if
     if valueType = "Integer" or valueType = "roInt" or valueType = "LongInteger" or valueType = "roLongInteger" or valueType = "Float" or valueType = "roFloat" or valueType = "Double" or valueType = "roDouble" then return value.toStr()
     return fallback
 end function

@@ -4,13 +4,14 @@
   "private": true,
   "description": "Roku TV IPTV app starter workspace.",
   "scripts": {
-    "build": "bsc",
-    "check": "bsc --copy-to-staging=false",
-    "package": "roku-deploy --package",
-    "deploy": "roku-deploy --deploy"
+    "build": "npm run check",
+    "check": "node tests/run-backend-contract.cjs && node tests/run-player-contract.cjs && node tests/run-featured-rotation-contract.cjs && bsc --copy-to-staging=false",
+    "package": "npm run check && roku-deploy --package",
+    "deploy": "npm run check && roku-deploy --deploy"
   },
   "devDependencies": {
     "brighterscript": "^0.72.4",
+    "brs": "^0.45.0",
     "roku-deploy": "^3.17.5"
   }
 }

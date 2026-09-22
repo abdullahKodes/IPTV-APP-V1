@@ -57,6 +57,7 @@ sub showPage(componentName as String)
         if m.currentPage.hasField("playbackMediaId") then m.currentPage.playbackMediaId = m.pendingPlayback.mediaId
         if m.currentPage.hasField("playbackEpisodeId") then m.currentPage.playbackEpisodeId = m.pendingPlayback.episodeId
         if m.currentPage.hasField("playbackSeasonIndex") then m.currentPage.playbackSeasonIndex = m.pendingPlayback.seasonIndex
+        if m.currentPage.hasField("playbackSeasonNumber") then m.currentPage.playbackSeasonNumber = m.pendingPlayback.seasonNumber
         if m.currentPage.hasField("playbackEpisodeIndex") then m.currentPage.playbackEpisodeIndex = m.pendingPlayback.episodeIndex
         if m.currentPage.hasField("playbackSeasonCount") then m.currentPage.playbackSeasonCount = m.pendingPlayback.seasonCount
         if m.currentPage.hasField("playbackSeasonEpisodeCount") then m.currentPage.playbackSeasonEpisodeCount = m.pendingPlayback.seasonEpisodeCount
@@ -135,6 +136,7 @@ sub onPageNavigation()
                 mediaId: playbackPendingFieldText(m.currentPage, "playbackMediaId"),
                 episodeId: playbackPendingFieldText(m.currentPage, "playbackEpisodeId"),
                 seasonIndex: playbackPendingFieldInt(m.currentPage, "playbackSeasonIndex"),
+                seasonNumber: playbackPendingFieldInt(m.currentPage, "playbackSeasonNumber"),
                 episodeIndex: playbackPendingFieldInt(m.currentPage, "playbackEpisodeIndex"),
                 seasonCount: playbackPendingFieldInt(m.currentPage, "playbackSeasonCount"),
                 seasonEpisodeCount: playbackPendingFieldInt(m.currentPage, "playbackSeasonEpisodeCount"),

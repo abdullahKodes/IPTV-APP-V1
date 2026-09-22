@@ -20,8 +20,17 @@ sub init()
     m.resumePendingPosition = 0
     m.resumeApplied = false
     m.lastProgressSavePosition = 0
+    m.maxPlaybackPosition = 0
+    m.nextEpisodeTask = invalid
+    m.retrySourceTask = invalid
+    m.retryPlaybackUrl = ""
+    m.retryPlaybackFormat = ""
+    m.nextEpisodeIndex = -1
+    m.finishedMessage = ""
     m.audioTracks = []
     m.subtitleTracks = []
+    m.reportedAudioTrackCount = -1
+    m.reportedSubtitleTrackCount = -1
     m.playing = false
     m.captionsEnabled = playerCaptionModeEnabled(m.playbackCaptionMode)
     m.loadedUrl = ""
@@ -43,6 +52,7 @@ sub init()
     if m.video.hasField("seamlessAudioTrackSelection") then m.video.seamlessAudioTrackSelection = true
     m.video.observeField("state", "onVideoStateChange")
     m.video.observeField("errorMsg", "onVideoError")
+    if m.video.hasField("availableAudioTracks") then m.video.observeField("availableAudioTracks", "onVideoTracksChanged")
     if m.video.hasField("availableSubtitleTracks") then m.video.observeField("availableSubtitleTracks", "onVideoTracksChanged")
     if m.video.hasField("subtitleTrack") then m.video.observeField("subtitleTrack", "onVideoTracksChanged")
     if m.video.hasField("globalCaptionMode") then m.video.observeField("globalCaptionMode", "onVideoTracksChanged")
@@ -141,6 +151,12 @@ function handleKey(key as String) as Boolean
 end function
 
 sub onPlaybackChanged()
+    stopRetrySourceTask()
+    m.retryPlaybackUrl = ""
+    m.retryPlaybackFormat = ""
+    m.finishedMessage = ""
+    m.reportedAudioTrackCount = -1
+    m.reportedSubtitleTrackCount = -1
     stopLiveResumeTimer()
     m.liveResumeRefreshQuiet = false
     m.isLive = playbackMediaType() = "live"
@@ -159,7 +175,8 @@ sub onPlaybackChanged()
 end sub
 
 sub startPlayback(force as Boolean, quiet = false as Boolean)
-    url = m.top.playbackUrl
+    url = m.retryPlaybackUrl
+    if url = "" then url = m.top.playbackUrl
     if url = invalid or url = "" then
         m.playbackState = "preparing"
         render()
@@ -167,10 +184,12 @@ sub startPlayback(force as Boolean, quiet = false as Boolean)
     end if
     if not force and url = m.loadedUrl then return
     if not quiet then m.liveResumeRefreshQuiet = false
+    m.maxPlaybackPosition = 0
 
     content = CreateObject("roSGNode", "ContentNode")
     content.url = url
     content.streamFormat = playbackStreamFormat()
+    print "Playback start: type="; playbackMediaType(); " format="; content.streamFormat
     content.title = playbackTitle()
     posterUrl = m.top.playbackPosterUrl
     if posterUrl <> invalid and posterUrl <> "" then content.HDPosterUrl = posterUrl
@@ -203,6 +222,12 @@ sub stopPlayback()
     persistPlaybackProgress(true)
     m.exiting = true
     m.retryTimer.control = "stop"
+    stopRetrySourceTask()
+    if m.nextEpisodeTask <> invalid then
+        m.nextEpisodeTask.unobserveField("response")
+        m.nextEpisodeTask.control = "STOP"
+        m.nextEpisodeTask = invalid
+    end if
     stopLiveResumeTimer()
     if m.video <> invalid then m.video.control = "stop"
 end sub
@@ -229,7 +254,6 @@ sub onVideoStateChange()
         m.errorText = ""
         m.errorCode = 0
         m.retryPending = false
-        m.retryCount = 0
         if m.qualityResumePosition > 0 and not m.isLive then
             m.video.seek = m.qualityResumePosition
             m.qualityResumePosition = 0
@@ -238,6 +262,8 @@ sub onVideoStateChange()
             m.video.seek = m.resumePendingPosition
             m.resumeApplied = true
         end if
+        if videoPosition() > m.maxPlaybackPosition then m.maxPlaybackPosition = videoPosition()
+        if m.maxPlaybackPosition >= 10 then m.retryCount = 0
         refreshAvailableTracks()
         resetHideTimer()
         if wasQuietLiveRefresh then
@@ -254,6 +280,11 @@ sub onVideoStateChange()
         m.playing = false
         if m.isLive then
             handlePlaybackFailure("The live stream ended unexpectedly.")
+            return
+        end if
+        if m.nextEpisodeTask <> invalid then return
+        if not playerPlaybackWasMeaningful(m.maxPlaybackPosition, videoPosition(), videoDuration()) then
+            handlePlaybackFailure("The stream ended before video could play. Check this title's source.")
             return
         end if
         removePlaybackProgress()
@@ -283,6 +314,7 @@ sub handlePlaybackFailure(message as String)
     m.liveResumeRefreshQuiet = false
     m.playing = false
     if message = invalid or message = "" then message = "The stream is unavailable."
+    print "Playback failure: type="; playbackMediaType(); " format="; playbackStreamFormat(); " code="; m.errorCode; " position="; videoPosition(); " duration="; videoDuration()
     m.errorText = message
     showControls()
 
@@ -301,29 +333,111 @@ end sub
 
 sub onRetryTimer()
     if m.exiting then return
+    refreshRetrySource()
+end sub
+
+sub manualRetry()
+    m.retryCount = 0
+    m.retryPending = true
+    m.playbackState = "reconnecting"
+    render()
+    refreshRetrySource()
+end sub
+
+sub stopRetrySourceTask()
+    if m.retrySourceTask = invalid then return
+    m.retrySourceTask.unobserveField("response")
+    m.retrySourceTask.control = "STOP"
+    m.retrySourceTask = invalid
+end sub
+
+sub refreshRetrySource()
+    if m.exiting then return
+    stopRetrySourceTask()
+    playlist = playlistStoreGet(m.top.playbackPlaylistId)
+    if playlistStoreBool(playlist, "backendManaged", false) and m.top.playbackMediaId <> "" then
+        request = invalid
+        if playbackMediaType() = "series" and m.top.playbackEpisodeId <> "" then
+            request = backendApiEpisodesRequest(m.top.playbackMediaId, m.top.playbackSeasonNumber, Int(m.top.playbackEpisodeIndex / 50) + 1, true)
+        else if playbackMediaType() = "movie" then
+            request = backendApiGetChannelRequest(m.top.playbackMediaId)
+        end if
+        if request <> invalid then
+            request.singleAttempt = true
+            request.timeoutMs = 8000
+            task = CreateObject("roSGNode", "BackendApiTask")
+            if task <> invalid then
+                m.retrySourceTask = task
+                task.request = request
+                task.observeField("response", "onRetrySourceLoaded")
+                task.control = "RUN"
+                return
+            end if
+        end if
+    end if
+    restartCurrentSource()
+end sub
+
+sub onRetrySourceLoaded()
+    if m.retrySourceTask = invalid or m.exiting then return
+    response = m.retrySourceTask.response
+    stopRetrySourceTask()
+    source = playerRetrySourceFromResponse(response, playbackMediaType(), m.top.playbackMediaId, m.top.playbackSeasonNumber, m.top.playbackEpisodeIndex, m.top.playbackEpisodeId)
+    if source <> invalid then
+        m.retryPlaybackUrl = backendApiText(source, "stream_url", backendApiText(source, "streamUrl"))
+        m.retryPlaybackFormat = backendApiStreamFormatForItem(source, m.retryPlaybackUrl)
+    end if
+    restartCurrentSource()
+end sub
+
+sub restartCurrentSource()
+    if m.exiting then return
     m.retryPending = false
     m.loadedUrl = ""
     startPlayback(true)
 end sub
 
-sub manualRetry()
-    m.retryCount = 0
-    m.retryPending = false
-    m.loadedUrl = ""
-    startPlayback(true)
-end sub
+function playerRetrySourceFromResponse(response as Dynamic, mediaType as String, mediaId as String, seasonNumber as Integer, episodeIndex as Integer, episodeId as String) as Dynamic
+    if not backendApiResponseOk(response) then return invalid
+    if mediaType = "series" then
+        items = backendApiResponseItems(response)
+        offset = episodeIndex mod 50
+        if offset < 0 or offset >= items.count() then return invalid
+        source = items[offset]
+        if backendApiText(source, "id") <> episodeId then return invalid
+        itemSeriesId = backendApiText(source, "series_id")
+        if itemSeriesId <> "" and itemSeriesId <> mediaId then return invalid
+        if backendApiInt(source, "season_number", seasonNumber) <> seasonNumber then return invalid
+    else if mediaType = "movie" then
+        source = backendApiChannelData(response)
+        if backendApiText(source, "id") <> mediaId then return invalid
+    else
+        return invalid
+    end if
+    if backendApiText(source, "stream_url", backendApiText(source, "streamUrl")) = "" then return invalid
+    return source
+end function
 
 sub replayMedia()
     if m.video = invalid then return
     removePlaybackProgress()
     m.resumePendingPosition = 0
     m.resumeApplied = true
-    m.playbackState = "preparing"
-    m.video.seek = 0
-    m.video.control = "play"
+    m.retryCount = 0
+    m.retryPending = true
+    m.playbackState = "reconnecting"
+    m.maxPlaybackPosition = 0
+    m.finishedMessage = ""
     showControls()
     render()
+    refreshRetrySource()
 end sub
+
+function playerPlaybackWasMeaningful(maxPosition as Integer, currentPosition as Integer, duration as Integer) as Boolean
+    if maxPosition >= 10 or currentPosition >= 10 then return true
+    if duration > 0 and duration < 10 and (maxPosition > 0 or currentPosition > 0) and (maxPosition >= duration - 1 or currentPosition >= duration - 1) then return true
+    return false
+end function
 
 function autoplayEnabled() as Boolean
     return settingsStoreBool(m.settings, "autoplay", true) and not m.isLive
@@ -342,19 +456,69 @@ function autoplayNextSeriesEpisode() as Boolean
     nextEpisodeIndex = m.top.playbackEpisodeIndex + 1
     if nextEpisodeIndex >= episodeCount then return false
 
-    m.top.playbackEpisodeIndex = nextEpisodeIndex
-    m.top.playbackEpisodeId = seriesEpisodeId(m.top.playbackSeasonIndex, nextEpisodeIndex)
-    m.top.playbackSubtitle = seriesEpisodeId(m.top.playbackSeasonIndex, nextEpisodeIndex)
+    playlist = playlistStoreGet(m.top.playbackPlaylistId)
+    if not playlistStoreBool(playlist, "backendManaged", false) then return false
+    if m.top.playbackEpisodeId = invalid or m.top.playbackEpisodeId = "" then return false
+    if m.top.playbackMediaId = invalid or m.top.playbackMediaId = "" then return false
+
+    task = CreateObject("roSGNode", "BackendApiTask")
+    if task = invalid then return false
+    m.nextEpisodeIndex = nextEpisodeIndex
+    m.nextEpisodeTask = task
+    task.request = backendApiEpisodesRequest(m.top.playbackMediaId, m.top.playbackSeasonNumber, Int(nextEpisodeIndex / 50) + 1, true)
+    task.observeField("response", "onNextEpisodeLoaded")
+    m.playbackState = "preparing"
+    showControls()
+    render()
+    task.control = "RUN"
+    return true
+end function
+
+sub onNextEpisodeLoaded()
+    if m.nextEpisodeTask = invalid or m.exiting then return
+    response = m.nextEpisodeTask.response
+    m.nextEpisodeTask.unobserveField("response")
+    m.nextEpisodeTask = invalid
+    episode = playerNextEpisodeFromResponse(response, m.nextEpisodeIndex, m.top.playbackMediaId, m.top.playbackSeasonNumber)
+    if episode = invalid then
+        m.finishedMessage = "Next episode unavailable. Select it from the episode list."
+        m.playbackState = "finished"
+        m.finishedFocusIndex = 1
+        showControls()
+        render()
+        return
+    end if
+
+    url = backendApiText(episode, "stream_url")
+    episodeId = backendApiText(episode, "id")
+    nextIndex = m.nextEpisodeIndex
+    m.top.playbackEpisodeIndex = nextIndex
+    m.top.playbackEpisodeId = episodeId
+    m.top.playbackSubtitle = "S" + m.top.playbackSeasonNumber.toStr() + "-E" + backendApiInt(episode, "episode_num", nextIndex + 1).toStr()
+    m.top.playbackFormat = backendApiStreamFormatForItem(episode, url)
     m.top.playbackResumePosition = 0
     prepareAutoplayPlayback()
-    startPlayback(true)
-    return true
+    m.top.playbackUrl = url
+end sub
+
+function playerNextEpisodeFromResponse(response as Dynamic, episodeIndex as Integer, seriesId as String, seasonNumber as Integer) as Dynamic
+    if not backendApiResponseOk(response) then return invalid
+    items = backendApiResponseItems(response)
+    offset = episodeIndex mod 50
+    if offset < 0 or offset >= items.count() then return invalid
+    episode = items[offset]
+    if backendApiText(episode, "stream_url") = "" or backendApiText(episode, "id") = "" then return invalid
+    itemSeriesId = backendApiText(episode, "series_id")
+    if itemSeriesId <> "" and itemSeriesId <> seriesId then return invalid
+    if backendApiInt(episode, "season_number", seasonNumber) <> seasonNumber then return invalid
+    return episode
 end function
 
 function autoplayNextMovie() as Boolean
     playlistId = m.top.playbackPlaylistId
     mediaId = m.top.playbackMediaId
     if playlistId = invalid or playlistId = "" or mediaId = invalid or mediaId = "" then return false
+    if playlistStoreBool(playlistStoreGet(playlistId), "backendManaged", false) then return false
 
     movies = mediaMovieCatalogForPlaylist(playlistId)
     if movies = invalid or movies.count() = 0 then return false
@@ -367,7 +531,6 @@ function autoplayNextMovie() as Boolean
             if playbackUrl = invalid or playbackUrl = "" then return false
             m.top.playbackTitle = playerMediaText(item, "title", "Video")
             m.top.playbackSubtitle = movieAutoplaySubtitle(item)
-            m.top.playbackUrl = playbackUrl
             m.top.playbackFormat = mediaPlaybackFormat(item)
             m.top.playbackPosterUrl = playerMediaText(item, "posterUrl", playerMediaText(item, "cardUrl", ""))
             m.top.playbackMediaId = playerMediaText(item, "id", m.top.playbackTitle)
@@ -376,7 +539,7 @@ function autoplayNextMovie() as Boolean
             m.top.playbackEpisodeIndex = 0
             m.top.playbackResumePosition = 0
             prepareAutoplayPlayback()
-            startPlayback(true)
+            m.top.playbackUrl = playbackUrl
             return true
         end if
     end for
@@ -391,11 +554,16 @@ sub prepareAutoplayPlayback()
     m.lastProgressSavePosition = 0
     m.retryPending = false
     m.retryCount = 0
+    stopRetrySourceTask()
+    m.retryPlaybackUrl = ""
+    m.retryPlaybackFormat = ""
     m.trackMenuOpen = false
     m.selectedAudioLabel = "Default"
     m.selectedSubtitleLabel = "Off"
     m.audioTracks = []
     m.subtitleTracks = []
+    m.reportedAudioTrackCount = -1
+    m.reportedSubtitleTrackCount = -1
 end sub
 
 function seriesEpisodeId(seasonIndex as Integer, episodeIndex as Integer) as String
@@ -404,7 +572,7 @@ end function
 
 function movieAutoplaySubtitle(item as Dynamic) as String
     year = playerMediaText(item, "year", "")
-    duration = playerMediaText(item, "duration", "")
+    duration = backendApiDurationLabel(playerMediaText(item, "duration", ""))
     genre = playerMediaText(item, "genre", "")
     subtitle = year
     if duration <> "" then
@@ -426,6 +594,8 @@ end function
 
 sub onProgressTick()
     if m.playbackState = "playing" then
+        if videoPosition() > m.maxPlaybackPosition then m.maxPlaybackPosition = videoPosition()
+        if m.maxPlaybackPosition >= 10 then m.retryCount = 0
         persistPlaybackProgress(false)
         if m.controlsVisible then render()
     end if
@@ -550,7 +720,7 @@ sub persistPlaybackProgress(force as Boolean)
         title: playbackTitle(),
         subtitle: playbackSubtitle(),
         posterUrl: m.top.playbackPosterUrl,
-        streamUrl: m.top.playbackUrl,
+        streamUrl: effectivePlaybackUrl(),
         streamFormat: playbackStreamFormat(),
         position: playPosition,
         duration: duration,
@@ -642,6 +812,11 @@ sub refreshAvailableTracks()
         tracks = m.video.availableSubtitleTracks
         if tracks <> invalid and type(tracks) = "roArray" then m.subtitleTracks = tracks
     end if
+    if m.reportedAudioTrackCount <> m.audioTracks.count() or m.reportedSubtitleTrackCount <> m.subtitleTracks.count() then
+        print "Playback tracks: audio="; m.audioTracks.count(); " subtitles="; m.subtitleTracks.count()
+        m.reportedAudioTrackCount = m.audioTracks.count()
+        m.reportedSubtitleTrackCount = m.subtitleTracks.count()
+    end if
     syncSelectedSubtitleLabel()
 end sub
 
@@ -649,6 +824,7 @@ sub onVideoTracksChanged()
     refreshAvailableTracks()
     if m.trackMenuOpen then
         if m.trackMenuSection = "main" then buildTrackMainMenu()
+        if m.trackMenuSection = "audio" then buildAudioTrackMenu()
         if m.trackMenuSection = "subtitles" then buildSubtitleTrackMenu()
         render()
     end if
@@ -669,7 +845,7 @@ sub syncSelectedSubtitleLabel()
         return
     end if
 
-    if m.selectedSubtitleLabel <> "" and m.selectedSubtitleLabel <> "Off" and Instr(1, m.selectedSubtitleLabel, "(Demo)") = 0 then return
+    if m.selectedSubtitleLabel <> "" and m.selectedSubtitleLabel <> "Off" then return
     if m.subtitleTracks.count() > 0 then
         m.selectedSubtitleLabel = subtitleTrackDisplayName(m.subtitleTracks[0], 1)
     else
@@ -700,8 +876,6 @@ end function
 
 sub openTrackMenu()
     refreshAvailableTracks()
-    if m.audioTracks.count() > 0 and Instr(1, m.selectedAudioLabel, "(Demo)") > 0 then m.selectedAudioLabel = "Default"
-    if m.subtitleTracks.count() > 0 and Instr(1, m.selectedSubtitleLabel, "(Demo)") > 0 then m.selectedSubtitleLabel = "Off"
     m.trackMenuSection = "main"
     buildTrackMainMenu()
     m.trackMenuIndex = 0
@@ -722,7 +896,7 @@ sub buildAudioTrackMenu()
     m.trackMenuItems = []
     m.trackMenuItems.push({ label: "Default", detail: "", action: "audio_default", value: "", selectable: true, kind: "option" })
     if m.audioTracks.count() = 0 then
-        m.trackMenuItems.push({ label: "English (Demo)", detail: "", action: "audio_preview", value: "", selectable: true, kind: "option" })
+        m.trackMenuItems.push({ label: "No alternate audio tracks", detail: "", action: "", value: "", selectable: false, kind: "option" })
     else
         for i = 0 to m.audioTracks.count() - 1
             track = m.audioTracks[i]
@@ -737,7 +911,7 @@ sub buildSubtitleTrackMenu()
     m.trackMenuItems = []
     m.trackMenuItems.push({ label: "Off", detail: "", action: "subtitle_off", value: "", selectable: true, kind: "option" })
     if m.subtitleTracks.count() = 0 then
-        m.trackMenuItems.push({ label: "English (Demo)", detail: "", action: "subtitle_preview", value: "", selectable: true, kind: "option" })
+        m.trackMenuItems.push({ label: "No subtitle tracks", detail: "", action: "", value: "", selectable: false, kind: "option" })
     else
         for i = 0 to m.subtitleTracks.count() - 1
             track = m.subtitleTracks[i]
@@ -837,27 +1011,10 @@ sub applyTrackMenuSelection()
         render()
         return
     end if
-    if item.action = "audio_preview" then
-        m.selectedAudioLabel = item.label
-        m.trackMenuSection = "main"
-        buildTrackMainMenu()
-        m.trackMenuIndex = 0
-        render()
-        return
-    end if
     if item.action = "subtitle_off" then
         if m.video.hasField("subtitleTrack") then m.video.subtitleTrack = ""
         if m.captionsEnabled then toggleCaptions()
         m.selectedSubtitleLabel = "Off"
-        m.trackMenuSection = "main"
-        buildTrackMainMenu()
-        m.trackMenuIndex = 1
-        render()
-        return
-    end if
-    if item.action = "subtitle_preview" then
-        if not m.captionsEnabled then toggleCaptions()
-        m.selectedSubtitleLabel = item.label
         m.trackMenuSection = "main"
         buildTrackMainMenu()
         m.trackMenuIndex = 1
@@ -1056,6 +1213,7 @@ end sub
 sub drawFinishedPanel()
     uiPoster(m.canvas, "pkg:/images/ui/rr_500x158_panel_purpleLine.png", 340, 258, 600, 196, 0.96)
     uiLabel(m.canvas, "Playback finished", 380, 290, 520, 36, 21, m.colors.text, "center")
+    if m.finishedMessage <> "" then uiLabel(m.canvas, m.finishedMessage, 390, 330, 500, 28, 12, m.colors.textMuted, "center")
     drawDialogAction(430, 366, 190, "Replay", 0, m.finishedFocusIndex)
     drawDialogAction(660, 366, 190, "Go Back", 1, m.finishedFocusIndex)
 end sub
@@ -1229,7 +1387,13 @@ function playbackMediaType() as String
     return "movie"
 end function
 
+function effectivePlaybackUrl() as String
+    if m.retryPlaybackUrl <> "" then return m.retryPlaybackUrl
+    return m.top.playbackUrl
+end function
+
 function playbackStreamFormat() as String
+    if m.retryPlaybackFormat <> "" then return m.retryPlaybackFormat
     format = m.top.playbackFormat
     if format = invalid or format = "" then return "hls"
     return format
@@ -1278,5 +1442,10 @@ function formatTime(seconds as Integer) as String
     secs = seconds mod 60
     secText = secs.toStr()
     if secs < 10 then secText = "0" + secText
-    return mins.toStr() + ":" + secText
+    if mins < 60 then return mins.toStr() + ":" + secText
+    hours = Int(mins / 60)
+    remainingMinutes = mins mod 60
+    minuteText = remainingMinutes.toStr()
+    if remainingMinutes < 10 then minuteText = "0" + minuteText
+    return hours.toStr() + ":" + minuteText + ":" + secText
 end function

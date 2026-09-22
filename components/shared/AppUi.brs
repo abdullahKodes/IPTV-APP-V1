@@ -103,7 +103,7 @@ function uiPoster(parent as Object, uri as String, x as Integer, y as Integer, w
     return node
 end function
 
-function uiPosterZoom(parent as Object, uri as String, x as Integer, y as Integer, w as Integer, h as Integer, opacity = 1.0 as Float, fallbackUri = "" as String) as Object
+function uiPosterZoom(parent as Object, uri as String, x as Integer, y as Integer, w as Integer, h as Integer, opacity = 1.0 as Float, fallbackUri = "" as String, showFallbackWhileLoading = true as Boolean) as Object
     node = CreateObject("roSGNode", "Poster")
     node.translation = [x, y]
     node.width = w
@@ -115,14 +115,14 @@ function uiPosterZoom(parent as Object, uri as String, x as Integer, y as Intege
     end if
     node.loadDisplayMode = "scaleToZoom"
     if fallbackUri <> "" then
-        node.loadingBitmapUri = fallbackUri
+        if showFallbackWhileLoading then node.loadingBitmapUri = fallbackUri
         node.failedBitmapUri = fallbackUri
     end if
     node.uri = uri
     parent.appendChild(node)
     return node
 end function
-function uiPosterFit(parent as Object, uri as String, x as Integer, y as Integer, w as Integer, h as Integer, opacity = 1.0 as Float) as Object
+function uiPosterFit(parent as Object, uri as String, x as Integer, y as Integer, w as Integer, h as Integer, opacity = 1.0 as Float, fallbackUri = "" as String) as Object
     node = CreateObject("roSGNode", "Poster")
     node.translation = [x, y]
     node.width = w
@@ -133,6 +133,7 @@ function uiPosterFit(parent as Object, uri as String, x as Integer, y as Integer
         node.loadHeight = h
     end if
     node.loadDisplayMode = "scaleToFit"
+    if fallbackUri <> "" then node.failedBitmapUri = fallbackUri
     node.uri = uri
     parent.appendChild(node)
     return node

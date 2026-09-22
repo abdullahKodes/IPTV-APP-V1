@@ -32,6 +32,7 @@
     <field id="playbackMediaId" type="string" />
     <field id="playbackEpisodeId" type="string" />
     <field id="playbackSeasonIndex" type="integer" />
+    <field id="playbackSeasonNumber" type="integer" />
     <field id="playbackEpisodeIndex" type="integer" />
     <field id="playbackSeasonCount" type="integer" />
     <field id="playbackSeasonEpisodeCount" type="integer" />

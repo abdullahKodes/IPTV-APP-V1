@@ -8,6 +8,7 @@ sub init()
     m.episodeWindowStart = 0
     m.backendSeries = false
     m.backendSeriesId = ""
+    m.playableEpisodeId = ""
     m.backendSeasons = []
     m.backendEpisodes = []
     m.episodePageStart = 0
@@ -65,7 +66,11 @@ sub activate()
     item = m.focusItems[m.focusIndex]
     action = detailText(item, "action")
     if action = "back" then goBack() : return
-    if action = "resume" or action = "episode" then playDetail() : return
+    if action = "resume" or action = "episode" then
+        m.playableEpisodeId = ""
+        playDetail()
+        return
+    end if
     if action = "favorite" then toggleFavorite() : return
     if action = "season" then
         if item.doesExist("seasonIndex") then m.seasonIndex = item.seasonIndex
@@ -242,12 +247,23 @@ sub playDetail()
             end if
             return
         end if
-        m.top.detailPlaybackUrl = backendApiText(episode, "stream_url")
-        if m.top.detailPlaybackUrl = "" then
+        episodeId = backendApiText(episode, "id")
+        if episodeId = "" then
+            m.backendMessage = "Episode is unavailable. Select the season to retry."
+            render()
+            return
+        end if
+        if m.playableEpisodeId <> episodeId then
             startBackendSeasonLoad(Int(m.episodeIndex / 50) + 1, true)
             return
         end if
-        m.top.detailPlaybackFormat = backendApiStreamFormat(m.top.detailPlaybackUrl)
+        m.top.detailPlaybackUrl = backendApiText(episode, "stream_url")
+        if m.top.detailPlaybackUrl = "" then
+            m.backendMessage = "Episode has no playable stream. Press Watch to retry."
+            render()
+            return
+        end if
+        m.top.detailPlaybackFormat = backendApiStreamFormatForItem(episode, m.top.detailPlaybackUrl)
     end if
     url = m.top.detailPlaybackUrl
     if url = invalid or url = "" then
@@ -264,6 +280,7 @@ sub playDetail()
     m.top.playbackMediaId = detailProgressMediaId()
     m.top.playbackEpisodeId = selectedEpisodeProgressId()
     m.top.playbackSeasonIndex = m.seasonIndex
+    m.top.playbackSeasonNumber = selectedBackendSeasonNumber()
     m.top.playbackEpisodeIndex = m.episodeIndex
     m.top.playbackSeasonCount = detailSeasonCount()
     m.top.playbackSeasonEpisodeCount = selectedSeasonEpisodeCount()
@@ -323,9 +340,11 @@ sub drawBackdrop()
     end if
     if heroUrl <> invalid and heroUrl <> "" then
         drawSeriesDetailHeroPoster(heroUrl)
+        if m.top.detailPosterUrl = invalid or m.top.detailPosterUrl = "" then drawSeriesPosterAnchor("pkg:/images/fallback/series_poster.png")
     else
         posterUrl = m.top.detailPosterUrl
-        if posterUrl <> invalid and posterUrl <> "" then drawSeriesPosterAnchor(posterUrl)
+        if posterUrl = invalid or posterUrl = "" then posterUrl = "pkg:/images/fallback/series_poster.png"
+        drawSeriesPosterAnchor(posterUrl)
         uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.52)
         uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", 0.12)
         drawSeriesDetailSmokeBlend()
@@ -343,7 +362,7 @@ sub drawSeriesPosterAnchor(posterUrl as String)
     h = 404
     uiRect(m.canvas, x - 10, y - 4, w + 20, h + 16, "0x000000FF", 0.16)
     uiRect(m.canvas, x - 3, y + 5, w + 9, h + 2, "0x000000FF", 0.10)
-    poster = uiPosterFit(m.canvas, posterUrl, x, y, w, h, 0.78)
+    poster = uiPosterFit(m.canvas, posterUrl, x, y, w, h, 0.78, "pkg:/images/fallback/series_poster.png")
     uiRect(m.canvas, x, y, w, h, "0xFFFFFF18", 0.035)
     uiRect(m.canvas, x - 2, y - 2, w + 4, h + 4, "0x000000FF", 0.035)
 end sub
@@ -361,12 +380,12 @@ end sub
 sub drawHeroCopy()
     uiScaledLabel(m.canvas, detailTitle(), 70, 104, 500, 46, 24, m.colors.text, "left", 1.38)
     uiScaledLabel(m.canvas, detailHeaderMeta(), 72, 202, 520, 22, 12, m.colors.textDim, "left", 0.82)
-    drawTwoLineText(detailDescription(), 72, 246, 520, 24, 13, m.colors.textMuted, 54)
+    drawThreeLineText(detailDescription(), 72, 246, 520, 24, 13, m.colors.textMuted, 54)
 end sub
 
 sub drawActions()
-    drawActionButton(72, 338, 176, "play", seriesPrimaryActionLabel(), "resume", 2, 0)
-    drawActionButton(264, 338, 176, "heart", favoriteActionLabel(), "favorite", 2, 1)
+    drawActionButton(72, 350, 176, "play", seriesPrimaryActionLabel(), "resume", 2, 0)
+    drawActionButton(264, 350, 176, "heart", favoriteActionLabel(), "favorite", 2, 1)
 end sub
 
 sub drawActionButton(x as Integer, y as Integer, w as Integer, icon as String, label as String, action as String, row as Integer, col as Integer)
@@ -451,12 +470,12 @@ end sub
 sub drawSeasonTabs()
     seasonCount = detailSeasonCount()
     visibleCount = visibleSeasonCount()
-    uiLabel(m.canvas, "SEASONS", 72, 410, 190, 22, 10, m.colors.text)
+    uiLabel(m.canvas, "SEASONS", 72, 434, 190, 22, 10, m.colors.text)
     for i = 0 to visibleCount - 1
         col = i mod 4
         row = Int(i / 4)
         x = 72 + col * 148
-        y = 456 + row * 46
+        y = 480 + row * 46
         seasonIndex = i
         if m.backendSeries then seasonIndex += m.seasonWindowStart
         label = "Season " + (seasonIndex + 1).toStr()
@@ -781,7 +800,7 @@ function episodeDurationFromData(localIndex as Integer) as String
         if tokens.count() >= detailEpisodeCount() then tokenIndex = selectedSeasonEpisodeOffset() + localIndex
         if tokenIndex >= 0 and tokenIndex < tokens.count() then
             duration = trimLeftText(tokens[tokenIndex])
-            if duration <> "" then return duration
+            if duration <> "" then return backendApiDurationLabel(duration)
         end if
     end if
     return placeholderEpisodeDuration(localIndex)
@@ -790,7 +809,7 @@ end function
 function placeholderEpisodeDuration(localIndex as Integer) as String
     durations = ["52 min", "55 min", "58 min", "54 min", "57 min", "60 min", "51 min", "56 min"]
     durationIndex = (m.seasonIndex + localIndex) mod durations.count()
-    return durations[durationIndex]
+    return backendApiDurationLabel(durations[durationIndex])
 end function
 
 function isEpisodeCodeLabel(text as String) as Boolean
@@ -887,15 +906,18 @@ function numberBeforeWord(text as String, word as String, fallback as Integer) a
     return value
 end function
 
-sub drawTwoLineText(text as String, x as Integer, y as Integer, w as Integer, lineH as Integer, size as Integer, color as String, maxChars as Integer)
+sub drawThreeLineText(text as String, x as Integer, y as Integer, w as Integer, lineH as Integer, size as Integer, color as String, maxChars as Integer)
     line1 = fitLineText(text, maxChars)
     uiLabel(m.canvas, line1, x, y, w, lineH + 6, size, color)
     rest = trimLeftText(Right(text, text.len() - line1.len()))
-    if rest <> "" then
-        line2 = fitLineText(rest, maxChars)
-        if rest.len() > line2.len() then line2 = line2 + "..."
-        uiLabel(m.canvas, line2, x, y + lineH, w, lineH + 6, size, color)
-    end if
+    if rest = "" then return
+    line2 = fitLineText(rest, maxChars)
+    uiLabel(m.canvas, line2, x, y + lineH, w, lineH + 6, size, color)
+    rest = trimLeftText(Right(rest, rest.len() - line2.len()))
+    if rest = "" then return
+    line3 = fitLineText(rest, maxChars)
+    if rest.len() > line3.len() then line3 += "..."
+    uiLabel(m.canvas, line3, x, y + lineH * 2, w, lineH + 6, size, color)
 end sub
 
 function fitLineText(text as String, maxChars as Integer) as String
@@ -1035,9 +1057,12 @@ sub onBackendSeasonLoaded()
         if m.playEpisodeWhenLoaded then
             episode = backendSelectedEpisode()
             if backendApiText(episode, "id") = m.requestedEpisodeId and backendApiText(episode, "stream_url") <> "" then
+                m.playableEpisodeId = m.requestedEpisodeId
+                m.playEpisodeWhenLoaded = false
                 playDetail()
                 return
             end if
+            m.playableEpisodeId = ""
             m.backendMessage = "Episode could not be played. Press Watch to retry."
         end if
     else

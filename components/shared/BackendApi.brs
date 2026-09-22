@@ -583,7 +583,7 @@ function backendApiMapMovieItem(item as Object, playlistId as String, index as I
         posterUrl: cardArtwork, cardUrl: cardArtwork, cardDisplayMode: "fit", artworkRole: artworkRole,
         heroUrl: backendApiMovieHeroArtworkUrl(item), backdropUrl: backendApiMovieExplicitHeroArtworkUrl(item),
         streamUrl: backendApiText(item, "stream_url"), streamHost: backendApiText(item, "stream_host"),
-        streamFormat: backendApiStreamFormat(backendApiText(item, "stream_url")),
+        streamFormat: backendApiStreamFormatForItem(item, backendApiText(item, "stream_url")),
         featured: index = 1, featuredPriority: 1000 - index, resumePercent: 0, accent: "purple"
     }
 end function
@@ -675,7 +675,7 @@ function backendApiMapSeriesChannelItems(items as Dynamic, playlistId as String,
                     genre: backendApiPrimaryGroupLabel(backendApiText(item, "group_title", "Series")),
                     rating: "", description: backendApiText(item, "overview"),
                     posterUrl: poster, cardUrl: poster, cardDisplayMode: "fit", artworkRole: artworkRole, heroUrl: heroUrl, backdropUrl: backendApiMovieExplicitHeroArtworkUrl(item),
-                    streamUrl: backendApiText(item, "stream_url"), streamFormat: backendApiStreamFormat(backendApiText(item, "stream_url")),
+                    streamUrl: backendApiText(item, "stream_url"), streamFormat: backendApiStreamFormatForItem(item, backendApiText(item, "stream_url")),
                     episodeNames: name, seasonNames: "Season 1", episodeDurations: "",
                     activeEpisodeTitle: name, resumePercent: 0, featured: index = 1, accent: "purple"
                 })
@@ -698,22 +698,81 @@ end function
 function backendApiDuration(item as Dynamic) as String
     seconds = backendApiInt(item, "duration_seconds", 0)
     if seconds <= 0 then return ""
-    return Int(seconds / 60).toStr() + " min"
+    return backendApiDurationMinutes(Int(seconds / 60))
+end function
+
+function backendApiDurationMinutes(minutes as Integer) as String
+    if minutes < 0 then return ""
+    hours = Int(minutes / 60)
+    remainingMinutes = minutes mod 60
+    if hours = 0 then
+        if minutes = 1 then return "1 minute"
+        return minutes.toStr() + " minutes"
+    end if
+    result = hours.toStr() + " hour"
+    if hours <> 1 then result += "s"
+    if remainingMinutes = 0 then return result
+    result += " " + remainingMinutes.toStr() + " minute"
+    if remainingMinutes <> 1 then result += "s"
+    return result
+end function
+
+function backendApiDurationLabel(value as String) as String
+    if value = invalid or value = "" then return ""
+    normalized = LCase(value)
+    if Instr(1, normalized, "hour") > 0 then return value
+    hoursMarker = Instr(1, normalized, "h")
+    if hoursMarker > 1 and Instr(1, normalized, "m") > hoursMarker then
+        hours = Val(Left(normalized, hoursMarker - 1))
+        minutes = Val(Mid(normalized, hoursMarker + 1))
+        return backendApiDurationMinutes(hours * 60 + minutes)
+    end if
+    if Instr(1, normalized, "min") > 0 and Val(normalized) > 0 then return backendApiDurationMinutes(Val(normalized))
+    return value
+end function
+
+function backendApiStreamFormatForItem(item as Dynamic, url as String) as String
+    format = backendApiExplicitStreamFormat(url)
+    if format <> "" then return format
+    format = backendApiStreamFormatFromExtension(backendApiText(item, "container_extension"))
+    if format <> "" then return format
+    return "hls"
+end function
+
+function backendApiStreamFormatFromExtension(extension as String) as String
+    value = LCase(extension)
+    if Left(value, 1) = "." then value = Mid(value, 2)
+    if value = "mp4" or value = "m4v" or value = "mov" then return "mp4"
+    if value = "mkv" or value = "webm" then return "mkv"
+    if value = "ts" then return "ts"
+    if value = "m3u8" then return "hls"
+    if value = "mpd" then return "dash"
+    if value = "ism" then return "ism"
+    return ""
 end function
 
 function backendApiStreamFormat(url as String) as String
-    if url = "" then return "hls"
+    format = backendApiExplicitStreamFormat(url)
+    if format <> "" then return format
+    return "hls"
+end function
+
+function backendApiExplicitStreamFormat(url as String) as String
+    if url = "" then return ""
     path = LCase(url)
     queryStart = Instr(1, path, "?")
     if queryStart > 0 then path = Left(path, queryStart - 1)
-    if path.len() >= 3 then
-        if Right(path, 3) = ".ts" then return "ts"
+    fragmentStart = Instr(1, path, "#")
+    if fragmentStart > 0 then path = Left(path, fragmentStart - 1)
+    dot = 0
+    for i = 1 to path.len()
+        if Mid(path, i, 1) = "." then dot = i
+    end for
+    if dot > 0 then
+        format = backendApiStreamFormatFromExtension(Mid(path, dot + 1))
+        if format <> "" then return format
     end if
-    if path.len() >= 4 then
-        suffix = Right(path, 4)
-        if suffix = ".mp4" or suffix = ".mkv" or suffix = ".m4v" then return "mp4"
-    end if
-    return "hls"
+    return ""
 end function
 
 function backendApiGroupLabel(groupTitle as String) as String

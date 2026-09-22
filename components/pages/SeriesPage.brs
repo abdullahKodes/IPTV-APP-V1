@@ -333,7 +333,7 @@ sub openSeriesDetail(series as Object)
     m.top.detailSubtitle = seriesText(series, "seasons") + " - " + seriesText(series, "episodeCount")
     m.top.detailMeta = seriesText(series, "genre") + " - " + seriesText(series, "rating")
     m.top.detailDescription = seriesDescription(series)
-    m.top.detailPosterUrl = seriesText(series, "posterUrl")
+    m.top.detailPosterUrl = seriesCardUrl(series)
     m.top.detailHeroUrl = seriesHeroArtworkUrl(series)
     m.top.detailBackdropUrl = seriesBackdropUrl(series)
     m.top.detailPlaybackUrl = mediaPlaybackUrl(series)
@@ -723,16 +723,15 @@ sub drawContinueCard(series as Object, sourceIndex as Integer, resumeIndex as In
 end sub
 
 sub drawContinuePoster(series as Object, parent as Object, x as Integer, y as Integer, w as Integer, h as Integer)
-    posterUrl = seriesText(series, "posterUrl")
-    if posterUrl = "" then posterUrl = seriesCardUrl(series)
+    fallbackUrl = "pkg:/images/fallback/series_poster.png"
+    posterUrl = seriesCardUrl(series)
     if posterUrl <> "" then
-        poster = uiPosterFit(parent, posterUrl, x, y, w, h)
-        uiPoster(parent, "pkg:/images/demo/frames/featured_poster_corner_mask.png", x, y, w, h)
-        uiPoster(parent, "pkg:/images/demo/frames/featured_poster_frame_neutral.png", x, y, w, h)
+        poster = uiPosterFit(parent, posterUrl, x, y, w, h, 1.0, fallbackUrl)
     else
-        uiRoundRect(parent, x, y, w, h, m.colors.purpleSoft, m.colors.greenFocus)
-        uiDrawIcon(parent, "cards_badge", x + 16, y + 28, 36, 36, false, "0xFFFFFFFF", 12)
+        poster = uiPosterFit(parent, fallbackUrl, x, y, w, h)
     end if
+    uiPoster(parent, "pkg:/images/demo/frames/featured_poster_corner_mask.png", x, y, w, h)
+    uiPoster(parent, "pkg:/images/demo/frames/featured_poster_frame_neutral.png", x, y, w, h)
 end sub
 
 sub drawMediaCard(series as Object, mediaIndex as Integer, sourceIndex as Integer, x as Integer, y as Integer, w as Integer, h as Integer, row as Integer, col as Integer)
@@ -793,16 +792,12 @@ sub drawSeriesCardBorder(parent as Object, x as Integer, y as Integer, w as Inte
 end sub
 
 sub drawSeriesPoster(series as Object, parent as Object, x as Integer, y as Integer, w as Integer, h as Integer, focused as Boolean)
+    fallbackUrl = "pkg:/images/fallback/series_poster.png"
     artUrl = seriesCardUrl(series)
     if artUrl <> "" then
-        poster = uiPosterFit(parent, artUrl, x, y, w, h, 0.96)
+        poster = uiPosterFit(parent, artUrl, x, y, w, h, 0.96, fallbackUrl)
     else
-        iconW = 36
-        iconH = 36
-        iconX = x + Int((w - iconW) / 2)
-        iconY = y + Int((h - iconH) / 2)
-        uiDrawIcon(parent, "cards_badge", iconX, iconY, iconW, iconH, focused, "0xFFFFFFFF", 12)
-        uiLabel(parent, seriesText(series, "year"), x + 16, y + h - 24, w - 32, 18, 8, m.colors.textMuted, "center")
+        poster = uiPosterFit(parent, fallbackUrl, x, y, w, h, 0.96)
     end if
 end sub
 
@@ -813,6 +808,7 @@ sub drawSelectedSeriesBackdrop(visible as Object)
     heroUrl = seriesHeroArtworkUrl(series)
     if heroUrl <> "" then
         drawSeriesBackdropPosterAnchor(heroUrl, 370, 28, 770, 664)
+        if seriesCardUrl(series) = "" then drawSeriesFallbackPosterAnchor("pkg:/images/fallback/series_poster.png")
     else
         drawSeriesFallbackBackdrop(series)
     end if
@@ -824,7 +820,8 @@ sub drawSeriesFallbackBackdrop(series as Object)
         backdrop = uiPosterZoom(m.canvas, bgUrl, 0, 0, 1280, 720, seriesListBackdropOpacity())
     end if
     posterUrl = seriesCardUrl(series)
-    if posterUrl <> "" then drawSeriesFallbackPosterAnchor(posterUrl)
+    if posterUrl = "" then posterUrl = "pkg:/images/fallback/series_poster.png"
+    drawSeriesFallbackPosterAnchor(posterUrl)
     uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.46)
     uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", seriesListScrimOpacity())
 end sub
@@ -836,7 +833,7 @@ sub drawSeriesFallbackPosterAnchor(posterUrl as String)
     h = 404
     uiRect(m.canvas, x - 10, y - 4, w + 20, h + 16, "0x000000FF", 0.16)
     uiRect(m.canvas, x - 3, y + 5, w + 9, h + 2, "0x000000FF", 0.10)
-    poster = uiPosterFit(m.canvas, posterUrl, x, y, w, h, 0.78)
+    poster = uiPosterFit(m.canvas, posterUrl, x, y, w, h, 0.78, "pkg:/images/fallback/series_poster.png")
     uiRect(m.canvas, x, y, w, h, "0xFFFFFF18", 0.035)
     uiRect(m.canvas, x - 2, y - 2, w + 4, h + 4, "0x000000FF", 0.035)
 end sub
@@ -881,6 +878,8 @@ function seriesCardUrl(series as Object) as String
     if posterUrl <> "" then return posterUrl
     cardUrl = seriesText(series, "cardUrl")
     if cardUrl <> "" then return cardUrl
+    logoUrl = seriesText(series, "logoUrl")
+    if logoUrl <> "" then return logoUrl
     backdropUrl = seriesText(series, "backdropUrl")
     if backdropUrl <> "" then return backdropUrl
     return ""

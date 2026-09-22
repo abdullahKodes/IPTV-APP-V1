@@ -30,7 +30,11 @@ sub initializeMoviesPage()
     m.movieWindowStart = 0
     m.movieWindowSize = 5
     m.selectedMovieIndex = 0
-    m.featuredMovieIndex = -1
+    m.featuredMovieItem = invalid
+    m.featuredVerifiedMovies = []
+    m.featuredScanIndex = 0
+    m.featuredScanActive = false
+    m.featuredProbe = invalid
     m.movieHeroEligibility = {}
     m.movieHeroProbe = invalid
     m.movieHeroProbeUrl = ""
@@ -83,7 +87,7 @@ sub initializeMoviesPage()
             m.backendMessage = "Add this playlist again to refresh its content."
         end if
     end if
-    m.featuredMovieIndex = selectFeaturedMovieIndex(m.movies)
+    selectFeaturedMovie()
     m.categories = movieCategoriesFromCatalog(m.movies)
     m.categoryIndex = 0
     m.focusedCategoryIndex = 0
@@ -206,7 +210,7 @@ sub onBackendMoviesLoaded()
         m.backendNextCursor = -1
         if m.backendHasMore then m.backendNextCursor = nextCursor
         m.backendLoading = false
-        m.featuredMovieIndex = selectFeaturedMovieIndex(m.movies)
+        selectFeaturedMovie()
         data = backendApiResponseData(response)
         if backendApiIsAssoc(data) then
             if data.doesExist("groups") and Type(data.groups) = "roArray" and m.searchQuery = "" and backendSelectedGroup() = "All" then m.backendGroups = data.groups
@@ -304,7 +308,7 @@ sub openMovieDetail(movie as Object)
     m.top.detailSubtitle = movieText(movie, "year") + " - " + movieText(movie, "duration")
     m.top.detailMeta = movieText(movie, "genre")
     m.top.detailDescription = movieDescription(movie)
-    m.top.detailPosterUrl = movieText(movie, "posterUrl")
+    m.top.detailPosterUrl = movieCardUrl(movie)
     m.top.detailHeroUrl = movieHeroArtworkUrl(movie)
     m.top.detailBackdropUrl = movieBackdropUrl(movie)
     m.top.detailPlaybackUrl = mediaPlaybackUrl(movie)
@@ -375,23 +379,26 @@ sub render()
     end if
     drawMoviePills(row)
 
+    featured = featuredMovie(visible)
     uiLabel(m.canvas, "FEATURED MOVIE", 244, 166, 250, 26, 13, m.colors.text)
-    drawFeatured(featuredMovie(visible), row + 1)
+    drawFeatured(featured, row + 1)
+    sectionY = 404
+    cardY = 444
 
     sectionLabel = "ALL MOVIES"
     if m.selectedGenre <> "All" then sectionLabel = m.selectedGenre + " movies"
     countText = movieCountText(visible.count())
-    uiLabel(m.canvas, sectionLabel, 244, 404, 250, 26, 13, m.colors.text)
-    uiLabel(m.canvas, countText, 824, 404, 190, 26, 12, m.colors.textDim, "right")
+    uiLabel(m.canvas, sectionLabel, 244, sectionY, 250, 26, 13, m.colors.text)
+    uiLabel(m.canvas, countText, 824, sectionY, 190, 26, 12, m.colors.textDim, "right")
     endIndex = m.movieWindowStart + m.movieWindowSize - 1
     if endIndex > visible.count() - 1 then endIndex = visible.count() - 1
     slot = 0
     for i = m.movieWindowStart to endIndex
         rowData = visible[i]
-        drawMovieCard(rowData.movie, i, rowData.index, 244 + slot * 174, 444, 164, 230, 4, slot + 1)
+        drawMovieCard(rowData.movie, i, rowData.index, 244 + slot * 174, cardY, 164, 230, 4, slot + 1)
         slot += 1
     end for
-    drawMovieScrollbar(visible.count(), 1134, 444, 230)
+    drawMovieScrollbar(visible.count(), 1134, cardY, 230)
 
     ensureMovieFocus()
     uiApplyFocus(m.canvas, m.focusItems, m.focusIndex)
@@ -614,7 +621,7 @@ sub drawMoviePills(row as Integer)
     end if
 end sub
 
-sub drawFeatured(movie as Object, row as Integer)
+sub drawFeatured(movie as Dynamic, row as Integer)
     itemIndex = m.focusItems.count()
     focused = itemIndex = m.focusIndex
     titleColor = m.colors.textGreen
@@ -636,11 +643,19 @@ sub drawFeatured(movie as Object, row as Integer)
     if focused then
         uiPoster(featuredCanvas, "pkg:/images/ui/movie_featured_770x184_panel_greenFocus.png", 0, 0, 600, 184, 0.56)
     end if
-    drawFeaturedPoster(movie, featuredCanvas, 34, 21, 92, 142)
+    if movie <> invalid then
+        drawFeaturedPoster(movie, featuredCanvas, 34, 21, 92, 142)
+    else
+        uiPosterFit(featuredCanvas, "pkg:/images/fallback/movie_poster.png", 30, 17, 100, 150)
+    end if
     uiPoster(featuredCanvas, "pkg:/images/ui/movie_featured_badge_100x34_purpleDeep.png", 160, 22, 78, 24, 0.76)
     uiScaledLabel(featuredCanvas, "Featured", 160, 26, 78, 16, 8, labelColor, "center", 0.72)
-    title = movieText(movie, "title", "Untitled")
-    meta = movieText(movie, "year") + " - " + movieText(movie, "duration") + " - " + movieText(movie, "genre")
+    if movie = invalid then
+        if not m.featuredScanActive then uiLabel(featuredCanvas, "No featured movie available", 160, 68, 390, 28, 15, subColor)
+        return
+    end if
+    title = movieText(movie, "title")
+    meta = movieText(movie, "duration")
     uiLabel(featuredCanvas, title, 160, 54, 320, 28, 17, titleColor)
     uiScaledLabel(featuredCanvas, meta, 160, 87, 360, 18, 8, subColor, "left", 0.68)
     uiPoster(featuredCanvas, buttonUri, 160, 121, 126, 34, 0.74)
@@ -701,20 +716,16 @@ sub drawMovieCardTitleOverlay(parent as Object, title as String, w as Integer, h
 end sub
 
 sub drawMoviePoster(movie as Object, parent as Object, x as Integer, y as Integer, w as Integer, h as Integer)
+    fallbackUrl = "pkg:/images/fallback/movie_poster.png"
     artUrl = movieCardUrl(movie)
     if artUrl <> "" then
         if movieText(movie, "cardDisplayMode") = "fit" then
-            poster = uiPosterFit(parent, artUrl, x, y, w, h, 0.96)
+            poster = uiPosterFit(parent, artUrl, x, y, w, h, 0.96, fallbackUrl)
         else
-            poster = uiPosterZoom(parent, artUrl, x, y, w, h, 0.96)
+            poster = uiPosterZoom(parent, artUrl, x, y, w, h, 0.96, fallbackUrl, false)
         end if
     else
-        iconW = 36
-        iconH = 36
-        iconX = x + Int((w - iconW) / 2)
-        iconY = y + Int((h - iconH) / 2) - 6
-        uiPoster(parent, "pkg:/images/icons/movie_cards.png", iconX, iconY, iconW, iconH)
-        uiLabel(parent, movieText(movie, "year"), x + 16, y + h - 24, w - 32, 18, 8, m.colors.textMuted, "center")
+        uiPosterZoom(parent, fallbackUrl, x, y, w, h, 0.96)
     end if
 end sub
 
@@ -731,15 +742,15 @@ sub drawMovieCardBorder(parent as Object, x as Integer, y as Integer, w as Integ
 end sub
 
 sub drawFeaturedPoster(movie as Object, parent as Object, x as Integer, y as Integer, w as Integer, h as Integer)
-    posterUrl = movieText(movie, "posterUrl")
+    posterUrl = movieCardUrl(movie)
     if posterUrl <> "" then
-        poster = uiPosterFit(parent, posterUrl, x - 4, y - 4, w + 8, h + 8)
+        poster = uiPosterFit(parent, posterUrl, x - 4, y - 4, w + 8, h + 8, 1.0, "pkg:/images/fallback/movie_poster.png")
         uiPoster(parent, "pkg:/images/demo/frames/featured_poster_corner_mask.png", x - 4, y - 4, w + 8, h + 8)
         uiPoster(parent, "pkg:/images/demo/frames/featured_poster_frame_neutral.png", x - 4, y - 4, w + 8, h + 8)
     else
-        uiRoundRect(parent, x, y, w, h, m.colors.purpleSoft, m.colors.greenFocus)
-        uiPoster(parent, "pkg:/images/icons/movie_featured.png", x + 15, y + 28, 44, 44)
-        uiLabel(parent, movie.year, x + 8, y + 86, w - 16, 20, 8, m.colors.textMuted, "center")
+        uiPosterFit(parent, "pkg:/images/fallback/movie_poster.png", x - 4, y - 4, w + 8, h + 8)
+        uiPoster(parent, "pkg:/images/demo/frames/featured_poster_corner_mask.png", x - 4, y - 4, w + 8, h + 8)
+        uiPoster(parent, "pkg:/images/demo/frames/featured_poster_frame_neutral.png", x - 4, y - 4, w + 8, h + 8)
     end if
 end sub
 
@@ -750,6 +761,7 @@ sub drawSelectedBackdrop(visible as Object)
     heroUrl = movieHeroArtworkUrl(movie)
     if heroUrl <> "" then
         drawMovieBackdropPosterAnchor(heroUrl, 370, 28, 770, 664)
+        if movieCardUrl(movie) = "" then drawMovieFallbackPosterAnchor("pkg:/images/fallback/movie_poster.png")
     else
         drawMovieFallbackBackdrop(movie)
     end if
@@ -761,7 +773,8 @@ sub drawMovieFallbackBackdrop(movie as Object)
         backdrop = uiPosterZoom(m.canvas, bgUrl, 0, 0, 1280, 720, movieListBackdropOpacity())
     end if
     posterUrl = movieCardUrl(movie)
-    if posterUrl <> "" then drawMovieFallbackPosterAnchor(posterUrl)
+    if posterUrl = "" then posterUrl = "pkg:/images/fallback/movie_poster.png"
+    drawMovieFallbackPosterAnchor(posterUrl)
     uiRect(m.canvas, 0, 0, 1280, 720, m.colors.bg, 0.46)
     uiRect(m.canvas, 0, 0, 1280, 720, "0x000000FF", movieListScrimOpacity())
 end sub
@@ -773,7 +786,7 @@ sub drawMovieFallbackPosterAnchor(posterUrl as String)
     h = 404
     uiRect(m.canvas, x - 10, y - 4, w + 20, h + 16, "0x000000FF", 0.16)
     uiRect(m.canvas, x - 3, y + 5, w + 9, h + 2, "0x000000FF", 0.10)
-    poster = uiPosterFit(m.canvas, posterUrl, x, y, w, h, 0.78)
+    poster = uiPosterFit(m.canvas, posterUrl, x, y, w, h, 0.78, "pkg:/images/fallback/movie_poster.png")
     uiRect(m.canvas, x, y, w, h, "0xFFFFFF18", 0.035)
     uiRect(m.canvas, x - 2, y - 2, w + 4, h + 4, "0x000000FF", 0.035)
 end sub
@@ -815,6 +828,8 @@ function movieCardUrl(movie as Object) as String
     if posterUrl <> "" then return posterUrl
     cardUrl = movieText(movie, "cardUrl")
     if cardUrl <> "" then return cardUrl
+    logoUrl = movieText(movie, "logoUrl")
+    if logoUrl <> "" then return logoUrl
     return ""
 end function
 
@@ -1019,6 +1034,7 @@ sub onFocusedMoviePreviewLoaded()
         end if
     end if
     m.movies[movieIndex] = movie
+    selectFeaturedMovie()
 
     visible = filteredMovies()
     focusedMovie = selectedMovieForBackdrop(visible)
@@ -1067,7 +1083,10 @@ function movieText(movie as Dynamic, key as String, fallback = "" as String) as 
     value = movieValue(movie, key)
     if value = invalid then return fallback
     valueType = type(value)
-    if valueType = "String" or valueType = "roString" then return value
+    if valueType = "String" or valueType = "roString" then
+        if key = "duration" then return backendApiDurationLabel(value)
+        return value
+    end if
     if valueType = "Integer" or valueType = "roInt" or valueType = "LongInteger" or valueType = "roLongInteger" or valueType = "Float" or valueType = "roFloat" or valueType = "Double" or valueType = "roDouble" then return value.toStr()
     return fallback
 end function
@@ -1090,115 +1109,122 @@ function selectedMovieForBackdrop(visible as Object) as Dynamic
     if visible.count() > 0 and m.focusArea = "movies" then
         if m.selectedMovieIndex >= 0 and m.selectedMovieIndex < visible.count() then return visible[m.selectedMovieIndex].movie
     end if
-    return featuredMovie(visible)
+    featured = featuredMovie(visible)
+    if featured <> invalid then return featured
+    if visible.count() > 0 then return visible[0].movie
+    return invalid
 end function
 
-function featuredMovie(visible = invalid as Dynamic) as Object
-    if m.movies.count() = 0 then return {
-        title: "Featured Movie",
-        year: "",
-        duration: "",
-        genre: "",
-        rating: "",
-        posterUrl: "",
-        backdropUrl: "",
-        streamUrl: demoPlaybackUrl(),
-        streamFormat: "hls",
-        resumePercent: 0,
-        accent: "purple"
-    }
-    if m.featuredMovieIndex >= 0 and m.featuredMovieIndex < m.movies.count() then return m.movies[m.featuredMovieIndex]
-    return m.movies[0]
+function featuredMovie(visible = invalid as Dynamic) as Dynamic
+    if m.featuredMovieItem <> invalid and movieIsSpotlightEligible(m.featuredMovieItem) then return m.featuredMovieItem
+    return invalid
 end function
 
-function selectFeaturedMovieIndex(movies as Object) as Integer
+sub selectFeaturedMovie()
+    if m.featuredMovieItem <> invalid or m.featuredScanActive or m.movies = invalid or m.movies.count() = 0 then return
+    m.featuredVerifiedMovies = []
+    m.featuredScanIndex = 0
+    m.featuredScanActive = true
+    advanceFeaturedScan()
+end sub
+
+sub advanceFeaturedScan()
+    if not m.featuredScanActive then return
+    while m.featuredScanIndex < m.movies.count() and m.featuredVerifiedMovies.count() < 5
+        movie = m.movies[m.featuredScanIndex]
+        m.featuredScanIndex += 1
+        if movieIsSpotlightEligible(movie) then
+            probe = CreateObject("roSGNode", "Poster")
+            if probe <> invalid then
+                probe.width = 1
+                probe.height = 1
+                probe.opacity = 0.0
+                probe.loadWidth = 164
+                probe.loadHeight = 230
+                probe.loadDisplayMode = "limitSize"
+                probe.observeField("loadStatus", "onFeaturedPosterProbeStatusChanged")
+                m.top.appendChild(probe)
+                m.featuredProbe = probe
+                m.featuredProbeMovie = movie
+                probe.uri = movieCardUrl(movie)
+                return
+            end if
+        end if
+    end while
+    m.featuredScanActive = false
+    if m.featuredVerifiedMovies.count() > 0 then
+        previousId = featuredLastMovieId(m.activePlaylistId)
+        selectedIndex = selectFeaturedMovieIndex(m.featuredVerifiedMovies, previousId)
+        if selectedIndex >= 0 then
+            m.featuredMovieItem = m.featuredVerifiedMovies[selectedIndex]
+            featuredRememberMovie(m.activePlaylistId, movieText(m.featuredMovieItem, "id"))
+        end if
+    end if
+    if not m.searchEditing then render()
+end sub
+
+sub onFeaturedPosterProbeStatusChanged(event as Object)
+    if m.featuredProbe = invalid then return
+    status = event.getData()
+    if status <> "ready" and status <> "failed" then return
+    if status = "ready" and m.featuredProbe.bitmapWidth > 0 and m.featuredProbe.bitmapHeight > 0 then
+        m.featuredVerifiedMovies.push(m.featuredProbeMovie)
+    end if
+    m.featuredProbe.unobserveField("loadStatus")
+    m.top.removeChild(m.featuredProbe)
+    m.featuredProbe = invalid
+    m.featuredProbeMovie = invalid
+    advanceFeaturedScan()
+end sub
+
+function selectFeaturedMovieIndex(movies as Object, previousId as String) as Integer
     if movies = invalid or movies.count() = 0 then return -1
-
-    selectedIndex = -1
-    highestPriority = -2147483647
+    eligible = []
+    previousPosition = -1
     for movieIndex = 0 to movies.count() - 1
-        movie = movies[movieIndex]
-        if movieIsSpotlightEligible(movie) and movieFeaturedFlagIsActive(movie) then
-            priority = movieNumber(movie, "featuredPriority", 0)
-            if selectedIndex < 0 or priority > highestPriority then
-                selectedIndex = movieIndex
-                highestPriority = priority
-            end if
-        end if
-    end for
-    if selectedIndex >= 0 then return selectedIndex
-
-    newestAddedKey = 0
-    for movieIndex = 0 to movies.count() - 1
+        if eligible.count() >= 5 then exit for
         movie = movies[movieIndex]
         if movieIsSpotlightEligible(movie) then
-            addedKey = movieDateKey(movieText(movie, "addedAt"))
-            if addedKey > newestAddedKey then
-                selectedIndex = movieIndex
-                newestAddedKey = addedKey
-            end if
+            eligible.push(movieIndex)
+            if movieText(movie, "id") = previousId then previousPosition = eligible.count() - 1
         end if
     end for
-    if selectedIndex >= 0 then return selectedIndex
-
-    newestYear = 0
-    for movieIndex = 0 to movies.count() - 1
-        movie = movies[movieIndex]
-        if movieIsSpotlightEligible(movie) then
-            releaseYear = movieNumber(movie, "year", 0)
-            if selectedIndex < 0 or releaseYear > newestYear then
-                selectedIndex = movieIndex
-                newestYear = releaseYear
-            end if
-        end if
-    end for
-    if selectedIndex >= 0 then return selectedIndex
-
-    for movieIndex = 0 to movies.count() - 1
-        if movieHasPlayback(movies[movieIndex]) then return movieIndex
-    end for
-    return 0
+    if eligible.count() = 0 then return -1
+    if previousPosition >= 0 then return eligible[(previousPosition + 1) mod eligible.count()]
+    return eligible[0]
 end function
+
+function featuredLastMovieId(playlistId as String) as String
+    if playlistId = invalid or playlistId = "" then return ""
+    section = CreateObject("roRegistrySection", "iptvmax_featured")
+    if section = invalid then return ""
+    previousId = section.Read("last_" + playlistId)
+    if previousId = invalid then return ""
+    return previousId
+end function
+
+sub featuredRememberMovie(playlistId as String, movieId as String)
+    if playlistId = invalid or playlistId = "" or movieId = invalid or movieId = "" then return
+    section = CreateObject("roRegistrySection", "iptvmax_featured")
+    if section = invalid then return
+    if section.Write("last_" + playlistId, movieId) then section.Flush()
+end sub
 
 function movieIsSpotlightEligible(movie as Dynamic) as Boolean
-    return movieHasPlayback(movie) and movieCardUrl(movie) <> ""
+    if movieText(movie, "id") = "" then return false
+    if movieFlag(movie, "titleNeedsDetail") or not backendApiMovieTitleUsable(movieText(movie, "title")) then return false
+    duration = movieText(movie, "duration")
+    if duration = "" or Val(duration) <= 0 then return false
+    if movieText(movie, "posterUrl") = "" and movieText(movie, "cardUrl") = "" then return false
+    artworkRole = LCase(movieText(movie, "artworkRole"))
+    if artworkRole <> "" and artworkRole <> "poster" and artworkRole <> "cover" then return false
+    return movieHasPlayback(movie) or movieText(movie, "backendChannelId") <> ""
 end function
 
 function movieHasPlayback(movie as Dynamic) as Boolean
     if movieText(movie, "streamUrl") <> "" then return true
     if movieText(movie, "videoUrl") <> "" then return true
     return movieText(movie, "playbackUrl") <> ""
-end function
-
-function movieFeaturedFlagIsActive(movie as Dynamic) as Boolean
-    if not movieFlag(movie, "featured") then return false
-    expiryKey = movieDateKey(movieText(movie, "featuredUntil"))
-    if expiryKey = 0 then return true
-    return expiryKey >= movieTodayDateKey()
-end function
-
-function movieNumber(movie as Dynamic, key as String, fallback = 0 as Integer) as Integer
-    value = movieValue(movie, key)
-    if value = invalid then return fallback
-    valueType = type(value)
-    if valueType = "Integer" or valueType = "roInt" or valueType = "LongInteger" or valueType = "roLongInteger" then return Int(value)
-    if valueType = "Float" or valueType = "roFloat" or valueType = "Double" or valueType = "roDouble" then return Int(value)
-    if valueType = "String" or valueType = "roString" then return Int(Val(value))
-    return fallback
-end function
-
-function movieDateKey(dateText as String) as Integer
-    if dateText = invalid or dateText.len() < 10 then return 0
-    yearValue = Int(Val(Left(dateText, 4)))
-    monthValue = Int(Val(Mid(dateText, 6, 2)))
-    dayValue = Int(Val(Mid(dateText, 9, 2)))
-    if yearValue <= 0 or monthValue <= 0 or dayValue <= 0 then return 0
-    return (yearValue * 10000) + (monthValue * 100) + dayValue
-end function
-
-function movieTodayDateKey() as Integer
-    now = CreateObject("roDateTime")
-    return (now.GetYear() * 10000) + (now.GetMonth() * 100) + now.GetDayOfMonth()
 end function
 
 sub drawMovieScrollbar(total as Integer, x as Integer, y as Integer, h as Integer)
@@ -1417,9 +1443,19 @@ function routeMoviesFocus(dx as Integer, dy as Integer) as Boolean
             if sIndex >= 0 then m.focusIndex = sIndex : return true
         end if
         if dy > 0 then
-            m.focusArea = "featured"
             fIndex = findMovieFocusAction("watch")
-            if fIndex >= 0 then m.focusIndex = fIndex : return true
+            if fIndex >= 0 then
+                m.focusArea = "featured"
+                m.focusIndex = fIndex
+                return true
+            end if
+            mIndex = findMovieFocusByRowCol(4, 1)
+            if mIndex >= 0 then
+                m.selectedMovieIndex = m.movieWindowStart
+                m.focusArea = "movies"
+                m.focusIndex = mIndex
+                return true
+            end if
         end if
         return true
     end if
@@ -1473,14 +1509,23 @@ function routeMoviesFocus(dx as Integer, dy as Integer) as Boolean
         maybeLoadMoreMovies(visible.count())
         if dx > 0 then return true
         if dy < 0 then
-            m.focusArea = "featured"
             if movieSearchResultsActive() then
                 m.focusArea = "normal"
                 sIndex = findMovieFocusAction("search")
                 if sIndex >= 0 then m.focusIndex = sIndex : return true
             else
                 fIndex = findMovieFocusAction("watch")
-                if fIndex >= 0 then m.focusIndex = fIndex : return true
+                if fIndex >= 0 then
+                    m.focusArea = "featured"
+                    m.focusIndex = fIndex
+                    return true
+                end if
+                pIndex = findMovieFocusByRowCol(1, 1)
+                if pIndex >= 0 then
+                    m.focusArea = "categories"
+                    m.focusIndex = pIndex
+                    return true
+                end if
             end if
         end if
     end if

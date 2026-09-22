@@ -1,5 +1,4 @@
-// Run actual BrightScript helpers in the optional local brs interpreter.
-// Setup: npm.cmd install --prefix build/contract-runtime --no-audit --no-fund --ignore-scripts brs
+// Run actual BrightScript helpers with the project's local dev dependency.
 const fs = require('node:fs');
 const path = require('node:path');
 const {spawnSync} = require('node:child_process');
@@ -16,7 +15,7 @@ const source = inputs.map((file, i) => {
 }).join('\n');
 const target = path.join(root, 'build/backend-contract-harness.brs');
 fs.writeFileSync(target, source + '\n' + fs.readFileSync(path.join(__dirname, 'backend-contract.brs'), 'utf8'));
-const result = spawnSync(process.execPath, [path.join(root, 'build/contract-runtime/node_modules/brs/bin/cli.js'), target], {encoding: 'utf8'});
+const result = spawnSync(process.execPath, [require.resolve('brs/bin/cli.js'), target], {encoding: 'utf8'});
 process.stdout.write(result.stdout || '');
 process.stderr.write(result.stderr || '');
 process.exit(result.status !== 0 || !/Contract failures:\s*0/.test(result.stdout || '') || /^FAIL /m.test(result.stdout || '') ? 1 : 0);
